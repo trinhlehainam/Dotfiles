@@ -13,10 +13,6 @@ noremap j h
 nnoremap g; $
 nnoremap gj ^
 
-" Save, Quit
-nnoremap <C-s> :w<CR>
-nnoremap <C-q> :wq<CR>
-
 " Avoid break program
 nnoremap <C-c> <Esc>
 
