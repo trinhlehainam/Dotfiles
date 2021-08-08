@@ -32,4 +32,7 @@ source $HOME/.config/nvim/vim-plug/plugins.vim
 
 *** if ERROR : [vim-plug] `git` executable not found   -->  install git
 
-* GUIDE :https://www.chrisatmachine.com/Neovim/01-vim-plug/
+* GUIDE :
+    + https://www.chrisatmachine.com/Neovim/01-vim-plug/
+    + https://github.com/nanotee/nvim-lua-guide
+    + https://www.elsewebdevelopment.com/neovim-explained-how-to-build-a-plugin-free-nvim-config-that-unlocks-builtin-features/
