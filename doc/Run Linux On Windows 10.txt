@@ -1,0 +1,4 @@
+-Install WSL2 : https://docs.microsoft.com/en-us/windows/wsl/install-win10
+-Install Linux Distro in Microsoft Store
+-Install WSLg : https://docs.microsoft.com/en-us/windows/wsl/tutorials/gui-apps
+	* Require : Windows 10 Insider Preview build 21362

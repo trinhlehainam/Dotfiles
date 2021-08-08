@@ -1,0 +1,7 @@
+- Install zsh : 		sudo apt install zsh
+- Change default sheel to zsh:	chsh -s $(which zsh)
+- Install oh-my-zsh : 		sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+- Modify config in ~/.zshrc
+
+
+*Guide : https://github.com/ohmyzsh/ohmyzsh
