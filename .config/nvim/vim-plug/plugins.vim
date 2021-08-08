@@ -20,5 +20,6 @@ call plug#begin('~/.config/nvim/autoload/plugged')
     Plug 'vim-airline/vim-airline'
     Plug 'vim-airline/vim-airline-themes'
     Plug 'neoclide/coc.nvim', {'branch': 'release'}
+    Plug 'sirver/ultisnips'
 
 call plug#end()

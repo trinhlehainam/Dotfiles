@@ -1,3 +1,5 @@
+let g:mapleader = ' '
+
 " Escaper INSERT mode
 inoremap jk <Esc>
 
@@ -17,4 +19,5 @@ nnoremap gj ^
 nnoremap <C-c> <Esc>
 
 nnoremap <C-t> :NERDTreeToggle<CR><C-w>j
+
 
