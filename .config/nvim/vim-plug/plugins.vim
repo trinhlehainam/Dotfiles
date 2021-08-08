@@ -11,7 +11,8 @@ call plug#begin('~/.config/nvim/autoload/plugged')
     " Color Schemes
     Plug 'morhetz/gruvbox' 
     " Better Syntax Support
-    Plug 'nvim-treesitter/nvim-treesitter', {'do': ':TSUpdate'}  
+    Plug 'nvim-treesitter/nvim-treesitter', {'do': ':TSUpdate'}
+    Plug 'ryanoasis/vim-devicons'
     " File Explorer
     Plug 'scrooloose/NERDTree'
     Plug 'scrooloose/nerdcommenter'
