@@ -1,3 +1,4 @@
 nnn  : File Manager in terminal
 nvim : text editor
 htop : Process Manager in terminal
+i3   : Window manager
