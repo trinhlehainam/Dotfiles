@@ -1,0 +1,22 @@
+# Insert your preferred key mappings here.
+
+unmap j
+unmap k
+unmap J
+unmap K
+unmap t
+unmap x
+unmap H
+unmap L
+
+map k scrollDown
+map l scrollUp
+map tk previousTab
+map tl nextTab
+map tn createTab
+map tq removeTab
+map tj firstTab
+map t; lastTab
+map tp visitPreviousTab
+map J goBack
+map : goForward
