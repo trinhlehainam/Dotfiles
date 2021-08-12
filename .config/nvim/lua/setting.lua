@@ -14,6 +14,9 @@ o.splitbelow = true
 o.splitright = true
 o.smarttab = true
 o.showtabline = 1
+o.timeoutlen = 300
+--o.termguicolors = true
+o.scrolloff = 10
 
 w.wrap = false
 w.cursorline = true

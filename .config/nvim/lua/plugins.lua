@@ -32,4 +32,3 @@ require('packer').startup(function(use)
     use 'sirver/ultisnips'
     use 'wakatime/vim-wakatime'
 end)
-
