@@ -10,3 +10,6 @@
 - Install: rofi (dmenu replacement)
 - Install: compton to support transparency for i3
 - Install: i3blocks to custom i3 status bar
+- Install: pavucontrol to check volume in status bar match system volume
+- insert this line to [volume] block in i3blocks config to update volume in status bar:
+    + command=/usr/share/i3blocks/volume 5 pulse
