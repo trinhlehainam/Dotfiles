@@ -13,7 +13,7 @@ set $mod Mod4
 
 # Font for window titles. Will also be used by the bar unless a different font
 # is used in the bar {} block below.
-font pango:MesloLGS NF 20
+font pango:System San Francisco Display 14
 
 # This font is widely installed, provides lots of unicode glyphs, right-to-left
 # text rendering and scalability on retina/hidpi displays (thanks to pango).
@@ -45,13 +45,6 @@ bindsym $mod+Return exec kitty
 
 # kill focused window
 bindsym $mod+Shift+q kill
-
-# start dmenu (a program launcher)
-bindsym $mod+d exec dmenu_run
-# There also is the (new) i3-dmenu-desktop which only displays applications
-# shipping a .desktop file. It is a wrapper around dmenu, so you need that
-# installed.
-# bindsym $mod+d exec --no-startup-id i3-dmenu-desktop
 
 # change focus
 bindsym $mod+j focus left
@@ -193,7 +186,8 @@ client.urgent           $urgent-bg-color    $urgent-bg-color   $text-color      
 # Start i3bar to display a workspace bar (plus the system information i3status
 # finds out, if available)
 bar {
-        status_command i3status
+        position top
+        status_command i3blocks -c ~/.config/i3/i3blocks.conf
         colors {
           background $bg-color
           separator #757575
@@ -204,6 +198,10 @@ bar {
 	}
 }
 
-bindsym $mod+shift+x exec i3lock
+bindsym $mod+shift+x exec i3lock --color "$bg-color"
+
+# start rofi (a program launcher)
+bindsym $mod+d exec rofi -show run -lines 3 -eh 2 -width 100 -padding 800 
 
 exec_always feh --bg-scale ~/Downloads/wallpaper.jpg
+exec compton -f

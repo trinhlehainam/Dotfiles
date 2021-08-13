@@ -6,7 +6,7 @@
 - Custom and assign app to workplace  
 - Install xlappearance to manage gtk (UI theme config) (windows, folder, icon, ...)
 - Move all ttf file to $HOME/.fonts
-- Install custom theme (Arc, Papirus, Moka, ...)
-
-
-
+- Install: custom theme (Arc, Papirus, Moka, ...)
+- Install: rofi (dmenu replacement)
+- Install: compton to support transparency for i3
+- Install: i3blocks to custom i3 status bar
