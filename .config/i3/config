@@ -202,7 +202,11 @@ bar {
 bindsym $mod+shift+x exec i3lock --color "$bg-color"
 
 # start rofi (a program launcher)
-bindsym $mod+d exec rofi -show run -lines 3 -eh 2 -width 100 -padding 800 
+bindsym $mod+d exec rofi -show run -lines 3 -eh 2  #-width 100 -padding 800 -bc "$bg-color" -bg "$bg-color" -fg "$text-color" -hlbg "$bg-color" -hlfg "#9575cd" -font "System San Francisco Display 18"
 
-exec_always feh --bg-scale ~/Downloads/wallpaper.jpg
-exec --no-startup-id compton -f
+exec --no-startup-id picom -f
+exec_always xrandr --output eDP-1 --primary --mode 1920x1080 --pos 0x0 --rotate normal --output HDMI-1 --off --output DP-1 --mode 3840x2160 --pos 1920x0 --rotate normal --output HDMI-2 --off
+exec_always feh --bg-scale ~/Pictures/wallpaper.jpg
+
+workspace $ws1 output eDP-1
+workspace $ws2 output DP-1
