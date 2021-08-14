@@ -8,3 +8,4 @@
     + https://www.elsewebdevelopment.com/neovim-explained-how-to-build-a-plugin-free-nvim-config-that-unlocks-builtin-features/
     + https://emilienl.medium.com/a-quick-guide-to-configure-neovim-in-lua-7c58a28e624c
     + https://codevion.github.io/#!index.md
+    + https://github.com/siduck76/NvChad#galaxyline

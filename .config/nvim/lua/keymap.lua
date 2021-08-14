@@ -44,3 +44,9 @@ map('','gj','^',{})
 
 --Avoid break out nvim
 map('n','<C-c>','<Esc>',opts.nore)
+
+--Copy,Paste in the clipboard
+map('n','<C-y>','"*y',opts.nore)
+map('v','<C-y>','"*y',opts.nore)
+map('n','<C-p>','"*p',opts.nore)
+map('v','<C-p>','"*p',opts.nore)
