@@ -14,3 +14,7 @@
 - Install: pavucontrol to check volume in status bar match system volume
 - insert this line to [volume] block in i3blocks config to update volume in status bar:
     + command=/usr/share/i3blocks/volume 5 pulse
+
+
+*** GUIDE :
+    - https://thevaluable.dev/i3-config-mouseless/
