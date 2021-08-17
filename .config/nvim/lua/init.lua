@@ -1,4 +1,6 @@
 require('setting')
 require('keymap')
 require('plugins')
-require('themes/gruvbox')
+require('plug-config.compe')
+require('plug-config.autopairs')
+require('themes.gruvbox')

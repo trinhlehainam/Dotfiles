@@ -9,3 +9,5 @@
     + https://emilienl.medium.com/a-quick-guide-to-configure-neovim-in-lua-7c58a28e624c
     + https://codevion.github.io/#!index.md
     + https://github.com/siduck76/NvChad#galaxyline
+    + https://github.com/tjdevries/config_manager/tree/master/xdg_config/nvim/
+    + https://github.com/ThePrimeagen/.dotfiles
