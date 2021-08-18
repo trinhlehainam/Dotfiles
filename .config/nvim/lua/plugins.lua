@@ -20,7 +20,7 @@ require('packer').startup(function(use)
     use 'morhetz/gruvbox' 
     -- Better Syntax Support
     use {'nvim-treesitter/nvim-treesitter', run = ':TSUpdate'}
-    use 'scrooloose/nerdcommenter'
+    use 'b3nj5m1n/kommentary'
     use {'kyazdani42/nvim-web-devicons'}
     use { 'glepnir/galaxyline.nvim', branch = 'main' }
     use 'akinsho/nvim-bufferline.lua'

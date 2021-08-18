@@ -3,7 +3,7 @@ vim.g.mapleader = ' '
 local map = vim.api.nvim_set_keymap
 
 local opts = {}
-opts.nore = {noremap = true}
+opts.nore = {noremap = true, silent = true}
 
 -- Quick escape INSERT mode
 map('i','jk','<Esc>', opts.nore)
