@@ -18,14 +18,15 @@ require('packer').startup(function(use)
     use 'wbthomason/packer.nvim'
     -- Color Schemes
     use 'morhetz/gruvbox' 
-    use 'ryanoasis/vim-devicons'
     -- Better Syntax Support
     use {'nvim-treesitter/nvim-treesitter', run = ':TSUpdate'}
-    -- File Explorer
     use 'scrooloose/nerdcommenter'
+    use {'kyazdani42/nvim-web-devicons'}
+    use { 'glepnir/galaxyline.nvim', branch = 'main' }
+    use 'akinsho/nvim-bufferline.lua'
+    use 'neovim/nvim-lspconfig'
+    use 'ray-x/lsp_signature.nvim'
     use 'windwp/nvim-autopairs'
     use 'hrsh7th/nvim-compe'
-    use 'vim-airline/vim-airline'
-    use 'vim-airline/vim-airline-themes'
     use 'wakatime/vim-wakatime'
 end)

@@ -3,11 +3,11 @@
 *** if ERROR : [vim-plug] `git` executable not found   -->  install git
 
 * GUIDE :
-    + https://github.com/amix/vimrc
     + https://github.com/nanotee/nvim-lua-guide
     + https://www.elsewebdevelopment.com/neovim-explained-how-to-build-a-plugin-free-nvim-config-that-unlocks-builtin-features/
     + https://emilienl.medium.com/a-quick-guide-to-configure-neovim-in-lua-7c58a28e624c
     + https://codevion.github.io/#!index.md
     + https://github.com/siduck76/NvChad#galaxyline
+    + https://gitlab.com/Iron_E/dotfiles/-/blob/master/.config/nvim/lua/plugin/galaxyline.lua
     + https://github.com/tjdevries/config_manager/tree/master/xdg_config/nvim/
     + https://github.com/ThePrimeagen/.dotfiles
