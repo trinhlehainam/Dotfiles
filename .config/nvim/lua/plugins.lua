@@ -22,10 +22,10 @@ require('packer').startup(function(use)
     use {'nvim-treesitter/nvim-treesitter', run = ':TSUpdate'}
     use 'b3nj5m1n/kommentary'
     use {'kyazdani42/nvim-web-devicons'}
-    use { 'glepnir/galaxyline.nvim', branch = 'main' }
+    use 'hoob3rt/lualine.nvim'
     use 'akinsho/nvim-bufferline.lua'
     use 'neovim/nvim-lspconfig'
-    use 'ray-x/lsp_signature.nvim'
+    use 'glepnir/lspsaga.nvim'
     use 'windwp/nvim-autopairs'
     use 'hrsh7th/nvim-compe'
     use 'wakatime/vim-wakatime'

@@ -50,3 +50,10 @@ map('n','<C-y>','"*y',opts.nore)
 map('v','<C-y>','"*y',opts.nore)
 map('n','<C-p>','"*p',opts.nore)
 map('i','<C-p>','<Esc>"*p',opts.nore)
+
+--Go to next/prev word in INSERT
+map('i','<A-j>','<Esc>i',opts.nore)
+map('i','<A-;>','<Esc>la',opts.nore)
+
+--Repeat find letter command
+map('n',"'",';',opts.nore)

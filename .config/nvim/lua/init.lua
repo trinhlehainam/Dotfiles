@@ -1,6 +1,0 @@
-require('setting')
-require('keymap')
-require('plugins')
-require('plug-config.compe')
-require('plug-config.autopairs')
-require('themes.gruvbox')
