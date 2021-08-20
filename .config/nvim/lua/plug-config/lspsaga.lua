@@ -63,3 +63,7 @@ keymap('n',']e',':Lspsaga diagnostic_jump_prev<CR>',opts)
 
 -- show signature help
 keymap('n','ss',':Lspsaga signature_help<CR>',opts)
+
+-- float terminal
+keymap('n','<C-A-t>',':Lspsaga open_floaterm<CR>', opts)
+keymap('t','<C-q>',"<C-\\><C-n>:Lspsaga close_floaterm<CR>", opts)
