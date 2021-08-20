@@ -5,6 +5,10 @@ local map = vim.api.nvim_set_keymap
 local opts = {}
 opts.nore = {noremap = true, silent = true}
 
+-- DELETE keys
+map('n','s','',opts.nore)
+map('n','S','',opts.nore)
+
 -- Quick escape INSERT mode
 map('i','jk','<Esc>', opts.nore)
 
