@@ -26,7 +26,7 @@ hide_edge_borders both
 
 # GAPS {{{
 #Remove title bar
-for_window [class=".*"] border pixel 2
+for_window [class=".*"] border pixel 4
 gaps inner 10
 gaps outer 0
 #smart_gaps on
@@ -104,7 +104,7 @@ set $ws6 "6"
 set $ws7 "7"
 set $ws8 "8"
 set $ws9 "9"
-set $ws10 "10"
+set $ws10 "10: Community"
 
 # switch to workspace
 bindsym $mod+1 workspace number $ws1
@@ -129,7 +129,6 @@ bindsym $mod+Shift+7 move container to workspace number $ws7
 bindsym $mod+Shift+8 move container to workspace number $ws8
 bindsym $mod+Shift+9 move container to workspace number $ws9
 bindsym $mod+Shift+0 move container to workspace number $ws10
-
 
 # reload the configuration file
 bindsym $mod+Shift+c reload
@@ -169,7 +168,7 @@ bindsym $mod+r mode "resize"
 # COLORS {{{
 
 # window colors
-set $bg-color 	         #458588
+set $bg-color 	         #fe8019
 set $inactive-bg-color   #282828
 set $urgent-bg-color     #cc241d
 set $text-color          #f3f4f5
@@ -185,9 +184,10 @@ client.urgent           $urgent-bg-color    $urgent-bg-color   $text-color      
 # finds out, if available)
 
 # bar colors
-set $ws-color            #689d6a 
-set $ws-inactive-color   #282828
-set $bar-color 	         #50494500
+set $ws-color            #fe8019
+set $ws-active-color     #d65d0e
+set $ws-inactive-color   #28282800
+set $bar-color 	         #fabd2f00
 
 bar {
         i3bar_command i3bar --transparency
@@ -201,6 +201,7 @@ bar {
           separator #ffffff
           #                  border             background         text
           focused_workspace  $ws-color          $ws-color          $text-color
+          active_workspace   $ws-active-color   $ws-active-color   $inactive-text-color
           inactive_workspace $ws-inactive-color $ws-inactive-color $inactive-text-color
           urgent_workspace   $urgent-bg-color   $urgent-bg-color   $text-color
 	}
@@ -211,13 +212,16 @@ bar {
 # WORKSPACE SETTING {{{
 # Auto assign application to workspace
 assign [class="^Brave-browser$"] $ws1
+assign [class="^discord$"] $ws10
+assign [class="^Microsoft Teams - Preview$"] $ws10
 assign [class="^kitty$"] $ws2
-assign [class=".*" title=".*.pdf\*"] $ws1
-for_window [class=".*" title=".*.pdf\*"] move to $ws1
+assign [class=".*" title=".*\.pdf"] $ws1
+for_window [class=".*" title=".*\.pdf"] move to $ws1
 
 # Auto assign workspace to monitor
 workspace $ws1 output eDP-1
 workspace $ws2 output DP-1
+workspace $ws10 output eDP-1
 # }}}
 
 # KEY BINDING FOR OUTPUT HARDWARE {{{
@@ -252,7 +256,9 @@ exec --no-startup-id xss-lock --transfer-sleep-lock -- i3lock --nofork
 exec --no-startup-id nm-applet
 exec --no-startup-id picom -f
 
+# Monitor
 exec_always xrandr --output eDP-1 --primary --mode 1920x1080 --pos 0x0 --rotate normal --output HDMI-1 --off --output DP-1 --scale 0.5x0.5 --mode 3840x2160 --pos 1920x0 --rotate normal --output HDMI-2 --off
-exec_always feh --bg-scale ~/Pictures/wallpaper.jpg
+# Wallpaper
+exec_always feh --bg-scale ~/Pictures/summerbyGydwin.jpg
 # }}}
 

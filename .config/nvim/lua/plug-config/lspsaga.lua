@@ -1,7 +1,5 @@
 local saga = require 'lspsaga'
-
 saga.init_lsp_saga {
-    -- add your config value here
     -- default value
     use_saga_diagnostic_sign = true,
     error_sign = '',
@@ -55,13 +53,13 @@ keymap('n','rn',':Lspsaga rename<CR>',opts)
 -- preview definition
 keymap('n','sd', ':Lspsaga preview_definition<CR>', opts)
 
--- DIAGNOSTIC
+-- ERROR (DIAGNOSTIC)
 -- show
-keymap('n','<leader>D',':Lspsaga show_line_diagnostics<CR>',opts)
-keymap('n','<leader>d',':Lspsaga show_cursor_diagnostics<CR>',opts)
+keymap('n','se',':Lspsaga show_cursor_diagnostics<CR>',opts)
+keymap('n','sE',':Lspsaga show_line_diagnostics<CR>',opts)
 -- command
-keymap('n','[d',':Lspsaga diagnostic_jump_next<CR>',opts)
-keymap('n',']d',':Lspsaga diagnostic_jump_prev<CR>',opts)
+keymap('n','[e',':Lspsaga diagnostic_jump_next<CR>',opts)
+keymap('n',']e',':Lspsaga diagnostic_jump_prev<CR>',opts)
 
 -- show signature help
-keymap('n','<leader>s',':Lspsaga signature_help<CR>',opts)
+keymap('n','ss',':Lspsaga signature_help<CR>',opts)
