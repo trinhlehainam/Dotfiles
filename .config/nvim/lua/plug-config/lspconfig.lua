@@ -2,7 +2,7 @@ local lspconfig = require('lspconfig')
 
 local M = {}
 
-function ResetDiagnosticDisplay(config)
+local function ResetDiagnosticDisplay(config)
     local clients = vim.lsp.get_active_clients()
     for client_id,_ in pairs(clients) do
         local buffers = vim.lsp.get_buffers_by_client_id(client_id)
@@ -12,11 +12,13 @@ function ResetDiagnosticDisplay(config)
     end
 end
 
-function ChangeDiagnosticConfig(config)
+local function ChangeDiagnosticConfig(config)
     vim.lsp.handlers["textDocument/publishDiagnostics"] = vim.lsp.with(
         vim.lsp.diagnostic.on_publish_diagnostics, config
     )
 end
+
+ChangeDiagnosticConfig({virtual_text = false})
 
 M.show_virtual_text = true
 M.ToggleVirtualText = function()

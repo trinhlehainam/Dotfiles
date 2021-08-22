@@ -26,7 +26,7 @@ w.cursorline = true
 w.number = true
 w.relativenumber = true
 w.signcolumn = 'yes'
---w.colorcolumn = '80'
+w.colorcolumn = '80'
 
 b.tabstop = 4
 b.shiftwidth = 4

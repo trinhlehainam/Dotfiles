@@ -17,13 +17,17 @@ require('packer').startup(function(use)
     -- Packer can manage itself
     use 'wbthomason/packer.nvim'
     -- Color Schemes
-    use 'morhetz/gruvbox' 
+    use 'morhetz/gruvbox'
     -- Better Syntax Support
+    use 'nvim-lua/plenary.nvim'
     use {'nvim-treesitter/nvim-treesitter', run = ':TSUpdate'}
+    use 'norcalli/nvim-colorizer.lua'
+    use 'lukas-reineke/indent-blankline.nvim'
     use 'b3nj5m1n/kommentary'
-    use {'kyazdani42/nvim-web-devicons'}
+    use 'kyazdani42/nvim-web-devicons'
     use 'hoob3rt/lualine.nvim'
     use 'akinsho/nvim-bufferline.lua'
+    use 'folke/todo-comments.nvim'
     use 'neovim/nvim-lspconfig'
     use 'glepnir/lspsaga.nvim'
     use 'windwp/nvim-autopairs'
