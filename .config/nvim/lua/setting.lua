@@ -20,6 +20,7 @@ o.scrolloff = 8
 o.clipboard = 'unnamed'
 o.hlsearch = false
 o.errorbells = false
+o.ignorecase = true
 
 w.wrap = false
 w.cursorline = true
