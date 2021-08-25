@@ -50,10 +50,11 @@ map('','gj','^',{})
 map('n','<C-c>','<Esc>',opts.nore)
 
 --Copy,Paste in the clipboard
-map('n','<C-y>','"*y',opts.nore)
-map('v','<C-y>','"*y',opts.nore)
-map('n','<C-p>','"*p',opts.nore)
-map('i','<C-p>','<Esc>"*p',opts.nore)
+--Use :checkhealth to check supported system clipboard
+map('n','<C-y>','"+y',opts.nore)
+map('v','<C-y>','"+y',opts.nore)
+map('n','<C-p>','"+p',opts.nore)
+map('i','<C-p>','<Esc>"+p',opts.nore)
 
 --Go to next/prev word in INSERT
 map('i','<A-j>','<Esc>i',opts.nore)

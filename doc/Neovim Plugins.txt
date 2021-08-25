@@ -1,6 +1,8 @@
 - Open nvim and install plugins.
 
 *** if ERROR : [vim-plug] `git` executable not found   -->  install git
+*** clipboard register is not SUPPORTED -> use :checkhealth to check supported
+system clipboard . if there isn't any -> install xclip (LINUX)
 
 * GUIDE :
     + https://github.com/nanotee/nvim-lua-guide
