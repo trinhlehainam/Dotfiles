@@ -116,6 +116,8 @@ export EDITOR='nvim'
 alias vi="nvim"
 alias v="nvim"
 
+export NNN_BMS="b:$HOME/Documents/Books/;p:$HOME/Documents/Project/;g:$HOME/Documents/Git/;c:$HOME/Documents/Git/Dotfiles/"
+
 n ()
 {
     # Block nesting of nnn in subshells
@@ -143,5 +145,29 @@ n ()
     fi
 }
 
+# VIM MODE {{{
+bindkey -v
+# Change to VIM NORNAL MODE
+bindkey 'jk' vi-cmd-mode
+
+# Remove key binding
+bindkey -rM vicmd 'h'
+
+# Override key binding
+bindkey -M vicmd "j" vi-backward-char
+bindkey -M vicmd ";" vi-forward-char
+bindkey -M vicmd 'k' vi-down-line-or-history
+bindkey -M vicmd 'l' vi-up-line-or-history
+
+bindkey -M viins 
+
+bindkey -M vicmd "g;" vi-end-of-line
+bindkey -M vicmd "gj" vi-beginning-of-line
+
+bindkey -M vicmd "'" vi-repeat-find
+# }}}
+
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+
+alias luamake=/home/checker/lua-language-server/3rd/luamake/luamake

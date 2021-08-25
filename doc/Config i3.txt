@@ -5,7 +5,7 @@
     + Use --scale to scale monitor 
 - Use xprop to identify application's window class (use to identify class name to able to assign to workplace)
 - Custom and assign app to workplace  
-- Install xlappearance to manage gtk (UI theme config) (windows, folder, icon, ...)
+- Install lxappearance to manage gtk (UI theme config) (windows, folder, icon, ...)
 - Move all ttf file to $HOME/.fonts
 - Install: custom theme (Arc, Papirus, Moka, ...)
 - Install: rofi (dmenu replacement)
