@@ -65,5 +65,5 @@ keymap('n',']e',':Lspsaga diagnostic_jump_prev<CR>',opts)
 keymap('n','ss',':Lspsaga signature_help<CR>',opts)
 
 -- float terminal
-keymap('n','<A-CR>',':Lspsaga open_floaterm<CR>', opts)
+keymap('n','<leader><CR>',':Lspsaga open_floaterm<CR>', opts)
 keymap('t','<Esc>',"<C-\\><C-n>:Lspsaga close_floaterm<CR>", opts)

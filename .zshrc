@@ -158,6 +158,10 @@ bindkey -M vicmd "j" vi-backward-char
 bindkey -M vicmd ";" vi-forward-char
 bindkey -M vicmd 'k' vi-down-line-or-history
 bindkey -M vicmd 'l' vi-up-line-or-history
+bindkey -M visual "j" vi-backward-char
+bindkey -M visual ";" vi-forward-char
+bindkey -M visual 'k' vi-down-line-or-history
+bindkey -M visual 'l' vi-up-line-or-history
 
 bindkey -M vicmd "g;" vi-end-of-line
 bindkey -M vicmd "gj" vi-beginning-of-line

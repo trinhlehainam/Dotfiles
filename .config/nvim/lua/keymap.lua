@@ -5,10 +5,12 @@ local map = vim.api.nvim_set_keymap
 local opts = {}
 opts.nore = {noremap = true, silent = true}
 
+-- Copy to the end of line
+map('n','Y','yg_',opts.nore)
+
 -- DELETE keys
 map('n','s','',opts.nore)
 map('n','S','',opts.nore)
-
 -- Quick escape INSERT mode
 map('i','jk','<Esc>', opts.nore)
 
@@ -42,8 +44,8 @@ map('n','t5','5gt',opts.nore)
 map('n','t6','6gt',opts.nore)
 map('n','t7','7gt',opts.nore)
 
---Move to begin/end of line
-map('','g;','$',{})
+--Move to begin/end word of line
+map('','g;','g_',{})
 map('','gj','^',{})
 
 --Avoid break out nvim
@@ -62,3 +64,27 @@ map('i','<A-;>','<Esc>la',opts.nore)
 
 --Repeat find letter command
 map('n',"'",';',opts.nore)
+
+--Keep cursor centered
+map('n','n','nzzzv',opts.nore)
+map('n','N','Nzzzv',opts.nore)
+map('n','J','mmJ`m',opts.nore)
+map('n','gJ','mmgJ`m',opts.nore)
+
+--Undo break point
+map('i',',',',<C-g>u',opts.nore)
+map('i','.','.<C-g>u',opts.nore)
+map('i','!','!<C-g>u',opts.nore)
+map('i','?','?<C-g>u',opts.nore)
+map('i',' ',' <C-g>u',opts.nore)
+
+--Undo in insert mode
+-- map('i','<A-u>','<Esc>ua',opts.nore)
+
+--Moving text
+map('i','<A-k>','<Esc>:m.+1<CR>==a',opts.nore)
+map('i','<A-l>','<Esc>:m.-2<CR>==a',opts.nore)
+map('n','<A-l>',':m.-2<CR>==',opts.nore)
+map('n','<A-k>',':m.+1<CR>==',opts.nore)
+map('v','<A-l>',":m '<-2<CR>gv=gv",opts.nore)
+map('v','<A-k>',":m '>+1<CR>gv=gv",opts.nore)
