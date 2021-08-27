@@ -76,12 +76,12 @@ map('i',',',',<C-g>u',opts.nore)
 map('i','.','.<C-g>u',opts.nore)
 map('i','!','!<C-g>u',opts.nore)
 map('i','?','?<C-g>u',opts.nore)
-map('i',' ',' <C-g>u',opts.nore)
+-- map('i',' ',' <C-g>u',opts.nore)
 
 --Undo in insert mode
 -- map('i','<A-u>','<Esc>ua',opts.nore)
 
---Moving text
+--Moving line of text
 map('i','<A-k>','<Esc>:m.+1<CR>==a',opts.nore)
 map('i','<A-l>','<Esc>:m.-2<CR>==a',opts.nore)
 map('n','<A-l>',':m.-2<CR>==',opts.nore)

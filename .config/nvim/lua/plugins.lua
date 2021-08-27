@@ -14,23 +14,23 @@ end
 --vim._update_package_paths()
 
 require('packer').startup(function(use)
-    -- Packer can manage itself
+    -- Packer manager
     use 'wbthomason/packer.nvim'
-    -- Color Schemes
+    -- Best Color Schemes
     use 'morhetz/gruvbox'
     -- Better Syntax Support
     use 'nvim-lua/plenary.nvim'
     use {'nvim-treesitter/nvim-treesitter', run = ':TSUpdate'}
     use 'norcalli/nvim-colorizer.lua'
     use 'lukas-reineke/indent-blankline.nvim'
+    use 'windwp/nvim-autopairs'
     use 'b3nj5m1n/kommentary'
     use 'kyazdani42/nvim-web-devicons'
     use 'hoob3rt/lualine.nvim'
     use 'akinsho/nvim-bufferline.lua'
     use 'folke/todo-comments.nvim'
+    use 'hrsh7th/nvim-compe'
     use 'neovim/nvim-lspconfig'
     use 'glepnir/lspsaga.nvim'
-    use 'windwp/nvim-autopairs'
-    use 'hrsh7th/nvim-compe'
     use 'wakatime/vim-wakatime'
 end)
