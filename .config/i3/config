@@ -212,6 +212,7 @@ bar {
 # WORKSPACE SETTING {{{
 # Auto assign application to workspace
 assign [class="^Brave-browser$"] $ws1
+assign [class="^Firefox$"] $ws1
 assign [class="^kitty$"] $ws2
 assign [class="^discord$"] $ws10
 assign [class="^Microsoft Teams - Preview$"] $ws10

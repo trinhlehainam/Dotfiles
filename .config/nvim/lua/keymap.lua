@@ -8,6 +8,11 @@ opts.nore = {noremap = true, silent = true}
 -- Copy to the end of line
 map('n','Y','yg_',opts.nore)
 
+-- Short write, quit
+map('n','<leader>q',':q<CR>',opts.nore)
+map('n','<leader>w',':w<CR>',opts.nore)
+map('n','<leader>wq',':wq<CR>',opts.nore)
+
 -- DELETE keys
 map('n','s','',opts.nore)
 map('n','S','',opts.nore)
@@ -28,7 +33,7 @@ map('n','<leader>;','<C-w>l',opts.nore)
 map('n','<leader>l','<C-w>k',opts.nore)
 map('n','<leader>k','<C-w>j',opts.nore)
 map('n','<leader>j','<C-w>h',opts.nore)
-map('n','<leader>q','<C-w>c',opts.nore)
+map('n','<leader>c','<C-w>c',opts.nore)
 
 --Tab Navigation
 map('n','tj',':tabfirst<CR>',opts.nore)
@@ -76,10 +81,12 @@ map('i',',',',<C-g>u',opts.nore)
 map('i','.','.<C-g>u',opts.nore)
 map('i','!','!<C-g>u',opts.nore)
 map('i','?','?<C-g>u',opts.nore)
+map('i',':',':<C-g>u',opts.nore)
+map('i',';',';<C-g>u',opts.nore)
 -- map('i',' ',' <C-g>u',opts.nore)
 
 --Undo in insert mode
--- map('i','<A-u>','<Esc>ua',opts.nore)
+map('i','<A-u>','<Esc>ua',opts.nore)
 
 --Moving line of text
 map('i','<A-k>','<Esc>:m.+1<CR>==a',opts.nore)
