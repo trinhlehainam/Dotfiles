@@ -18,8 +18,9 @@ require('packer').startup(function(use)
     use 'wbthomason/packer.nvim'
     -- Best Color Schemes
     use 'morhetz/gruvbox'
-    -- Better Syntax Support
+    use 'folke/which-key.nvim'
     use 'nvim-lua/plenary.nvim'
+    -- Better Syntax Support
     use {'nvim-treesitter/nvim-treesitter', run = ':TSUpdate'}
     use 'norcalli/nvim-colorizer.lua'
     use 'lukas-reineke/indent-blankline.nvim'

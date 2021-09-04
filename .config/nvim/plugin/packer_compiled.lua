@@ -69,53 +69,73 @@ end
 time([[try_loadstring definition]], false)
 time([[Defining packer_plugins]], true)
 _G.packer_plugins = {
-  NERDTree = {
-    loaded = true,
-    path = "/home/checker/.local/share/nvim/site/pack/packer/start/NERDTree"
-  },
-  ["auto-pairs"] = {
-    loaded = true,
-    path = "/home/checker/.local/share/nvim/site/pack/packer/start/auto-pairs"
-  },
-  ["coc.nvim"] = {
-    loaded = true,
-    path = "/home/checker/.local/share/nvim/site/pack/packer/start/coc.nvim"
-  },
   gruvbox = {
     loaded = true,
     path = "/home/checker/.local/share/nvim/site/pack/packer/start/gruvbox"
   },
-  nerdcommenter = {
+  ["indent-blankline.nvim"] = {
     loaded = true,
-    path = "/home/checker/.local/share/nvim/site/pack/packer/start/nerdcommenter"
+    path = "/home/checker/.local/share/nvim/site/pack/packer/start/indent-blankline.nvim"
+  },
+  kommentary = {
+    loaded = true,
+    path = "/home/checker/.local/share/nvim/site/pack/packer/start/kommentary"
+  },
+  ["lspsaga.nvim"] = {
+    loaded = true,
+    path = "/home/checker/.local/share/nvim/site/pack/packer/start/lspsaga.nvim"
+  },
+  ["lualine.nvim"] = {
+    loaded = true,
+    path = "/home/checker/.local/share/nvim/site/pack/packer/start/lualine.nvim"
+  },
+  ["nvim-autopairs"] = {
+    loaded = true,
+    path = "/home/checker/.local/share/nvim/site/pack/packer/start/nvim-autopairs"
+  },
+  ["nvim-bufferline.lua"] = {
+    loaded = true,
+    path = "/home/checker/.local/share/nvim/site/pack/packer/start/nvim-bufferline.lua"
+  },
+  ["nvim-colorizer.lua"] = {
+    loaded = true,
+    path = "/home/checker/.local/share/nvim/site/pack/packer/start/nvim-colorizer.lua"
+  },
+  ["nvim-compe"] = {
+    loaded = true,
+    path = "/home/checker/.local/share/nvim/site/pack/packer/start/nvim-compe"
+  },
+  ["nvim-lspconfig"] = {
+    loaded = true,
+    path = "/home/checker/.local/share/nvim/site/pack/packer/start/nvim-lspconfig"
   },
   ["nvim-treesitter"] = {
     loaded = true,
     path = "/home/checker/.local/share/nvim/site/pack/packer/start/nvim-treesitter"
   },
+  ["nvim-web-devicons"] = {
+    loaded = true,
+    path = "/home/checker/.local/share/nvim/site/pack/packer/start/nvim-web-devicons"
+  },
   ["packer.nvim"] = {
     loaded = true,
     path = "/home/checker/.local/share/nvim/site/pack/packer/start/packer.nvim"
   },
-  ultisnips = {
+  ["plenary.nvim"] = {
     loaded = true,
-    path = "/home/checker/.local/share/nvim/site/pack/packer/start/ultisnips"
+    path = "/home/checker/.local/share/nvim/site/pack/packer/start/plenary.nvim"
   },
-  ["vim-airline"] = {
+  ["todo-comments.nvim"] = {
     loaded = true,
-    path = "/home/checker/.local/share/nvim/site/pack/packer/start/vim-airline"
-  },
-  ["vim-airline-themes"] = {
-    loaded = true,
-    path = "/home/checker/.local/share/nvim/site/pack/packer/start/vim-airline-themes"
-  },
-  ["vim-devicons"] = {
-    loaded = true,
-    path = "/home/checker/.local/share/nvim/site/pack/packer/start/vim-devicons"
+    path = "/home/checker/.local/share/nvim/site/pack/packer/start/todo-comments.nvim"
   },
   ["vim-wakatime"] = {
     loaded = true,
     path = "/home/checker/.local/share/nvim/site/pack/packer/start/vim-wakatime"
+  },
+  ["which-key.nvim"] = {
+    loaded = true,
+    path = "/home/checker/.local/share/nvim/site/pack/packer/start/which-key.nvim"
   }
 }
 
