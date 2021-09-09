@@ -61,7 +61,7 @@ map('n','<C-c>','<Esc>',opts.nore)
 map('n','<C-y>','"+y',opts.nore)
 map('v','<C-y>','"+y',opts.nore)
 map('n','<C-p>','"+p',opts.nore)
-map('i','<C-p>','<Esc>"+p',opts.nore)
+map('i','<C-p>','<Esc>"+pa',opts.nore)
 
 --Go to next/prev word in INSERT
 map('i','<A-j>','<Esc>i',opts.nore)
@@ -95,3 +95,7 @@ map('n','<A-l>',':m.-2<CR>==',opts.nore)
 map('n','<A-k>',':m.+1<CR>==',opts.nore)
 map('v','<A-l>',":m '<-2<CR>gv=gv",opts.nore)
 map('v','<A-k>',":m '>+1<CR>gv=gv",opts.nore)
+
+--Re-visual after indent
+map('v','>','>gv=gv',opts.nore)
+map('v','<','<gv=gv',opts.nore)

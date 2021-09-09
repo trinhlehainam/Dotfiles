@@ -25,7 +25,7 @@ o.ignorecase = true
 w.wrap = false
 w.cursorline = true
 w.number = true
-w.relativenumber = true
+-- w.relativenumber = true
 w.signcolumn = 'yes'
 w.colorcolumn = '80'
 
