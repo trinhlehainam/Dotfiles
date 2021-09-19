@@ -120,10 +120,6 @@ export QT_IM_MODULE=ibus
 export DENO_INSTALL="/home/checker/.deno"
 export PATH="$DENO_INSTALL/bin:$PATH"
 
-# Windows C++ compiler
-alias mingw64g++='x86_64-w64-mingw32-g++'
-alias mingw32g++='i686-w64-mingw32-g++'
-
 alias vi="nvim"
 alias v="nvim"
 

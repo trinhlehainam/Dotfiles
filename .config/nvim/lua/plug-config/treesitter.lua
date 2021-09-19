@@ -6,7 +6,6 @@ require'nvim-treesitter.configs'.setup {
 
 vim.cmd(
 [[
-autocmd FileType python highlight link TSKeywordOperator Keyword
-autocmd FileType cpp highlight link TSKeywordOperator Keyword
+autocmd FileType python,cpp highlight link TSKeywordOperator Keyword
 ]]
 )
