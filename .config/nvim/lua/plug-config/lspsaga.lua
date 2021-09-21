@@ -36,7 +36,7 @@ local keymap = vim.api.nvim_set_keymap
 local opts = {silent = true, noremap = true}
 
 --lsp provider to find the cursor word definition and reference
-keymap('n', '<leader>f', ':Lspsaga lsp_finder<CR>', opts)
+keymap('n', '<leader>fd', ':Lspsaga lsp_finder<CR>', opts)
 
 -- code action
 keymap('n','<leader>ca',':Lspsaga code_action<CR>',opts)

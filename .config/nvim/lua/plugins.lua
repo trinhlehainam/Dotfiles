@@ -30,6 +30,7 @@ require('packer').startup(function(use)
     use 'hoob3rt/lualine.nvim'
     use 'akinsho/nvim-bufferline.lua'
     use 'folke/todo-comments.nvim'
+    use 'nvim-telescope/telescope.nvim'
     use 'hrsh7th/nvim-compe'
     use 'neovim/nvim-lspconfig'
     use 'glepnir/lspsaga.nvim'
