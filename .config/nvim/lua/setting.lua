@@ -28,6 +28,7 @@ w.number = true
 -- w.relativenumber = true
 w.signcolumn = 'yes'
 w.colorcolumn = '80'
+w.foldmethod = 'marker'
 
 b.tabstop = 4
 b.shiftwidth = 4
