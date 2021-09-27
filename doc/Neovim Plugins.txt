@@ -13,3 +13,4 @@ system clipboard . if there isn't any -> install xclip (LINUX)
     + https://gitlab.com/Iron_E/dotfiles/-/blob/master/.config/nvim/lua/plugin/galaxyline.lua
     + https://github.com/tjdevries/config_manager/tree/master/xdg_config/nvim/
     + https://github.com/ThePrimeagen/.dotfiles
+    + https://github.com/Why8n/dotfiles
