@@ -35,7 +35,7 @@ capabilities.textDocument.completion.completionItem.snippetSupport = true
 -- Use a loop to conveniently call 'setup' on multiple servers and
 -- map buffer local keybindings when the language server attaches
 local servers = {
-    'pylsp', 'bashls', 'html', 'tsserver', 'sumneko_lua', 'cmake', 'ccls'}
+    'pylsp', 'bashls', 'html', 'cssls', 'jsonls', 'tsserver', 'sumneko_lua', 'cmake', 'ccls'}
 for _, lsp in ipairs(servers) do
   lspconfig[lsp].setup {
     capabilities = capabilities,
