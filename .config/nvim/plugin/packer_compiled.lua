@@ -44,8 +44,8 @@ local function save_profiles(threshold)
 end
 
 time([[Luarocks path setup]], true)
-local package_path_str = "/home/checker/.cache/nvim/packer_hererocks/2.1.0-beta3/share/lua/5.1/?.lua;/home/checker/.cache/nvim/packer_hererocks/2.1.0-beta3/share/lua/5.1/?/init.lua;/home/checker/.cache/nvim/packer_hererocks/2.1.0-beta3/lib/luarocks/rocks-5.1/?.lua;/home/checker/.cache/nvim/packer_hererocks/2.1.0-beta3/lib/luarocks/rocks-5.1/?/init.lua"
-local install_cpath_pattern = "/home/checker/.cache/nvim/packer_hererocks/2.1.0-beta3/lib/lua/5.1/?.so"
+local package_path_str = "/home/globalchecker/.cache/nvim/packer_hererocks/2.1.0-beta3/share/lua/5.1/?.lua;/home/globalchecker/.cache/nvim/packer_hererocks/2.1.0-beta3/share/lua/5.1/?/init.lua;/home/globalchecker/.cache/nvim/packer_hererocks/2.1.0-beta3/lib/luarocks/rocks-5.1/?.lua;/home/globalchecker/.cache/nvim/packer_hererocks/2.1.0-beta3/lib/luarocks/rocks-5.1/?/init.lua"
+local install_cpath_pattern = "/home/globalchecker/.cache/nvim/packer_hererocks/2.1.0-beta3/lib/lua/5.1/?.so"
 if not string.find(package.path, package_path_str, 1, true) then
   package.path = package.path .. ';' .. package_path_str
 end
@@ -71,75 +71,75 @@ time([[Defining packer_plugins]], true)
 _G.packer_plugins = {
   gruvbox = {
     loaded = true,
-    path = "/home/checker/.local/share/nvim/site/pack/packer/start/gruvbox"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/gruvbox"
   },
   ["indent-blankline.nvim"] = {
     loaded = true,
-    path = "/home/checker/.local/share/nvim/site/pack/packer/start/indent-blankline.nvim"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/indent-blankline.nvim"
   },
   kommentary = {
     loaded = true,
-    path = "/home/checker/.local/share/nvim/site/pack/packer/start/kommentary"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/kommentary"
   },
   ["lspsaga.nvim"] = {
     loaded = true,
-    path = "/home/checker/.local/share/nvim/site/pack/packer/start/lspsaga.nvim"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/lspsaga.nvim"
   },
   ["lualine.nvim"] = {
     loaded = true,
-    path = "/home/checker/.local/share/nvim/site/pack/packer/start/lualine.nvim"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/lualine.nvim"
   },
   ["nvim-autopairs"] = {
     loaded = true,
-    path = "/home/checker/.local/share/nvim/site/pack/packer/start/nvim-autopairs"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/nvim-autopairs"
   },
   ["nvim-bufferline.lua"] = {
     loaded = true,
-    path = "/home/checker/.local/share/nvim/site/pack/packer/start/nvim-bufferline.lua"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/nvim-bufferline.lua"
   },
   ["nvim-colorizer.lua"] = {
     loaded = true,
-    path = "/home/checker/.local/share/nvim/site/pack/packer/start/nvim-colorizer.lua"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/nvim-colorizer.lua"
   },
   ["nvim-compe"] = {
     loaded = true,
-    path = "/home/checker/.local/share/nvim/site/pack/packer/start/nvim-compe"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/nvim-compe"
   },
   ["nvim-lspconfig"] = {
     loaded = true,
-    path = "/home/checker/.local/share/nvim/site/pack/packer/start/nvim-lspconfig"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/nvim-lspconfig"
   },
   ["nvim-treesitter"] = {
     loaded = true,
-    path = "/home/checker/.local/share/nvim/site/pack/packer/start/nvim-treesitter"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/nvim-treesitter"
   },
   ["nvim-web-devicons"] = {
     loaded = true,
-    path = "/home/checker/.local/share/nvim/site/pack/packer/start/nvim-web-devicons"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/nvim-web-devicons"
   },
   ["packer.nvim"] = {
     loaded = true,
-    path = "/home/checker/.local/share/nvim/site/pack/packer/start/packer.nvim"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/packer.nvim"
   },
   ["plenary.nvim"] = {
     loaded = true,
-    path = "/home/checker/.local/share/nvim/site/pack/packer/start/plenary.nvim"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/plenary.nvim"
   },
   ["telescope.nvim"] = {
     loaded = true,
-    path = "/home/checker/.local/share/nvim/site/pack/packer/start/telescope.nvim"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/telescope.nvim"
   },
   ["todo-comments.nvim"] = {
     loaded = true,
-    path = "/home/checker/.local/share/nvim/site/pack/packer/start/todo-comments.nvim"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/todo-comments.nvim"
   },
   ["vim-wakatime"] = {
     loaded = true,
-    path = "/home/checker/.local/share/nvim/site/pack/packer/start/vim-wakatime"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/vim-wakatime"
   },
   ["which-key.nvim"] = {
     loaded = true,
-    path = "/home/checker/.local/share/nvim/site/pack/packer/start/which-key.nvim"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/which-key.nvim"
   }
 }
 
