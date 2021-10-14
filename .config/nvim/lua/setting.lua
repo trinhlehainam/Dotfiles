@@ -25,17 +25,29 @@ o.ignorecase = true
 w.wrap = false
 w.cursorline = true
 w.number = true
--- w.relativenumber = true
+w.relativenumber = true
 w.signcolumn = 'yes'
 w.colorcolumn = '80'
 w.foldmethod = 'marker'
 
-b.tabstop = 4
-b.shiftwidth = 4
-b.softtabstop = 4
-b.expandtab = true
-b.smartindent = true
-b.autoindent = true
+-- b.tabstop = 4
+-- b.shiftwidth = 4
+-- b.softtabstop = 4
+-- b.expandtab = true
+-- b.smartindent = true
+-- b.autoindent = true
 b.swapfile = false
 --b.undodir = '~/.config/nvim/undo'
 b.undofile = true
+
+-- NOTE: Indent setting in lua file doesn't work correctly -> use vim file
+vim.cmd(
+[[
+set autoindent
+set expandtab
+set shiftwidth=4
+set smartindent
+set softtabstop=4
+set tabstop=4
+]]
+)

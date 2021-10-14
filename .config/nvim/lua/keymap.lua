@@ -40,7 +40,7 @@ map('n','tj',':tabfirst<CR>',opts.nore)
 map('n','t;',':tablast<CR>',opts.nore)
 map('n','tk',':tabprev<CR>',opts.nore)
 map('n','tl',':tabnext<CR>',opts.nore)
-map('n','tq',':tabclose<CR>',opts.nore)
+map('n','tc',':tabclose<CR>',opts.nore)
 map('n','t1','1gt',opts.nore)
 map('n','t2','2gt',opts.nore)
 map('n','t3','3gt',opts.nore)
@@ -48,6 +48,13 @@ map('n','t4','4gt',opts.nore)
 map('n','t5','5gt',opts.nore)
 map('n','t6','6gt',opts.nore)
 map('n','t7','7gt',opts.nore)
+
+--Buffer Navigation
+map('n','bj',':bfirst<CR>',opts.nore)
+map('n','b;',':blast<CR>',opts.nore)
+map('n','bk',':bprevious<CR>',opts.nore)
+map('n','bl',':bnext<CR>',opts.nore)
+map('n','bc',':bd<CR>',opts.nore)
 
 --Move to begin/end word of line
 map('','g;','g_',{})

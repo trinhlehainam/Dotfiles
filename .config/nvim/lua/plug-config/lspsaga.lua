@@ -48,7 +48,7 @@ keymap('n', '<C-k>', "<cmd>lua require('lspsaga.action').smart_scroll_with_saga(
 keymap('n', '<C-l>', "<cmd>lua require('lspsaga.action').smart_scroll_with_saga(-1)<CR>", opts)
 
 -- rename
-keymap('n','rn',':Lspsaga rename<CR>',opts)
+keymap('n','<leader>rn',':Lspsaga rename<CR>',opts)
 
 -- preview definition
 keymap('n','sd', ':Lspsaga preview_definition<CR>', opts)

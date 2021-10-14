@@ -37,12 +37,12 @@ capabilities.textDocument.completion.completionItem.snippetSupport = true
 local servers = {
     'pylsp', 'bashls', 'html', 'cssls', 'jsonls', 'tsserver', 'sumneko_lua', 'cmake', 'ccls'}
 for _, lsp in ipairs(servers) do
-  lspconfig[lsp].setup {
-    capabilities = capabilities,
-    flags = {
-      debounce_text_changes = 150,
+    lspconfig[lsp].setup {
+        capabilities = capabilities,
+        flags = {
+            debounce_text_changes = 150,
+        }
     }
-  }
 end
 
 -- set the path to the sumneko installation; if you previously installed via the now deprecated :LspInstall, use
