@@ -1,3 +1,11 @@
+local lsp = vim.lsp
+local handlers = lsp.handlers
+
+-- Hover doc popup
+local pop_opts = { border = "rounded", max_width = 80 }
+handlers["textDocument/hover"] = lsp.with(handlers.hover, pop_opts)
+handlers["textDocument/signatureHelp"] = lsp.with(handlers.signature_help, pop_opts)
+
 local saga = require 'lspsaga'
 saga.init_lsp_saga {
     -- default value
@@ -43,7 +51,8 @@ keymap('n','<leader>ca',':Lspsaga code_action<CR>',opts)
 keymap('v','<leader>ca',':<C-U>Lspsaga range_code_action<CR>',opts)
 
 -- show hover doc
-keymap('n', 'K', ':Lspsaga hover_doc<CR>', opts)
+keymap('n', 'K', ':lua vim.lsp.buf.hover()<CR>', opts)
+keymap('i', '<C-k>', '<Esc>:lua vim.lsp.buf.hover()<CR>a', opts)
 keymap('n', '<C-k>', "<cmd>lua require('lspsaga.action').smart_scroll_with_saga(1)<CR>", opts)
 keymap('n', '<C-l>', "<cmd>lua require('lspsaga.action').smart_scroll_with_saga(-1)<CR>", opts)
 
@@ -62,7 +71,8 @@ keymap('n','[e',':Lspsaga diagnostic_jump_next<CR>',opts)
 keymap('n',']e',':Lspsaga diagnostic_jump_prev<CR>',opts)
 
 -- show signature help
-keymap('n','ss',':Lspsaga signature_help<CR>',opts)
+keymap('n','ss',':lua vim.lsp.buf.signature_help()<CR>',opts)
+keymap('i','<C-s>','<Esc>:lua vim.lsp.buf.signature_help()<CR>a',opts)
 
 -- float terminal
 keymap('n','<leader><CR>',':Lspsaga open_floaterm<CR>', opts)

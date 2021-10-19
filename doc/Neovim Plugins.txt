@@ -14,3 +14,4 @@ system clipboard . if there isn't any -> install xclip (LINUX)
     + https://github.com/tjdevries/config_manager/tree/master/xdg_config/nvim/
     + https://github.com/ThePrimeagen/.dotfiles
     + https://github.com/Why8n/dotfiles
+    + https://rudism.com/coding-csharp-in-neovim/ (NOTE:C# delevopment on Neovim)
