@@ -27,6 +27,7 @@ require('packer').startup(function(use)
     use 'windwp/nvim-autopairs'
     use 'b3nj5m1n/kommentary'
     use 'kyazdani42/nvim-web-devicons'
+    use 'kyazdani42/nvim-tree.lua'
     use 'hoob3rt/lualine.nvim'
     use 'akinsho/nvim-bufferline.lua'
     use 'folke/todo-comments.nvim'
