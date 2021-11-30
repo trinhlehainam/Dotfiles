@@ -1,4 +1,5 @@
 local execute = vim.api.nvim_command
+
 local fn = vim.fn
 
 local install_path = fn.stdpath('data')..'/site/pack/packer/start/packer.nvim'
@@ -32,8 +33,20 @@ require('packer').startup(function(use)
     use 'akinsho/nvim-bufferline.lua'
     use 'folke/todo-comments.nvim'
     use 'nvim-telescope/telescope.nvim'
-    use 'hrsh7th/nvim-compe'
     use 'neovim/nvim-lspconfig'
+    -- Snippet
+    use 'L3MON4D3/LuaSnip'
+    -- Completion
+    use 'tjdevries/colorbuddy.nvim'
+    use 'onsails/lspkind-nvim'
+    use 'hrsh7th/nvim-cmp'
+    use 'hrsh7th/cmp-buffer'
+    use 'hrsh7th/cmp-path'
+    use 'hrsh7th/cmp-nvim-lua'
+    use 'hrsh7th/cmp-nvim-lsp'
+    use 'saadparwaiz1/cmp_luasnip'
+
+    use 'hrsh7th/nvim-compe'
     use 'glepnir/lspsaga.nvim'
     use 'wakatime/vim-wakatime'
 end)
