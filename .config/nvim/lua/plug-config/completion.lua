@@ -103,9 +103,9 @@ cmp.setup.cmdline("/", {
   }),
 })
 
-cmp.setup.cmdline(":", {
+--[[ cmp.setup.cmdline(":", {
   completion = {
-    autocomplete = false,
+    autocomplete = true,
   },
 
   sources = cmp.config.sources({
@@ -119,7 +119,7 @@ cmp.setup.cmdline(":", {
       keyword_length = 4,
     },
   }),
-})
+}) ]]
 
 --[[
 " Disable cmp for a buffer

@@ -57,7 +57,7 @@ end
 time([[Luarocks path setup]], false)
 time([[try_loadstring definition]], true)
 local function try_loadstring(s, component, name)
-  local success, result = pcall(loadstring(s))
+  local success, result = pcall(loadstring(s), name, _G.packer_plugins[name])
   if not success then
     vim.schedule(function()
       vim.api.nvim_notify('packer.nvim: Error running ' .. component .. ' for ' .. name .. ': ' .. result, vim.log.levels.ERROR, {})
@@ -71,115 +71,143 @@ time([[Defining packer_plugins]], true)
 _G.packer_plugins = {
   LuaSnip = {
     loaded = true,
-    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/LuaSnip"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/LuaSnip",
+    url = "https://github.com/L3MON4D3/LuaSnip"
   },
   ["cmp-buffer"] = {
     loaded = true,
-    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/cmp-buffer"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/cmp-buffer",
+    url = "https://github.com/hrsh7th/cmp-buffer"
   },
   ["cmp-nvim-lsp"] = {
     loaded = true,
-    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/cmp-nvim-lsp"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/cmp-nvim-lsp",
+    url = "https://github.com/hrsh7th/cmp-nvim-lsp"
   },
   ["cmp-nvim-lua"] = {
     loaded = true,
-    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/cmp-nvim-lua"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/cmp-nvim-lua",
+    url = "https://github.com/hrsh7th/cmp-nvim-lua"
   },
   ["cmp-path"] = {
     loaded = true,
-    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/cmp-path"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/cmp-path",
+    url = "https://github.com/hrsh7th/cmp-path"
   },
   cmp_luasnip = {
     loaded = true,
-    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/cmp_luasnip"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/cmp_luasnip",
+    url = "https://github.com/saadparwaiz1/cmp_luasnip"
   },
   ["colorbuddy.nvim"] = {
     loaded = true,
-    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/colorbuddy.nvim"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/colorbuddy.nvim",
+    url = "https://github.com/tjdevries/colorbuddy.nvim"
   },
   gruvbox = {
     loaded = true,
-    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/gruvbox"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/gruvbox",
+    url = "https://github.com/morhetz/gruvbox"
   },
   ["indent-blankline.nvim"] = {
     loaded = true,
-    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/indent-blankline.nvim"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/indent-blankline.nvim",
+    url = "https://github.com/lukas-reineke/indent-blankline.nvim"
   },
   kommentary = {
     loaded = true,
-    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/kommentary"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/kommentary",
+    url = "https://github.com/b3nj5m1n/kommentary"
   },
   ["lspkind-nvim"] = {
     loaded = true,
-    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/lspkind-nvim"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/lspkind-nvim",
+    url = "https://github.com/onsails/lspkind-nvim"
   },
   ["lspsaga.nvim"] = {
     loaded = true,
-    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/lspsaga.nvim"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/lspsaga.nvim",
+    url = "https://github.com/glepnir/lspsaga.nvim"
   },
   ["lualine.nvim"] = {
     loaded = true,
-    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/lualine.nvim"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/lualine.nvim",
+    url = "https://github.com/hoob3rt/lualine.nvim"
   },
   ["nvim-autopairs"] = {
     loaded = true,
-    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/nvim-autopairs"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/nvim-autopairs",
+    url = "https://github.com/windwp/nvim-autopairs"
   },
   ["nvim-bufferline.lua"] = {
     loaded = true,
-    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/nvim-bufferline.lua"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/nvim-bufferline.lua",
+    url = "https://github.com/akinsho/nvim-bufferline.lua"
   },
   ["nvim-cmp"] = {
     loaded = true,
-    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/nvim-cmp"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/nvim-cmp",
+    url = "https://github.com/hrsh7th/nvim-cmp"
   },
   ["nvim-colorizer.lua"] = {
     loaded = true,
-    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/nvim-colorizer.lua"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/nvim-colorizer.lua",
+    url = "https://github.com/norcalli/nvim-colorizer.lua"
   },
   ["nvim-compe"] = {
     loaded = true,
-    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/nvim-compe"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/nvim-compe",
+    url = "https://github.com/hrsh7th/nvim-compe"
   },
   ["nvim-lspconfig"] = {
     loaded = true,
-    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/nvim-lspconfig"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/nvim-lspconfig",
+    url = "https://github.com/neovim/nvim-lspconfig"
   },
   ["nvim-tree.lua"] = {
     loaded = true,
-    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/nvim-tree.lua"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/nvim-tree.lua",
+    url = "https://github.com/kyazdani42/nvim-tree.lua"
   },
   ["nvim-treesitter"] = {
     loaded = true,
-    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/nvim-treesitter"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/nvim-treesitter",
+    url = "https://github.com/nvim-treesitter/nvim-treesitter"
   },
   ["nvim-web-devicons"] = {
     loaded = true,
-    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/nvim-web-devicons"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/nvim-web-devicons",
+    url = "https://github.com/kyazdani42/nvim-web-devicons"
   },
   ["packer.nvim"] = {
     loaded = true,
-    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/packer.nvim"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/packer.nvim",
+    url = "https://github.com/wbthomason/packer.nvim"
   },
   ["plenary.nvim"] = {
     loaded = true,
-    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/plenary.nvim"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/plenary.nvim",
+    url = "https://github.com/nvim-lua/plenary.nvim"
   },
   ["telescope.nvim"] = {
     loaded = true,
-    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/telescope.nvim"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/telescope.nvim",
+    url = "https://github.com/nvim-telescope/telescope.nvim"
   },
   ["todo-comments.nvim"] = {
     loaded = true,
-    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/todo-comments.nvim"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/todo-comments.nvim",
+    url = "https://github.com/folke/todo-comments.nvim"
   },
   ["vim-wakatime"] = {
     loaded = true,
-    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/vim-wakatime"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/vim-wakatime",
+    url = "https://github.com/wakatime/vim-wakatime"
   },
   ["which-key.nvim"] = {
     loaded = true,
-    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/which-key.nvim"
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/which-key.nvim",
+    url = "https://github.com/folke/which-key.nvim"
   }
 }
 
