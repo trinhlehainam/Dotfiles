@@ -25,7 +25,6 @@ require('packer').startup(function(use)
     use {'nvim-treesitter/nvim-treesitter', run = ':TSUpdate'}
     use 'norcalli/nvim-colorizer.lua'
     use 'lukas-reineke/indent-blankline.nvim'
-    use 'windwp/nvim-autopairs'
     use 'b3nj5m1n/kommentary'
     use 'kyazdani42/nvim-web-devicons'
     use 'kyazdani42/nvim-tree.lua'
@@ -33,10 +32,11 @@ require('packer').startup(function(use)
     use 'akinsho/nvim-bufferline.lua'
     use 'folke/todo-comments.nvim'
     use 'nvim-telescope/telescope.nvim'
-    use 'neovim/nvim-lspconfig'
     -- Snippet
     use 'L3MON4D3/LuaSnip'
     -- Completion
+    use 'neovim/nvim-lspconfig'
+    use 'ray-x/lsp_signature.nvim'
     use 'tjdevries/colorbuddy.nvim'
     use 'onsails/lspkind-nvim'
     use 'hrsh7th/nvim-cmp'
@@ -45,7 +45,7 @@ require('packer').startup(function(use)
     use 'hrsh7th/cmp-nvim-lua'
     use 'hrsh7th/cmp-nvim-lsp'
     use 'saadparwaiz1/cmp_luasnip'
+    use 'windwp/nvim-autopairs'
 
-    use 'hrsh7th/nvim-compe'
     use 'wakatime/vim-wakatime'
 end)

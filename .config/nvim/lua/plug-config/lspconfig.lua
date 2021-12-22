@@ -128,6 +128,9 @@ require'lspconfig'.sumneko_lua.setup {
   },
 }
 
+-- Lsp signature
+require "lsp_signature".setup()
+
 local keymap = vim.api.nvim_set_keymap
 local opts = {silent = true, noremap = true}
 keymap('n','te',":lua require'plug-config.lspconfig'.ToggleVirtualText()<CR>",opts)
