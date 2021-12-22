@@ -47,6 +47,5 @@ require('packer').startup(function(use)
     use 'saadparwaiz1/cmp_luasnip'
 
     use 'hrsh7th/nvim-compe'
-    use 'glepnir/lspsaga.nvim'
     use 'wakatime/vim-wakatime'
 end)
