@@ -154,6 +154,11 @@ _G.packer_plugins = {
     path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/nvim-colorizer.lua",
     url = "https://github.com/norcalli/nvim-colorizer.lua"
   },
+  ["nvim-hlslens"] = {
+    loaded = true,
+    path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/nvim-hlslens",
+    url = "https://github.com/kevinhwang91/nvim-hlslens"
+  },
   ["nvim-lspconfig"] = {
     loaded = true,
     path = "/home/globalchecker/.local/share/nvim/site/pack/packer/start/nvim-lspconfig",

@@ -18,7 +18,7 @@ o.timeoutlen = 300
 o.termguicolors = true
 o.scrolloff = 8
 -- o.clipboard = 'unnamedplus'
-o.hlsearch = false
+o.hlsearch = true
 o.errorbells = false
 o.ignorecase = true
 
