@@ -47,7 +47,11 @@ require('packer').startup(function(use)
     use 'saadparwaiz1/cmp_luasnip'
     use 'windwp/nvim-autopairs'
 
+    -- Highlight search
     use 'kevinhwang91/nvim-hlslens'
+
+    -- Fancy notification
+    use 'rcarriga/nvim-notify'
 
     use 'wakatime/vim-wakatime'
 end)
