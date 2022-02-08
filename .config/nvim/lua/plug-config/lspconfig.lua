@@ -28,6 +28,10 @@ M.ToggleVirtualText = function()
     ResetDiagnosticDisplay(conf)
 end
 
+local keymap = vim.api.nvim_set_keymap
+local opts = {silent = true, noremap = true}
+keymap('n','te',":lua require'plug-config.lspconfig'.ToggleVirtualText()<CR>",opts)
+
 -- Enable snippetSuport
 local capabilities = vim.lsp.protocol.make_client_capabilities()
 capabilities.textDocument.completion.completionItem.snippetSupport = true
@@ -138,8 +142,19 @@ require "lsp_signature".setup({
     toggle_key = "<C-k>",
 })
 
-local keymap = vim.api.nvim_set_keymap
-local opts = {silent = true, noremap = true}
-keymap('n','te',":lua require'plug-config.lspconfig'.ToggleVirtualText()<CR>",opts)
+-- Overwrite lsp dianostic icons
+local signs = {
+    Error = " ",
+    Warning = " ",
+    Hint = " ",
+    Information = " "
+}
+
+for type, icon in pairs(signs) do
+    -- local hl = "LspDiagnosticsSign" .. type NOTE: nvim 0.5
+    local hl = "DiagnosticSign" .. type -- NOTE: nvim 0.6
+    vim.fn.sign_define(hl, {text = icon, texthl = hl, numhl = hl})
+end
+--
 
 return M

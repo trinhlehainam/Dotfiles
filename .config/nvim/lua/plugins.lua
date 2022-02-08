@@ -19,14 +19,16 @@ require('packer').startup(function(use)
     use 'wbthomason/packer.nvim'
     -- Best Color Schemes
     use 'morhetz/gruvbox'
+    -- Icon
+    use 'kyazdani42/nvim-web-devicons'
     use 'folke/which-key.nvim'
+    -- Utils
     use 'nvim-lua/plenary.nvim'
     -- Better Syntax Support
     use {'nvim-treesitter/nvim-treesitter', run = ':TSUpdate'}
     use 'norcalli/nvim-colorizer.lua'
     use 'lukas-reineke/indent-blankline.nvim'
     use 'b3nj5m1n/kommentary'
-    use 'kyazdani42/nvim-web-devicons'
     use 'kyazdani42/nvim-tree.lua'
     use 'hoob3rt/lualine.nvim'
     use 'akinsho/nvim-bufferline.lua'
@@ -47,9 +49,9 @@ require('packer').startup(function(use)
     use 'saadparwaiz1/cmp_luasnip'
     use 'windwp/nvim-autopairs'
 
+    use 'folke/trouble.nvim'
     -- Highlight search
     use 'kevinhwang91/nvim-hlslens'
-
     -- Fancy notification
     use 'rcarriga/nvim-notify'
 

@@ -1,0 +1,6 @@
+// Install
+sudo apt update
+sudo apt install ffmpeg -y
+
+// Record video without audio and microphone
+ffmpeg -y -video_size 1920x1080 -framerate 30 -f x11grab -i $DISPLAY+0,0 -c:v libx264 -qp 0 -preset ultrafast base.mp4
