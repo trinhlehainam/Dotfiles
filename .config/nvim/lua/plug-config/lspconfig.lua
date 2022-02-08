@@ -145,13 +145,12 @@ require "lsp_signature".setup({
 -- Overwrite lsp dianostic icons
 local signs = {
     Error = " ",
-    Warning = " ",
+    Warn = " ",
     Hint = " ",
-    Information = " "
+    Info = " "
 }
 
 for type, icon in pairs(signs) do
-    -- local hl = "LspDiagnosticsSign" .. type NOTE: nvim 0.5
     local hl = "DiagnosticSign" .. type -- NOTE: nvim 0.6
     vim.fn.sign_define(hl, {text = icon, texthl = hl, numhl = hl})
 end
