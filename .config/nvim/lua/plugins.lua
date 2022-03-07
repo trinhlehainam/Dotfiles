@@ -49,6 +49,9 @@ require('packer').startup(function(use)
     use 'saadparwaiz1/cmp_luasnip'
     use 'windwp/nvim-autopairs'
 
+    use 'lewis6991/gitsigns.nvim'
+    -- Formating, Linting, etc
+    use 'jose-elias-alvarez/null-ls.nvim'
     use 'folke/trouble.nvim'
     -- Highlight search
     use 'kevinhwang91/nvim-hlslens'
