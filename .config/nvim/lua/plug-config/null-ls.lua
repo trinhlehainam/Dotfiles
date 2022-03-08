@@ -9,6 +9,6 @@ local completion = null_ls.builtins.completion
 null_ls.setup({
     debug = false,
     sources = {
-        formatting.prettier,
+        formatting.prettier.with({extra_args = {'--tab-width 4', '--use-tabs'}}),
     }
 })

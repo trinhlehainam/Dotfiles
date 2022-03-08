@@ -30,9 +30,9 @@ w.signcolumn = 'yes'
 w.colorcolumn = '80'
 w.foldmethod = 'marker'
 
--- b.tabstop = 4
--- b.shiftwidth = 4
--- b.softtabstop = 4
+-- b.tabstop = 2
+-- b.shiftwidth = 2
+-- b.softtabstop = 2
 -- b.expandtab = true
 -- b.smartindent = true
 -- b.autoindent = true
