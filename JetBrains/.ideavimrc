@@ -1,0 +1,101 @@
+```
+" Setting
+set timeoutlen=200
+net nowrap
+set scrolloff=8
+net ignorecase
+net smartcase
+set number
+set relativenumber
+
+" Plugins
+" set NERDTree
+set surround
+set commentary
+set ideajoin
+set ideaput
+set multiple-cursors
+
+" Keymaps
+let mapleader=" "
+  
+nmap <Esc> :action HideActiveWindow<CR>
+inoremap jk <Esc>
+
+" Remap h j k l
+noremap j h
+noremap k j
+noremap l k
+noremap ; l
+noremap h ""
+
+noremap gj ^
+noremap g; $
+
+" Move Next/Pre letter in INSERT mode
+inoremap <A-j> <Esc>i
+inoremap <A-;> <Esc>la
+
+" Telescope fzf like keymap 
+noremap <leader>ff :action GotoFile<CR>
+noremap <leader>fg :action SearchEverywhere<CR>
+noremap <leader>fw :action TextSearchAction<CR>
+noremap <leader>/ :action Find<CR>
+noremap <leader>ds :action ActivateStructureToolWindow<CR>
+noremap <leader>ws :action GotoSymbol<CR>
+noremap <leader><space> :action Switcher<CR>
+
+" Nvim lsp like keymap
+noremap <leader>rn :action RenameElement<CR>
+noremap <leader>ca :action ShowIntentionActions<CR>
+noremap gd :action GotoDeclaration<CR>
+noremap <leader>D :action GotoTypeDeclaration<CR>
+noremap gr :action ShowUsages<CR>
+noremap gI :action ReSharperGotoImplementation<CR>
+
+" Diagnostic keymap 
+noremap [d :action GotoNextError<CR>
+noremap ]d :action GotoPreviousError<CR>
+noremap <leader>e :action ShowErrorDescription<CR>
+noremap <leader>q :action ActivateProblemsViewToolWindow<CR>
+
+noremap K :action QuickJavaDoc<CR>
+noremap <C-k> : action ParameterInfo<CR>
+
+noremap <leader>b :action BuildButton<CR>
+noremap <leader>w :action SaveDocument<CR>
+
+noremap == :action ReformatCode<CR>
+vnoremap == :action ReformatCode<CR>
+
+noremap <A-k> :action MoveLineDown<CR>:action ReformatCode<CR>
+noremap <A-l> :action MoveLineUp<CR>:action ReformatCode<CR>
+inoremap <A-k> <Esc>:action MoveLineDown<CR>:action ReformatCode<CR>a
+inoremap <A-l> <Esc>:action MoveLineUp<CR>:action ReformatCode<CR>a
+
+noremap bl :action NextTab<CR>
+noremap bk :action PreviousTab<CR>
+noremap bc :action CloseContent<CR>
+
+noremap <C-i> :action Forward<CR>
+noremap <C-o> :action Back<CR>
+
+vnoremap <C-y> :action EditorCopy<CR><C-c>
+noremap <C-p> :action EditorPaste<CR>
+
+" noremap <C-z> :action ToggleDistractionFreeMode<CR>
+noremap tt :action ActivateProjectToolWindow<CR>
+noremap sb :action ActivateBuildToolWindow<CR>
+noremap sg :action ActivateVersionControlToolWindow<CR>
+noremap st :action ActivateTerminalToolWindow<CR>
+
+noremap <leader>gu :action Vcs.UpdateProject<CR>
+noremap <leader>gf :action Git.Fetch<CR>
+noremap <leader>gc :action CheckinProject<CR> 
+
+" Remap multiple-cursors keys
+map mc <A-n>
+map mx <A-x>
+map mp <A-p>
+```
+
