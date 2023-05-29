@@ -1,7 +1,0 @@
-https://www.digitalocean.com/community/tutorials/how-to-set-up-ssh-keys-on-ubuntu-20-04
-https://itsfoss.com/set-up-ssh-ubuntu/
-https://linuxhandbook.com/ssh-config-file/
-https://linuxhandbook.com/add-ssh-public-key-to-server/
-
-To connect to remote server, need generate pair ssh keys (public, private) in local (client) machine. Then copy public key to remote server.
-

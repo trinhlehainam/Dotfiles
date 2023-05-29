@@ -1,2 +1,0 @@
-https://vi.stackexchange.com/questions/7722/how-to-debug-a-mapping
-https://vi.stackexchange.com/questions/25264/ctrl-keybindings-not-working-in-wsltty

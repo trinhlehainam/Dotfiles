@@ -1,2 +1,0 @@
-- Install UNetbootin to boot image to USB drive.
-- Install exfat to format USB to exFAT (FAT64). https://www.pendrivelinux.com/mount-exfat-usb-from-linux/

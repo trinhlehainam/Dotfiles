@@ -1,3 +1,0 @@
--Install chocolately (windows package manager)
--Use chocolately to install lf, gotop, winfetch, ntop
--Edit $PROFILE to auto run powershell commands on start
