@@ -96,7 +96,7 @@ require('lazy').setup({
 
   -- Git related plugins
   'tpope/vim-fugitive',
-  'tpope/vim-rhubarb',
+  -- 'tpope/vim-rhubarb',
   {
     -- Adds git releated signs to the gutter, as well as utilities for managing changes
     'lewis6991/gitsigns.nvim',
@@ -110,6 +110,19 @@ require('lazy').setup({
         changedelete = { text = '~' },
       },
     },
+  },
+  'sindrets/diffview.nvim',
+  -- Github related plugins
+  {
+    'pwntester/octo.nvim',
+    dependencies = {
+      'nvim-lua/plenary.nvim',
+      'nvim-telescope/telescope.nvim',
+      'nvim-tree/nvim-web-devicons',
+    },
+    config = function()
+      require('octo').setup {}
+    end
   },
 
   -- Detect tabstop and shiftwidth automatically
@@ -141,7 +154,7 @@ require('lazy').setup({
   },
 
   -- Useful plugin to show you pending keybinds.
-  { 'folke/which-key.nvim', opts = {} },
+  { 'folke/which-key.nvim',          opts = {} },
 
   {
     -- Add indentation guides even on blank lines
@@ -188,6 +201,7 @@ require('lazy').setup({
   --    to get rid of the warning telling you that there are not plugins in `lua/custom/plugins/`.
   { import = 'custom.plugins' },
   { import = 'custom.colorschemes' },
+  { import = 'custom.ai' },
 }, {})
 
 -- [[ Setting options ]]
@@ -244,6 +258,16 @@ vim.o.relativenumber = true;
 -- Use Treesitter folding
 vim.wo.foldmethod = 'expr'
 vim.wo.foldexpr = 'nvim_treesitter#foldexpr()'
+
+-- Tabstop settings
+vim.cmd [[
+set tabstop=4
+set shiftwidth=4
+set softtabstop=4
+set noexpandtab
+set smartindent
+set smarttab
+]]
 
 -- ]]
 

@@ -96,10 +96,9 @@ return {
    },
    config = function()
       local rt = require("rust-tools")
-      local mason_lspconfig = require('mason-lspconfig')
       local dap = require('dap')
 
-      mason_lspconfig.setup {
+      require('mason-lspconfig').setup {
          ensure_installed = { ["rust_analyzer"] = "rust-analyzer" }
       }
 
