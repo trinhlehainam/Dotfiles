@@ -37,8 +37,10 @@ local on_attach = function(_, bufnr)
    end, { desc = 'Format current buffer with LSP' })
 end
 
+local is_windows = _G.IS_WINDOWS;
+
 local mason_path = function()
-   if _G.IS_WINDOWS then
+   if is_windows then
       return vim.env.HOME .. '/AppData/Local/nvim-data/mason/'
    else
       return vim.env.HOME .. '/.local/share/nvim/mason/'
@@ -46,7 +48,7 @@ local mason_path = function()
 end
 
 local rust_analyzer_cmd = function()
-   if _G.IS_WINDOWS then
+   if is_windows then
       return mason_path() .. 'packages/' .. 'rust-analyzer/rust-analyzer.exe'
    else
       return mason_path() .. 'bin/' .. 'rust-analyzer'
@@ -58,7 +60,7 @@ local codelldb_exetension_path = function()
 end
 
 local codelldb_path = function()
-   if _G.IS_WINDOWS then
+   if is_windows then
       return mason_path() .. 'bin/' .. 'codelldb.cmd'
    else
       return codelldb_exetension_path() .. 'adapter/codelldb'
@@ -66,7 +68,7 @@ local codelldb_path = function()
 end
 
 local liblldb_path = function()
-   if _G.IS_WINDOWS then
+   if is_windows then
       return ''
    else
       return codelldb_exetension_path() .. 'lldb/lib/liblldb.so'
@@ -74,7 +76,7 @@ local liblldb_path = function()
 end
 
 local dap_adapter_agrs = function()
-   if _G.IS_WINDOWS then
+   if is_windows then
       return { "--port", "${port}" }
    else
       return { "--liblldb", liblldb_path(), "--port", "${port}" }
