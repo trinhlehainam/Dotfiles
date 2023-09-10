@@ -91,7 +91,7 @@ return {
       'williamboman/mason.nvim',
 
       'neovim/nvim-lspconfig',
-      'williamboman/mason-lspconfig.nvim',
+      -- 'williamboman/mason-lspconfig.nvim',
 
       'mfussenegger/nvim-dap',
       'jay-babu/mason-nvim-dap.nvim',
@@ -100,11 +100,8 @@ return {
       local rt = require("rust-tools")
       local dap = require('dap')
 
-      require('mason-lspconfig').setup {
-         ensure_installed = { ["rust_analyzer"] = "rust-analyzer" }
-      }
-
       require('mason-nvim-dap').setup {
+         automatic_installation = true,
          -- You'll need to check that you have the required things installed
          -- online, please don't ask me how to install them :)
          ensure_installed = {
@@ -127,7 +124,20 @@ return {
       }
 
       rt.setup({
+         tools = {
+            inlay_hints = {
+               auto = false
+            },
+         },
+         -- see https://github.com/neovim/nvim-lspconfig/blob/master/doc/server_configurations.md#rust_analyzer
          server = {
+            settings = {
+               ["rust-analyzer"] = {
+                  checkOnSave = {
+                     command = "clippy",
+                  },
+               },
+            },
             on_attach = on_attach,
             cmd = { rust_analyzer_cmd() },
          },
@@ -143,5 +153,7 @@ return {
             }
          },
       })
+
+      rt.inlay_hints.disable()
    end
 }

@@ -140,12 +140,12 @@ require('lazy').setup({
 
       -- Useful status updates for LSP
       -- NOTE: `opts = {}` is the same as calling `require('fidget').setup({})`
-      { 
+      {
         'j-hui/fidget.nvim',
         tag = 'legacy',
         opts = {}
       },
-
+      opts = { inlay_hints = { enalbed = true }, },
       -- Additional lua configuration, makes nvim stuff amazing!
       'folke/neodev.nvim',
     },
@@ -258,10 +258,6 @@ vim.o.wrap = false
 vim.o.colorcolumn = "80"
 
 vim.o.relativenumber = true;
-
--- Use Treesitter folding
-vim.wo.foldmethod = 'expr'
-vim.wo.foldexpr = 'nvim_treesitter#foldexpr()'
 
 -- Tabstop settings
 vim.cmd [[
