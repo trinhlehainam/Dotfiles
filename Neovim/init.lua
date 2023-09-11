@@ -483,6 +483,25 @@ vim.diagnostic.config({
 })
 
 -- LSP settings.
+
+-- Putting vim lsp settings inside on_attach is no longer a best pratice
+-- Instead use `LspAttach` event in an autocmd
+-- See https://vinnymeller.com/posts/neovim_nightly_inlay_hints/#rust-toolsnvim-inlay-hints
+vim.api.nvim_create_autocmd("LspAttach", {
+  group = vim.api.nvim_create_augroup("UserLspConfig", {}),
+  callback = function(args)
+    local client = vim.lsp.get_client_by_id(args.data.client_id)
+    if client and client.server_capabilities.inlayHintProvider then
+      vim.keymap.set("n", "th",
+        function()
+          vim.lsp.inlay_hint(args.buf)
+        end,
+        { buffer = args.buf, desc = "Toggle inlay hints" })
+    end
+    -- whatever other lsp config you want
+  end
+})
+
 --  This function gets run when an LSP connects to a particular buffer.
 local on_attach = function(_, bufnr)
   -- NOTE: Remember that lua is a real programming language, and as such it is possible
