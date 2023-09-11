@@ -403,7 +403,7 @@ vim.keymap.set('n', '<leader>fc', require('telescope.builtin').colorscheme, { de
 require('nvim-treesitter.configs').setup {
   -- Add languages to be installed here that you want installed for treesitter
   ensure_installed = { 'c', 'cpp', 'c_sharp', 'go', 'lua', 'python', 'rust', 'toml', 'tsx', 'typescript', 'help', 'vim',
-    'markdown', 'markdown_inline' },
+    'markdown', 'markdown_inline', 'sql' },
 
   -- Autoinstall languages that are not installed. Defaults to false (but you can change for yourself!)
   auto_install = false,
@@ -532,6 +532,7 @@ end
 --
 --  Add any additional override configuration in the following tables. They will be passed to
 --  the `settings` field of the server config. You must look up that documentation yourself.
+--  See https://github.com/neovim/nvim-lspconfig/blob/master/doc/server_configurations.md
 local servers = {
   -- clangd = {},
   -- gopls = {},
@@ -586,11 +587,17 @@ mason_lspconfig.setup_handlers {
   end,
 }
 
--- Custom lspconfig
-require('lspconfig').ccls.setup {
+-- Custom lspconfig because Mason hasn't supports these language server yet
+local lspconfig = require('lspconfig')
+
+lspconfig.ccls.setup {
   capabilities = capabilities,
   on_attach = on_attach,
 }
+
+-- Language server for Postgres written in Rust
+-- NOTE: This frame is not production ready yet, check back later
+-- lspconfig.postgres_lsp.setup{}
 --
 
 -- nvim-cmp setup
