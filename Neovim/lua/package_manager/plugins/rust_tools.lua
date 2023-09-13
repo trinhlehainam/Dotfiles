@@ -37,49 +37,14 @@ local on_attach = function(_, bufnr)
    end, { desc = 'Format current buffer with LSP' })
 end
 
-local is_windows = _G.IS_WINDOWS;
-
-local mason_path = function()
-   if is_windows then
-      return vim.env.HOME .. '/AppData/Local/nvim-data/mason/'
-   else
-      return vim.env.HOME .. '/.local/share/nvim/mason/'
-   end
-end
-
-local rust_analyzer_cmd = function()
-   if is_windows then
-      return mason_path() .. 'packages/' .. 'rust-analyzer/rust-analyzer.exe'
-   else
-      return mason_path() .. 'bin/' .. 'rust-analyzer'
-   end
-end
-
-local codelldb_exetension_path = function()
-   return mason_path() .. 'packages/' .. 'codelldb/extension/'
-end
-
-local codelldb_path = function()
-   if is_windows then
-      return mason_path() .. 'bin/' .. 'codelldb.cmd'
-   else
-      return codelldb_exetension_path() .. 'adapter/codelldb'
-   end
-end
-
-local liblldb_path = function()
-   if is_windows then
-      return ''
-   else
-      return codelldb_exetension_path() .. 'lldb/lib/liblldb.so'
-   end
-end
+local utils = require('utils')
+local is_wins = utils.IS_WINDOWS
 
 local dap_adapter_agrs = function()
-   if is_windows then
+   if is_wins then
       return { "--port", "${port}" }
    else
-      return { "--liblldb", liblldb_path(), "--port", "${port}" }
+      return { "--liblldb", utils.LIBLLDB_PATH, "--port", "${port}" }
    end
 end
 
@@ -88,9 +53,9 @@ return {
    dependencies = {
       'nvim-lua/plenary.nvim',
 
-      'williamboman/mason.nvim',
-
       'neovim/nvim-lspconfig',
+      'williamboman/mason.nvim',
+      'williamboman/mason-lspconfig.nvim',
 
       'mfussenegger/nvim-dap',
       'jay-babu/mason-nvim-dap.nvim',
@@ -98,6 +63,12 @@ return {
    config = function()
       local rt = require("rust-tools")
       local dap = require('dap')
+
+      require('mason').setup()
+      local mason_lspconfig = require 'mason-lspconfig'
+      mason_lspconfig.setup {
+         ensure_installed = { "rust_analyzer" }
+      }
 
       require('mason-nvim-dap').setup {
          automatic_installation = true,
@@ -122,37 +93,43 @@ return {
          },
       }
 
-      rt.setup({
-         tools = {
-            inlay_hints = {
-               auto = false
-            },
-         },
-         -- see https://github.com/neovim/nvim-lspconfig/blob/master/doc/server_configurations.md#rust_analyzer
-         server = {
-            settings = {
-               ["rust-analyzer"] = {
-                  checkOnSave = {
-                     command = "clippy",
+      mason_lspconfig.setup_handlers {
+         function(server_name)
+            if server_name == "rust_analyzer" then
+               rt.setup({
+                  tools = {
+                     inlay_hints = {
+                        auto = false
+                     },
                   },
-               },
-            },
-            on_attach = on_attach,
-            cmd = { rust_analyzer_cmd() },
-         },
-         dap = {
-            adapter = {
-               type = "server",
-               port = "${port}",
-               host = "127.0.0.1",
-               executable = {
-                  command = codelldb_path(),
-                  args = dap_adapter_agrs(),
-               },
-            }
-         },
-      })
+                  -- see https://github.com/neovim/nvim-lspconfig/blob/master/doc/server_configurations.md#rust_analyzer
+                  server = {
+                     settings = {
+                        ["rust-analyzer"] = {
+                           checkOnSave = {
+                              command = "clippy",
+                           },
+                        },
+                     },
+                     on_attach = on_attach,
+                     cmd = { rust_analyzer_cmd() },
+                  },
+                  dap = {
+                     adapter = {
+                        type = "server",
+                        port = "${port}",
+                        host = "127.0.0.1",
+                        executable = {
+                           command = codelldb_path(),
+                           args = dap_adapter_agrs(),
+                        },
+                     }
+                  },
+               })
 
-      rt.inlay_hints.disable()
+               rt.inlay_hints.disable()
+            end
+         end
+      }
    end
 }

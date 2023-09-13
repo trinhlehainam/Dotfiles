@@ -6,8 +6,6 @@ return {
       local crates = require('crates');
       crates.setup();
 
-      local opts = { silent = true }
-
       vim.keymap.set('n', '<leader>ct', crates.toggle, { desc = "[C]rates [T]oggle" })
       vim.keymap.set('n', '<leader>cr', crates.reload, { desc = "[C]rates [R]eload" })
 
