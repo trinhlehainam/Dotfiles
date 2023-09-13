@@ -95,4 +95,27 @@ function M.on_attach(_, bufnr)
    end, { desc = 'Format current buffer with LSP' })
 end
 
+function M.modname_to_dir_path(modname)
+   local path = string.gsub(modname, '%.', '/')
+   return vim.fn.stdpath('config') .. '/' .. path
+end
+
+function M.load_mods_in_dir(directory_path, ignore_mods)
+   local modules = {}
+   for _, file_name in ipairs(vim.fn.readdir(directory_path)) do
+      if file_name:match('%.lua$') then
+         local moduleName = file_name:match("^(.-)%.lua$")
+         if not ignore_mods or not vim.tbl_contains(ignore_mods, moduleName) then
+            modules[moduleName] = require(directory_path .. '.' .. moduleName)
+         end
+      end
+   end
+   return modules
+end
+
+function M.load_mods_by_modname(modname, ignore_mods)
+   local mods_dir = M.modname_to_dir_path(modname);
+   M.load_mods_in_dir(mods_dir, ignore_mods)
+end
+
 return M

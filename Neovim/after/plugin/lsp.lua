@@ -55,6 +55,11 @@ local servers = {
   },
 }
 
+local langs = require('lsp')
+for _, lang in ipairs(langs) do
+  servers[lang.lang_server] = {}
+end
+
 -- nvim-cmp supports additional completion capabilities, so broadcast that to servers
 local capabilities = vim.lsp.protocol.make_client_capabilities()
 capabilities = require('cmp_nvim_lsp').default_capabilities(capabilities)
@@ -71,11 +76,15 @@ mason_lspconfig.setup {
 
 mason_lspconfig.setup_handlers {
   function(server_name)
-    require('lspconfig')[server_name].setup {
-      capabilities = capabilities,
-      on_attach = utils.on_attach,
-      settings = servers[server_name],
-    }
+    if langs and vim.tbl_contains(vim.tbl_keys(langs), server_name) then
+      langs[server_name].lspconfig()
+    else
+      require('lspconfig')[server_name].setup {
+        capabilities = capabilities,
+        on_attach = utils.on_attach,
+        settings = servers[server_name],
+      }
+    end
   end,
 }
 
