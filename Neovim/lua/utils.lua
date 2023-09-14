@@ -114,7 +114,7 @@ function M.load_mods_in_dir(directory_path, ignore_mods)
    return mods
 end
 
-function M.load_mods_by_modname(modname, ignore_mods)
+function M.load_mods(modname, ignore_mods)
    local mods_dir = M.modname_to_dir_path(modname);
    return M.load_mods_in_dir(mods_dir, ignore_mods)
 end
