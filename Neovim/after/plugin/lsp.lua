@@ -77,7 +77,7 @@ local lang_server_names = vim.tbl_keys(lang_servers)
 
 mason_lspconfig.setup_handlers {
   function(server_name)
-    if lang_servers and vim.tbl_contains(lang_server_names, server_name) then
+    if lang_servers and vim.tbl_contains(lang_server_names, server_name) and lang_servers[server_name].lspconfig then
       lang_servers[server_name].lspconfig()
     else
       lspconfig[server_name].setup {
@@ -87,12 +87,6 @@ mason_lspconfig.setup_handlers {
       }
     end
   end,
-}
-
--- Custom lspconfig because Mason hasn't supports these language server yet
-lspconfig.ccls.setup {
-  capabilities = capabilities,
-  on_attach = utils.on_attach,
 }
 
 -- Language server for Postgres written in Rust

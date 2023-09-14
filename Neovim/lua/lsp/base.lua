@@ -2,9 +2,8 @@ local M = {
   lang_server = function()
     error("Not implemented. Must be a string")
   end,
-  lspconfig = function()
-    error("Not implemented. Must be a function")
-  end,
+  -- Use Mason lspconfig if this is not set (nil)
+  lspconfig = nil,
   dap_type = function()
     error("Not implemented. Must be a string")
   end,

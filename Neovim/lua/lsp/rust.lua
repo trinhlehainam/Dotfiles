@@ -2,22 +2,8 @@ local M = {}
 local base = require("lsp.base")
 setmetatable(M, base)
 
-M.lang_server = "rust_analyzer"
-
 local utils = require('utils')
 local is_wins = utils.IS_WINDOWS
-
-local function on_attach(_, bufnr)
-  local rt = require("rust-tools")
-  local nmap = utils.create_nmap(bufnr)
-
-  utils.on_attach(_, bufnr)
-
-  nmap("<Leader>ca", rt.code_action_group.code_action_group, '[C]ode [A]ction Groups')
-
-  -- See `:help K` for why this keymap
-  nmap("K", rt.hover_actions.hover_actions, "Hover Actions")
-end
 
 local function dap_adapter_agrs()
   if is_wins then
@@ -41,6 +27,19 @@ M.dapconfig = {
   },
 }
 
+local function on_attach(_, bufnr)
+  local rt = require("rust-tools")
+  local nmap = utils.create_nmap(bufnr)
+
+  utils.on_attach(_, bufnr)
+
+  nmap("<Leader>ca", rt.code_action_group.code_action_group, '[C]ode [A]ction Groups')
+
+  -- See `:help K` for why this keymap
+  nmap("K", rt.hover_actions.hover_actions, "Hover Actions")
+end
+
+M.lang_server = "rust_analyzer"
 M.lspconfig = function()
   local rt = require("rust-tools")
   rt.setup({
