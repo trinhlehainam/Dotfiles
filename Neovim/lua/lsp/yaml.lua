@@ -2,15 +2,11 @@ local M = {}
 local base = require("lsp.base")
 setmetatable(M, base)
 
--- nvim-cmp supports additional completion capabilities, so broadcast that to servers
-local capabilities = vim.lsp.protocol.make_client_capabilities()
-
-capabilities = require('cmp_nvim_lsp').default_capabilities(capabilities)
 M.lang_server = "yamlls"
-M.lspconfig = function()
+M.lspconfig = function(capabilities, on_attach)
   require('lspconfig').yamlls.setup {
     capabilities = capabilities,
-    on_attach = require('utils').on_attach,
+    on_attach = on_attach,
     settings = {
       yaml = {
         schemaStore = {

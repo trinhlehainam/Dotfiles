@@ -27,20 +27,22 @@ M.dapconfig = {
   },
 }
 
-local function on_attach(_, bufnr)
-  local rt = require("rust-tools")
-  local nmap = utils.create_nmap(bufnr)
+local function create_on_attach(default_on_attach)
+  return function(_, bufnr)
+    local rt = require("rust-tools")
+    local nmap = utils.create_nmap(bufnr)
 
-  utils.on_attach(_, bufnr)
+    default_on_attach(_, bufnr)
 
-  nmap("<Leader>ca", rt.code_action_group.code_action_group, '[C]ode [A]ction Groups')
+    nmap("<Leader>ca", rt.code_action_group.code_action_group, '[C]ode [A]ction Groups')
 
-  -- See `:help K` for why this keymap
-  nmap("K", rt.hover_actions.hover_actions, "Hover Actions")
+    -- See `:help K` for why this keymap
+    nmap("K", rt.hover_actions.hover_actions, "Hover Actions")
+  end
 end
 
 M.lang_server = "rust_analyzer"
-M.lspconfig = function()
+M.lspconfig = function(_, default_on_attach)
   local rt = require("rust-tools")
   rt.setup({
     tools = {
@@ -57,7 +59,7 @@ M.lspconfig = function()
           },
         },
       },
-      on_attach = on_attach,
+      on_attach = create_on_attach(default_on_attach),
       cmd = { utils.RUST_ANALYZER_CMD, },
     },
     dap = {
