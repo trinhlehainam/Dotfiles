@@ -97,7 +97,7 @@ end
 
 function M.modname_to_dir_path(modname)
    local path = string.gsub(modname, '%.', '/')
-   return vim.fn.stdpath('config') .. '/' .. path
+   return vim.fn.stdpath('config') .. '/lua/' .. path
 end
 
 function M.load_mods_in_dir(directory_path, ignore_mods)

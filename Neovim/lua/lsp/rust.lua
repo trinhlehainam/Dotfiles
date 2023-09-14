@@ -2,7 +2,6 @@ local M = {}
 local base = require("lsp.base")
 setmetatable(M, base)
 
-M.lang = "rust"
 M.lang_server = "rust_analyzer"
 
 local utils = require('utils')
@@ -28,10 +27,11 @@ local function dap_adapter_agrs()
   end
 end
 
+M.dap_type = "codelldb"
 M.dapconfig = {
   {
     name = "Launch file",
-    type = "codelldb",
+    type = M.dap_type,
     request = "launch",
     program = function()
       return vim.fn.input('Path to executable: ', vim.fn.getcwd() .. '/', 'file')

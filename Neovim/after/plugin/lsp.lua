@@ -51,10 +51,10 @@ local servers = {
 
 local langs = require('lsp')
 local lang_servers = {}
-for _, lang in pairs(langs) do
-  servers[lang.lang_server] = {}
-  lang_servers[lang.lang_server] = {
-    lspconfig = lang.lspconfig
+for _, lang_config in pairs(langs) do
+  servers[lang_config.lang_server] = {}
+  lang_servers[lang_config.lang_server] = {
+    lspconfig = lang_config.lspconfig
   }
 end
 
