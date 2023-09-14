@@ -50,8 +50,12 @@ local servers = {
 }
 
 local langs = require('lsp')
+local lang_servers = {}
 for _, lang in pairs(langs) do
   servers[lang.lang_server] = {}
+  lang_servers[lang.lang_server] = {
+    lspconfig = lang.lspconfig
+  }
 end
 
 -- nvim-cmp supports additional completion capabilities, so broadcast that to servers
@@ -68,12 +72,15 @@ mason_lspconfig.setup {
   ensure_installed = vim.tbl_keys(servers),
 }
 
+local lspconfig = require('lspconfig')
+local lang_server_names = vim.tbl_keys(lang_servers)
+
 mason_lspconfig.setup_handlers {
   function(server_name)
-    if langs and vim.tbl_contains(vim.tbl_keys(langs), server_name) then
-      langs[server_name].lspconfig()
+    if lang_servers and vim.tbl_contains(lang_server_names, server_name) then
+      lang_servers[server_name].lspconfig()
     else
-      require('lspconfig')[server_name].setup {
+      lspconfig[server_name].setup {
         capabilities = capabilities,
         on_attach = utils.on_attach,
         settings = servers[server_name],
@@ -83,8 +90,6 @@ mason_lspconfig.setup_handlers {
 }
 
 -- Custom lspconfig because Mason hasn't supports these language server yet
-local lspconfig = require('lspconfig')
-
 lspconfig.ccls.setup {
   capabilities = capabilities,
   on_attach = utils.on_attach,
