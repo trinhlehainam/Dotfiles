@@ -10,6 +10,6 @@ require('mason-nvim-dap').setup {
   },
 }
 
-for _, lang in ipairs(require('lsp')) do
+for _, lang in pairs(require('lsp')) do
   dap.configurations[lang.lang] = lang.dapconfig
 end

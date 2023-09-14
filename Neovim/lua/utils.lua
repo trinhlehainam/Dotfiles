@@ -101,21 +101,22 @@ function M.modname_to_dir_path(modname)
 end
 
 function M.load_mods_in_dir(directory_path, ignore_mods)
-   local modules = {}
-   for _, file_name in ipairs(vim.fn.readdir(directory_path)) do
-      if file_name:match('%.lua$') then
-         local moduleName = file_name:match("^(.-)%.lua$")
-         if not ignore_mods or not vim.tbl_contains(ignore_mods, moduleName) then
-            modules[moduleName] = require(directory_path .. '.' .. moduleName)
+   local mods = {}
+   local mods_dirname = string.match(directory_path, '/lua/(.-)/?$')
+   for _, filename in ipairs(vim.fn.readdir(directory_path)) do
+      if filename:match('%.lua$') then
+         local modname = filename:match("^(.-)%.lua$")
+         if not ignore_mods or not vim.tbl_contains(ignore_mods, modname) then
+            mods[modname] = require(mods_dirname .. '.' .. modname)
          end
       end
    end
-   return modules
+   return mods
 end
 
 function M.load_mods_by_modname(modname, ignore_mods)
    local mods_dir = M.modname_to_dir_path(modname);
-   M.load_mods_in_dir(mods_dir, ignore_mods)
+   return M.load_mods_in_dir(mods_dir, ignore_mods)
 end
 
 return M

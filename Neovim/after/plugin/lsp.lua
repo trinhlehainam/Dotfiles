@@ -41,12 +41,6 @@ vim.api.nvim_create_autocmd("LspAttach", {
 --  the `settings` field of the server config. You must look up that documentation yourself.
 --  See https://github.com/neovim/nvim-lspconfig/blob/master/doc/server_configurations.md
 local servers = {
-  -- clangd = {},
-  -- gopls = {},
-  -- pyright = {},
-  -- rust_analyzer = {},
-  -- tsserver = {},
-
   lua_ls = {
     Lua = {
       workspace = { checkThirdParty = false },
@@ -56,7 +50,7 @@ local servers = {
 }
 
 local langs = require('lsp')
-for _, lang in ipairs(langs) do
+for _, lang in pairs(langs) do
   servers[lang.lang_server] = {}
 end
 
