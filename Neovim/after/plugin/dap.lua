@@ -3,8 +3,13 @@ local langs = require('lsp')
 
 local dap_types = {}
 for lang_name, lang_config in pairs(langs) do
-  dap_types[lang_config.dap_type] = {}
-  dap.configurations[lang_name] = lang_config.dapconfig
+  if lang_config.dap_type then
+    dap_types[lang_config.dap_type] = {}
+  end
+
+  if lang_config.dapconfig then
+    dap.configurations[lang_name] = lang_config.dapconfig
+  end
 end
 
 require('mason-nvim-dap').setup {
