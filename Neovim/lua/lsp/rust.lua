@@ -27,12 +27,12 @@ M.dapconfig = {
   },
 }
 
-local function create_on_attach(default_on_attach)
+local function create_on_attach(on_attach)
   return function(_, bufnr)
     local rt = require("rust-tools")
     local nmap = utils.create_nmap(bufnr)
 
-    default_on_attach(_, bufnr)
+    on_attach(_, bufnr)
 
     nmap("<Leader>ca", rt.code_action_group.code_action_group, '[C]ode [A]ction Groups')
 
@@ -42,7 +42,7 @@ local function create_on_attach(default_on_attach)
 end
 
 M.lang_server = "rust_analyzer"
-M.lspconfig = function(_, default_on_attach)
+M.lspconfig = function(_, on_attach)
   local rt = require("rust-tools")
   rt.setup({
     tools = {
@@ -59,7 +59,7 @@ M.lspconfig = function(_, default_on_attach)
           },
         },
       },
-      on_attach = create_on_attach(default_on_attach),
+      on_attach = create_on_attach(on_attach),
       cmd = { utils.RUST_ANALYZER_CMD, },
     },
     dap = {
