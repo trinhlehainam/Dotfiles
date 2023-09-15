@@ -1,12 +1,16 @@
+--- @alias on_attach fun(capabilities: lsp.ClientCapabilities, on_attach: fun(client: lsp.Client, bufnr: integer))
+
+--- @class lang
+--- @field lang_server nil | string
+--- @field lspconfig nil | on_attach
+--- @field dap_type nil | string
+--- @field dapconfig nil | Configuration
+
+--- @type lang
 local M = {
-  --- @type nil | string
   lang_server = nil,
-  --- A function that has two arguments: capabilities and on_attach
-  --- @type nil | fun(capabilities: table, on_attach: fun(client: lsp.Client, bufnr: integer))
   lspconfig = nil,
-  --- @type nil | string
   dap_type = nil,
-  --- @type nil | table
   dapconfig = nil,
 }
 

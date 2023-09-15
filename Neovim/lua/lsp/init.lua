@@ -1,3 +1,4 @@
+--- @type table<string, lang>
 local M = {}
 local utils = require('utils')
 

@@ -1,3 +1,4 @@
+--- @type lang
 local M = {}
 local base = require("lsp.base")
 setmetatable(M, base)
