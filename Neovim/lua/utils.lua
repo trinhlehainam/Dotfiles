@@ -47,6 +47,8 @@ M.RUST_ANALYZER_CMD = rust_analyzer_cmd()
 M.CODELLDB_PATH = codelldb_path()
 M.LIBLLDB_PATH = liblldb_path()
 
+---@param bufnr number
+---@return fun(keys: string, func: function, desc: string)
 function M.create_nmap(bufnr)
    return function(keys, func, desc)
       if desc then
@@ -57,15 +59,20 @@ function M.create_nmap(bufnr)
    end
 end
 
+---@param modname string
+---@return string
 function M.modname_to_dir_path(modname)
    local path = string.gsub(modname, '%.', '/')
    return vim.fn.stdpath('config') .. '/lua/' .. path
 end
 
-function M.load_mods_in_dir(directory_path, ignore_mods)
+---@param directory string
+---@param ignore_mods string[]
+---@return table
+function M.load_mods_in_dir(directory, ignore_mods)
    local mods = {}
-   local mods_dirname = string.match(directory_path, '/lua/(.-)/?$')
-   for _, filename in ipairs(vim.fn.readdir(directory_path)) do
+   local mods_dirname = string.match(directory, '/lua/(.-)/?$')
+   for _, filename in ipairs(vim.fn.readdir(directory)) do
       if filename:match('%.lua$') then
          local modname = filename:match("^(.-)%.lua$")
          if not ignore_mods or not vim.tbl_contains(ignore_mods, modname) then
@@ -76,6 +83,9 @@ function M.load_mods_in_dir(directory_path, ignore_mods)
    return mods
 end
 
+---@param modname string
+---@param ignore_mods string[]
+---@return table
 function M.load_mods(modname, ignore_mods)
    local mods_dir = M.modname_to_dir_path(modname);
    return M.load_mods_in_dir(mods_dir, ignore_mods)

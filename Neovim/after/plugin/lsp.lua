@@ -81,6 +81,7 @@ end
 --  the `settings` field of the server config. You must look up that documentation yourself.
 --  See https://github.com/neovim/nvim-lspconfig/blob/master/doc/server_configurations.md
 local servers = {
+  dockerls = {},
   lua_ls = {
     Lua = {
       workspace = { checkThirdParty = false },
@@ -89,13 +90,13 @@ local servers = {
   },
 }
 
---- @type table<string, lang>
+--- @type table<string, Lang>
 local langs = require('lsp')
 
---- @class lang_server
+--- @class LangServer
 --- @field lspconfig on_attach
 
---- @type table<string, lang_server>
+--- @type table<string, LangServer>
 local lang_servers = {}
 
 for _, lang_config in pairs(langs) do
