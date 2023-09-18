@@ -18,11 +18,6 @@ vim.keymap.set('n', 'k', "v:count == 0 ? 'gj' : 'j'", { expr = true, silent = tr
 -- Copy to the end of line
 vim.keymap.set('n', 'Y', 'yg_', opts.nore)
 
--- Short write, quit
-vim.keymap.set('n', '<leader>q', ':q<CR>', opts.nore)
-vim.keymap.set('n', '<leader>w', ':w<CR>', opts.nore)
-vim.keymap.set('n', '<leader>wq', ':wq<CR>', opts.nore)
-
 -- DELETE keys
 vim.keymap.set('n', 's', '', opts.nore)
 vim.keymap.set('n', 'S', '', opts.nore)
@@ -52,6 +47,11 @@ vim.keymap.set('n', 'b;', ':blast<CR>', opts.nore)
 vim.keymap.set('n', 'bk', ':bprevious<CR>', opts.nore)
 vim.keymap.set('n', 'bl', ':bnext<CR>', opts.nore)
 vim.keymap.set('n', 'bc', ':bd<CR>', opts.nore)
+
+-- Short write, quit
+vim.keymap.set('n', '<leader>q', ':q<CR>', opts.nore)
+vim.keymap.set('n', 'bw', ':w<CR>', opts.nore)
+vim.keymap.set('n', '<leader>wq', ':wq<CR>', opts.nore)
 
 --Move to begin/end word of line
 vim.keymap.set('', 'g;', 'g_', opts.nore)

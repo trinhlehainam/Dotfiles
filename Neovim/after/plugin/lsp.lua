@@ -93,10 +93,10 @@ local servers = {
 --- @type table<string, custom.Lang>
 local langs = require('lsp')
 
---- @class LangServer
+--- @class custom.LangServer
 --- @field setup custom.LspConfig.Setup
 
---- @type table<string, LangServer>
+--- @type table<string, custom.LangServer>
 local lang_servers = {}
 
 for _, lang_config in pairs(langs) do
@@ -122,14 +122,12 @@ require('mason').setup()
 
 -- Ensure the servers above are installed
 local mason_lspconfig = require 'mason-lspconfig'
-
 mason_lspconfig.setup {
   ensure_installed = vim.tbl_keys(servers),
 }
 
 local lspconfig = require('lspconfig')
 local lang_server_names = vim.tbl_keys(lang_servers)
-
 mason_lspconfig.setup_handlers {
   function(server_name)
     if lang_servers and vim.tbl_contains(lang_server_names, server_name) then
@@ -145,6 +143,6 @@ mason_lspconfig.setup_handlers {
 }
 
 -- Language server for Postgres written in Rust
--- NOTE: This frame is not production ready yet, check back later
+-- NOTE: This framework is not production ready yet, check back later
 -- lspconfig.postgres_lsp.setup{}
 --

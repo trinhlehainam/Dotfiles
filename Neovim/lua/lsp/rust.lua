@@ -26,6 +26,8 @@ M.dapconfig = {
   },
 }
 
+---@param on_attach fun(_: lsp.Client, bufnr: number)
+---@return fun(_: lsp.Client, bufnr: number)
 local function create_on_attach(on_attach)
   return function(_, bufnr)
     local rt = require("rust-tools")
