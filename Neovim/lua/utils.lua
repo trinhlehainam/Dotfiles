@@ -6,6 +6,7 @@ M.IS_LINUX = M.OS == 'Linux'
 M.IS_WINDOWS = M.OS:find 'Windows' and true or false
 M.IS_WSL = M.IS_LINUX and vim.loop.os_uname().release:find 'Microsoft' and true or false
 
+---@return string
 local function mason_path()
    if M.IS_WINDOWS then
       return vim.env.HOME .. '/AppData/Local/nvim-data/mason/'
@@ -14,6 +15,7 @@ local function mason_path()
    end
 end
 
+---@return string
 local function rust_analyzer_cmd()
    if M.IS_WINDOWS then
       return M.MASON_PATH .. 'packages/' .. 'rust-analyzer/rust-analyzer.exe'
@@ -22,10 +24,12 @@ local function rust_analyzer_cmd()
    end
 end
 
+---@return string
 local function codelldb_exetension_path()
    return M.MASON_PATH .. 'packages/' .. 'codelldb/extension/'
 end
 
+---@return string
 local function codelldb_path()
    if M.IS_WINDOWS then
       return M.MASON_PATH .. 'bin/' .. 'codelldb.cmd'
@@ -34,6 +38,7 @@ local function codelldb_path()
    end
 end
 
+---@return string
 local function liblldb_path()
    if M.IS_WINDOWS then
       return ''
@@ -68,7 +73,7 @@ end
 
 ---@param directory string
 ---@param ignore_mods string[]
----@return table
+---@return table<string, any>
 function M.load_mods_in_dir(directory, ignore_mods)
    local mods = {}
    local mods_dirname = string.match(directory, '/lua/(.-)/?$')
@@ -85,7 +90,7 @@ end
 
 ---@param modname string
 ---@param ignore_mods string[]
----@return table
+---@return table<string, any>
 function M.load_mods(modname, ignore_mods)
    local mods_dir = M.modname_to_dir_path(modname);
    return M.load_mods_in_dir(mods_dir, ignore_mods)

@@ -90,11 +90,11 @@ local servers = {
   },
 }
 
---- @type table<string, Lang>
+--- @type table<string, custom.Lang>
 local langs = require('lsp')
 
 --- @class LangServer
---- @field lspconfig on_attach
+--- @field setup custom.LspConfig.Setup
 
 --- @type table<string, LangServer>
 local lang_servers = {}
@@ -102,12 +102,12 @@ local lang_servers = {}
 for _, lang_config in pairs(langs) do
   local server_name = lang_config.lang_server
   if not server_name then goto continue end
-  servers[server_name] = {}
+  servers[server_name] = lang_config.lspconfig.settings
 
-  local lspconfig = lang_config.lspconfig
-  if not lspconfig then goto continue end
+  local setup = lang_config.lspconfig.setup
+  if not setup then goto continue end
   lang_servers[server_name] = {
-    lspconfig = lspconfig
+    setup = setup
   }
 
   ::continue::
@@ -133,7 +133,7 @@ local lang_server_names = vim.tbl_keys(lang_servers)
 mason_lspconfig.setup_handlers {
   function(server_name)
     if lang_servers and vim.tbl_contains(lang_server_names, server_name) then
-      lang_servers[server_name].lspconfig(capabilities, on_attach)
+      lang_servers[server_name].setup(capabilities, on_attach)
     else
       lspconfig[server_name].setup {
         capabilities = capabilities,

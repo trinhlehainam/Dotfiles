@@ -1,5 +1,5 @@
 local dap = require('dap')
---- @type table<string, Lang>
+--- @type table<string, custom.Lang>
 local langs = require('lsp')
 
 --- @type string[]

@@ -1,7 +1,5 @@
---- @type Lang
-local M = {}
-local base = require("lsp.base")
-setmetatable(M, base)
+local Lang = require('lsp.base')
+local M = Lang:new()
 
 local utils = require('utils')
 local is_wins = utils.IS_WINDOWS
@@ -43,7 +41,7 @@ local function create_on_attach(on_attach)
 end
 
 M.lang_server = "rust_analyzer"
-M.lspconfig = function(_, on_attach)
+M.lspconfig.setup = function(_, on_attach)
   local rt = require("rust-tools")
   rt.setup({
     tools = {

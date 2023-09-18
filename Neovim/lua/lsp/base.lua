@@ -1,17 +1,24 @@
---- @alias on_attach fun(capabilities: lsp.ClientCapabilities, on_attach: fun(client: lsp.Client, bufnr: integer))
+--- @alias custom.LspConfig.Setup fun(capabilities: lsp.ClientCapabilities, on_attach: fun(client: lsp.Client, bufnr: integer)) 
 
---- @class Lang
---- @field lang_server nil | string
---- @field lspconfig nil | on_attach
---- @field dap_type nil | string
---- @field dapconfig nil | Configuration[]
+--- @class custom.LspConfig
+--- @field setup? custom.LspConfig.Setup
+--- @field settings table
 
---- @type Lang
-local M = {
-  lang_server = nil,
-  lspconfig = nil,
-  dap_type = nil,
-  dapconfig = nil,
-}
+--- @class custom.Lang
+--- @field lang_server? string
+--- @field lspconfig custom.LspConfig
+--- @field dap_type? string
+--- @field dapconfig? Configuration[]
+local M = {}
+
+---@return custom.Lang
+function M:new()
+  local t = setmetatable({}, { __index = M })
+  t.lspconfig = {
+    setup = nil,
+    settings = {}
+  }
+  return t
+end
 
 return M
