@@ -49,8 +49,10 @@ vim.o.colorcolumn = "80"
 
 vim.o.relativenumber = true;
 
-vim.opt.spelllang = "en_us"
-vim.opt.spell = true
+if not vim.g.vscode then
+  vim.opt.spelllang = "en_us"
+  vim.opt.spell = true
+end
 
 -- Tabstop settings
 vim.cmd [[

@@ -1,4 +1,8 @@
+vim.opt.spelllang = "en_us"
+vim.opt.spell = false
+
 local opts = {}
+
 opts.nore = { noremap = true, silent = true }
 
 vim.keymap.set("n", "gcc", "<Plug>VSCodeCommentaryLine", opts.nore)

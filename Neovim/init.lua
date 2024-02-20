@@ -38,10 +38,10 @@ P.S. You can delete this when you're done too. It's your config now :)
 
 require('settings')
 require('remap')
-
+--
 if vim.g.vscode then
   -- VSCode extension
-  require('vscode-remap')
+  require('vscode-settings')
 else
   -- ordinary Neovim
   require('plugins_manager')
