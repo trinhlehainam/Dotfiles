@@ -1,3 +1,7 @@
+if vim.g.vscode then
+  return
+end
+
 local dap = require('dap')
 --- @type table<string, custom.Lang>
 local langs = require('lsp')

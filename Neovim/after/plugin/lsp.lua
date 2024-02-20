@@ -1,3 +1,7 @@
+if vim.g.vscode then
+  return
+end
+
 -- IMPORTANT: make sure to setup neodev BEFORE lspconfig
 require("neodev").setup({
   -- add any options here, or leave empty to use the default settings
@@ -90,13 +94,13 @@ local servers = {
   },
 }
 
---- @type table<string, custom.Lang>
+---@type table<string, custom.Lang>
 local langs = require('lsp')
 
---- @class custom.LangServer
---- @field setup custom.LspConfig.Setup
+---@class custom.LangServer
+---@field setup custom.LspConfig.Setup
 
---- @type table<string, custom.LangServer>
+---@type table<string, custom.LangServer>
 local lang_servers = {}
 
 for _, lang_config in pairs(langs) do
@@ -121,7 +125,7 @@ capabilities = require('cmp_nvim_lsp').default_capabilities(capabilities)
 require('mason').setup()
 
 -- Ensure the servers above are installed
-local mason_lspconfig = require 'mason-lspconfig'
+local mason_lspconfig = require('mason-lspconfig')
 mason_lspconfig.setup {
   ensure_installed = vim.tbl_keys(servers),
 }

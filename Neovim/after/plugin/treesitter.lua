@@ -1,3 +1,7 @@
+if vim.g.vscode then
+  return
+end
+
 -- See `:help nvim-treesitter`
 ---@diagnostic disable-next-line: missing-fields
 require('nvim-treesitter.configs').setup {

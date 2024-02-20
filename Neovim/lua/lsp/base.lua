@@ -1,14 +1,14 @@
---- @alias custom.LspConfig.Setup fun(capabilities: lsp.ClientCapabilities, on_attach: fun(client: lsp.Client, bufnr: integer)) 
+---@alias custom.LspConfig.Setup fun(capabilities: lsp.ClientCapabilities, on_attach: fun(client: lsp.Client, bufnr: integer))
 
---- @class custom.LspConfig
---- @field setup? custom.LspConfig.Setup
---- @field settings table
+---@class custom.LspConfig
+---@field setup? custom.LspConfig.Setup
+---@field settings table
 
---- @class custom.Lang
---- @field lang_server? string
---- @field lspconfig custom.LspConfig
---- @field dap_type? string
---- @field dapconfig? Configuration[]
+---@class custom.Lang
+---@field lang_server? string
+---@field lspconfig custom.LspConfig
+---@field dap_type? string
+---@field dapconfig? Configuration[]
 local M = {}
 
 ---@return custom.Lang
