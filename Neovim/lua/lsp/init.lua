@@ -1,9 +1,14 @@
---- @type table<string, custom.Lang>
-local M = {}
-local utils = require('utils')
+--- @class custom.Lsp
+--- @field langs table<string, custom.Lang>
+--- @field utils? table
 
-local ignore_mods = { 'base', 'init' }
+--- @type custom.Lsp
+local M = {
+  langs = {},
+}
 
-M = utils.load_mods("lsp", ignore_mods)
+local ignore_mods = { 'base', 'init', 'utils', 'rust' }
+
+M.langs = require('utils').load_mods("lsp", ignore_mods)
 
 return M

@@ -42,6 +42,7 @@ local function create_on_attach(on_attach)
   end
 end
 
+-- NOTE: rustaceanvim will configure automatically rust-analyzer
 M.lang_server = "rust_analyzer"
 M.lspconfig.setup = function(_, on_attach)
   local rt = require("rust-tools")

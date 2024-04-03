@@ -7,8 +7,6 @@ require("neodev").setup({
   -- add any options here, or leave empty to use the default settings
 })
 
-local utils = require('utils')
-
 -- Diagnostic keymaps
 vim.keymap.set('n', '[d', vim.diagnostic.goto_prev, { desc = "Go to previous diagnostic message" })
 vim.keymap.set('n', ']d', vim.diagnostic.goto_next, { desc = "Go to next diagnostic message" })
@@ -38,46 +36,6 @@ vim.api.nvim_create_autocmd("LspAttach", {
   end
 })
 
----This function gets run when an LSP connects to a particular buffer.
----@param _ lsp.Client
----@param bufnr number
-local function on_attach(_, bufnr)
-  -- NOTE: Remember that lua is a real programming language, and as such it is possible
-  -- to define small helper and utility functions so you don't have to repeat yourself
-  -- many times.
-  --
-  -- In this case, we create a function that lets us more easily define mappings specific
-  -- for LSP related items. It sets the mode, buffer and description for us each time.
-  local nmap = utils.create_nmap(bufnr)
-
-  nmap('<leader>rn', vim.lsp.buf.rename, '[R]e[n]ame')
-  nmap('<leader>ca', vim.lsp.buf.code_action, '[C]ode [A]ction')
-
-  nmap('gd', vim.lsp.buf.definition, '[G]oto [D]efinition')
-  nmap('gr', require('telescope.builtin').lsp_references, '[G]oto [R]eferences')
-  nmap('gI', vim.lsp.buf.implementation, '[G]oto [I]mplementation')
-  nmap('<leader>D', vim.lsp.buf.type_definition, 'Type [D]efinition')
-  nmap('<leader>ds', require('telescope.builtin').lsp_document_symbols, '[D]ocument [S]ymbols')
-  nmap('<leader>ws', require('telescope.builtin').lsp_dynamic_workspace_symbols, '[W]orkspace [S]ymbols')
-
-  -- See `:help K` for why this keymap
-  nmap('K', vim.lsp.buf.hover, 'Hover Documentation')
-  nmap('<C-k>', vim.lsp.buf.signature_help, 'Signature Documentation')
-
-  -- Lesser used LSP functionality
-  nmap('gD', vim.lsp.buf.declaration, '[G]oto [D]eclaration')
-  nmap('<leader>wa', vim.lsp.buf.add_workspace_folder, '[W]orkspace [A]dd Folder')
-  nmap('<leader>wr', vim.lsp.buf.remove_workspace_folder, '[W]orkspace [R]emove Folder')
-  nmap('<leader>wl', function()
-    print(vim.inspect(vim.lsp.buf.list_workspace_folders()))
-  end, '[W]orkspace [L]ist Folders')
-
-  -- Create a command `:Format` local to the LSP buffer
-  vim.api.nvim_buf_create_user_command(bufnr, 'Format', function(_)
-    vim.lsp.buf.format()
-  end, { desc = 'Format current buffer with LSP' })
-end
-
 -- Enable the following language servers
 --  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
 --
@@ -94,8 +52,11 @@ local servers = {
   },
 }
 
+---@type custom.Lsp
+local custom_lsp = require('lsp')
+
 ---@type table<string, custom.Lang>
-local langs = require('lsp')
+local langs = custom_lsp.langs
 
 ---@class custom.LangServer
 ---@field setup custom.LspConfig.Setup
@@ -134,8 +95,11 @@ local lspconfig = require('lspconfig')
 local lang_server_names = vim.tbl_keys(lang_servers)
 mason_lspconfig.setup_handlers {
   function(server_name)
-    if lang_servers and vim.tbl_contains(lang_server_names, server_name) then
-      lang_servers[server_name].setup(capabilities, on_attach)
+    if lang_servers
+      and vim.tbl_contains(lang_server_names, server_name)
+      and custom_lsp.utils
+    then
+      lang_servers[server_name].setup(capabilities, custom_lsp.utils.on_attach)
     else
       lspconfig[server_name].setup {
         capabilities = capabilities,
