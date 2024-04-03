@@ -64,6 +64,18 @@ function M.create_nmap(bufnr)
    end
 end
 
+---@param bufnr number
+---@return fun(keys: string, func: function, desc: string)
+function M.create_vmap(bufnr)
+   return function(keys, func, desc)
+      if desc then
+         desc = 'LSP: ' .. desc
+      end
+
+      vim.keymap.set('v', keys, func, { buffer = bufnr, desc = desc })
+   end
+end
+
 ---@param modname string
 ---@return string
 function M.modname_to_dir_path(modname)

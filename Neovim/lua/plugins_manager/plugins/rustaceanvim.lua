@@ -30,11 +30,20 @@ return {
           },
         },
         on_attach = function (_, bufnr)
-          local nmap = utils.create_nmap(bufnr)
-
           require('lsp.utils').on_attach(_, bufnr)
 
-          nmap("<Leader>ca", vim.cmd.RustLsp('codeAction'), '[C]ode [A]ction Groups')
+          local nmap = utils.create_nmap(bufnr)
+          local vmap = utils.create_vmap(bufnr)
+          nmap("<leader>ca",
+            function()
+              vim.cmd.RustLsp('codeAction')
+            end,
+            '[C]ode [A]ction')
+          vmap("<leader>ca",
+            function()
+              vim.cmd.RustLsp('codeAction')
+            end,
+            '[C]ode [A]ction Groups')
         end,
         cmd = { utils.RUST_ANALYZER_CMD, },
       },
