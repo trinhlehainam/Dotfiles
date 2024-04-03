@@ -43,41 +43,41 @@ M.dapconfig = {
 --   end
 -- end
 
--- M.lang_server = "rust_analyzer"
--- M.lspconfig.setup = function(_, on_attach)
---   local rt = require("rust-tools")
---   rt.setup({
---     tools = {
---       inlay_hints = {
---         auto = false
---       },
---     },
---     -- see https://github.com/neovim/nvim-lspconfig/blob/master/doc/server_configurations.md#rust_analyzer
---     server = {
---       settings = {
---         ["rust-analyzer"] = {
---           checkOnSave = {
---             command = "clippy",
---           },
---         },
---       },
---       on_attach = create_on_attach(on_attach),
---       cmd = { utils.RUST_ANALYZER_CMD, },
---     },
---     dap = {
---       adapter = {
---         type = "server",
---         port = "${port}",
---         host = "127.0.0.1",
---         executable = {
---           command = utils.CODELLDB_PATH,
---           args = dap_adapter_agrs(),
---         },
---       }
---     },
---   })
---
---   rt.inlay_hints.disable()
--- end
+M.lang_server = "rust_analyzer"
+M.lspconfig.setup = function(_, _)
+  -- local rt = require("rust-tools")
+  -- rt.setup({
+  --   tools = {
+  --     inlay_hints = {
+  --       auto = false
+  --     },
+  --   },
+  --   -- see https://github.com/neovim/nvim-lspconfig/blob/master/doc/server_configurations.md#rust_analyzer
+  --   server = {
+  --     settings = {
+  --       ["rust-analyzer"] = {
+  --         checkOnSave = {
+  --           command = "clippy",
+  --         },
+  --       },
+  --     },
+  --     on_attach = create_on_attach(on_attach),
+  --     cmd = { utils.RUST_ANALYZER_CMD, },
+  --   },
+  --   dap = {
+  --     adapter = {
+  --       type = "server",
+  --       port = "${port}",
+  --       host = "127.0.0.1",
+  --       executable = {
+  --         command = utils.CODELLDB_PATH,
+  --         args = dap_adapter_agrs(),
+  --       },
+  --     }
+  --   },
+  -- })
+  --
+  -- rt.inlay_hints.disable()
+end
 
 return M

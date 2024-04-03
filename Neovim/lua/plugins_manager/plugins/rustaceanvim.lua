@@ -4,7 +4,6 @@ return {
   ft = { 'rust' },
   config = function()
     local utils = require('utils')
-    local custom_lsp = require('lsp')
 
     local function dap_adapter_agrs()
       if utils.IS_WINDOWS then
@@ -30,10 +29,10 @@ return {
             },
           },
         },
-        on_attach = function ()
+        on_attach = function (_, bufnr)
           local nmap = utils.create_nmap(bufnr)
 
-          custom_lsp.utils.on_attach(_, bufnr)
+          require('lsp.utils').on_attach(_, bufnr)
 
           nmap("<Leader>ca", vim.cmd.RustLsp('codeAction'), '[C]ode [A]ction Groups')
         end,

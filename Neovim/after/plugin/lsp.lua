@@ -28,7 +28,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
     if client and client.server_capabilities.inlayHintProvider then
       vim.keymap.set("n", "th",
         function()
-          vim.lsp.inlay_hint(args.buf)
+          vim.lsp.inlay_hint.enable(args.buf, not vim.lsp.inlay_hint.is_enabled(args.buf))
         end,
         { buffer = args.buf, desc = "Toggle inlay hints" })
     end
@@ -52,11 +52,11 @@ local servers = {
   },
 }
 
----@type custom.Lsp
-local custom_lsp = require('lsp')
-
 ---@type table<string, custom.Lang>
-local langs = custom_lsp.langs
+local langs = require('lsp').langs
+
+---@type fun(capabilities: lsp.ClientCapabilities, on_attach: fun(client: lsp.Client, bufnr: integer))
+local on_attach = require('lsp.utils').on_attach
 
 ---@class custom.LangServer
 ---@field setup custom.LspConfig.Setup
@@ -95,11 +95,8 @@ local lspconfig = require('lspconfig')
 local lang_server_names = vim.tbl_keys(lang_servers)
 mason_lspconfig.setup_handlers {
   function(server_name)
-    if lang_servers
-      and vim.tbl_contains(lang_server_names, server_name)
-      and custom_lsp.utils
-    then
-      lang_servers[server_name].setup(capabilities, custom_lsp.utils.on_attach)
+    if lang_servers and vim.tbl_contains(lang_server_names, server_name) then
+      lang_servers[server_name].setup(capabilities, on_attach)
     else
       lspconfig[server_name].setup {
         capabilities = capabilities,

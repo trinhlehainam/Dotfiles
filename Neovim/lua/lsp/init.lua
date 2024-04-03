@@ -1,6 +1,5 @@
 --- @class custom.Lsp
 --- @field langs table<string, custom.Lang>
---- @field utils? table
 
 --- @type custom.Lsp
 local M = {
