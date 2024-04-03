@@ -7,7 +7,7 @@ local M = {
   langs = {},
 }
 
-local ignore_mods = { 'base', 'init', 'utils', 'rust' }
+local ignore_mods = { 'base', 'init', 'utils' }
 
 M.langs = require('utils').load_mods("lsp", ignore_mods)
 

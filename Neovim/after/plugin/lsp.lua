@@ -66,7 +66,7 @@ local lang_servers = {}
 
 for _, lang_config in pairs(langs) do
   local server_name = lang_config.lang_server
-  if not server_name then goto continue end
+  if not server_name or server_name == "" then goto continue end
   servers[server_name] = lang_config.lspconfig.settings
 
   local setup = lang_config.lspconfig.setup
