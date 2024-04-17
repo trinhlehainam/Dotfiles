@@ -41,7 +41,7 @@ require('remap')
 --
 if vim.g.vscode then
   -- VSCode extension
-  require('vscode-remap')
+  require('vscode_settings')
 else
   -- ordinary Neovim
   require('plugins_manager')
