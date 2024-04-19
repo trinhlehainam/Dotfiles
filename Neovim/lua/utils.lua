@@ -47,10 +47,20 @@ local function liblldb_path()
    end
 end
 
+---@return string[]
+local function dap_adapter_agrs()
+   if M.IS_WINDOWS then
+      return { "--port", "${port}" }
+   else
+      return { "--liblldb", M.LIBLLDB_PATH, "--port", "${port}" }
+   end
+end
+
 M.MASON_PATH = mason_path()
 M.RUST_ANALYZER_CMD = rust_analyzer_cmd()
 M.CODELLDB_PATH = codelldb_path()
 M.LIBLLDB_PATH = liblldb_path()
+M.DAP_ADAPTER_ARGS = dap_adapter_agrs()
 
 ---@param bufnr number
 ---@return fun(keys: string, func: function, desc: string)

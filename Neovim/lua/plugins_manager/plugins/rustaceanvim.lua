@@ -5,14 +5,6 @@ return {
   config = function()
     local utils = require('utils')
 
-    local function dap_adapter_agrs()
-      if utils.IS_WINDOWS then
-        return { "--port", "${port}" }
-      else
-        return { "--liblldb", utils.LIBLLDB_PATH, "--port", "${port}" }
-      end
-    end
-
     vim.g.rustaceanvim = {
       -- Plugin configuration
       tools = {
@@ -55,7 +47,7 @@ return {
           host = "127.0.0.1",
           executable = {
             command = utils.CODELLDB_PATH,
-            args = dap_adapter_agrs(),
+            args = utils.DAP_ADAPTER_ARGS,
           },
         }
       },
