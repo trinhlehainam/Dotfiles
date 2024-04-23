@@ -93,9 +93,9 @@ require('lazy').setup({
       --   "Whitespace",
       -- }
       require("ibl").setup {
-        indent = { 
+        indent = {
           -- highlight = highlight,
-          char = '┊' 
+          char = '┊'
         },
         whitespace = {
           -- highlight = highlight,

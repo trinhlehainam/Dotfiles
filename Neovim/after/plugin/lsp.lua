@@ -18,6 +18,13 @@ vim.diagnostic.config({
   virtual_text = false,
 })
 
+-- Custom Diagnostic Signs
+local signs = { Error = "", Warn = "", Hint = "", Info = "" }
+for type, icon in pairs(signs) do
+  local hl = "DiagnosticSign" .. type
+  vim.fn.sign_define(hl, { text = icon, texthl = hl, numhl = hl })
+end
+
 -- Putting vim lsp settings inside on_attach is no longer a best pratice
 -- Instead use `LspAttach` event in an autocmd
 -- See https://vinnymeller.com/posts/neovim_nightly_inlay_hints/#rust-toolsnvim-inlay-hints
