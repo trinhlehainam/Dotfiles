@@ -100,8 +100,8 @@ vim.keymap.set('i', ';', ';<C-g>u', opts.nore)
 vim.keymap.set('i', '<A-u>', '<Esc>ua', opts.nore)
 
 --Moving line of text
-vim.keymap.set('i', '<A-k>', '<Esc>:m.+1<CR>==a', opts.nore)
 vim.keymap.set('i', '<A-l>', '<Esc>:m.-2<CR>==a', opts.nore)
+vim.keymap.set('i', '<A-k>', '<Esc>:m.+1<CR>==a', opts.nore)
 vim.keymap.set('n', '<A-l>', ':m.-2<CR>==', opts.nore)
 vim.keymap.set('n', '<A-k>', ':m.+1<CR>==', opts.nore)
 vim.keymap.set('v', '<A-l>', ":m '<-2<CR>gv=gv", opts.nore)

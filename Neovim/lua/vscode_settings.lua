@@ -28,3 +28,7 @@ vim.keymap.set('n', '<leader>rn', "<Cmd>call VSCodeNotify('editor.action.rename'
 vim.keymap.set('n', '<leader>ca', "<Cmd>call VSCodeNotify('editor.action.quickFix')<CR>", opts.nore)
 vim.keymap.set('n', '[d', "<Cmd>call VSCodeNotify('editor.action.marker.nextInFiles')<CR>", opts.nore)
 vim.keymap.set('n', ']d', "<Cmd>call VSCodeNotify('editor.action.marker.prevInFiles')<CR>", opts.nore)
+
+--Moving line of text
+vim.keymap.set({'n', 'v', 'i'}, '<A-l>', "<Cmd>call VSCodeNotify('editor.action.moveLinesUpAction')<CR>", opts.nore)
+vim.keymap.set({'n', 'v', 'i'}, '<A-k>',  "<Cmd>call VSCodeNotify('editor.action.moveLinesDownAction')<CR>", opts.nore)
