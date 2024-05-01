@@ -1,0 +1,13 @@
+{
+    "hediet.vscode-drawio.resizeImages": null,
+    "workbench.colorTheme": "Gruvbox Dark Hard",
+    "codeium.enableConfig": {
+        "*": true,
+        "verse": true
+    },
+    "extensions.experimental.affinity": {
+        "asvetliakov.vscode-neovim": 1
+    },
+    "workbench.iconTheme": "material-icon-theme",
+    "editor.lineNumbers": "relative",
+}

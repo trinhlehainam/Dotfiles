@@ -1,0 +1,57 @@
+// Place your key bindings in this file to override the defaults
+[
+    {
+        "command": "vscode-neovim.send",
+        // the key sequence to activate the binding
+        "key": "alt+k",
+        // don't activate during command mode
+        "when": "editorTextFocus && neovim.mode != cmdline",
+        // the input to send to Neovim
+        "args": "<A-k>"
+    },
+    {
+        "command": "vscode-neovim.send",
+        // the key sequence to activate the binding
+        "key": "alt+l",
+        // don't activate during command mode
+        "when": "editorTextFocus && neovim.mode != cmdline",
+        // the input to send to Neovim
+        "args": "<A-l>"
+    },
+    {
+        "command": "vscode-neovim.send",
+        // the key sequence to activate the binding
+        "key": "ctrl+y",
+        // don't activate during command mode
+        "when": "editorTextFocus && neovim.mode != cmdline",
+        // the input to send to Neovim
+        "args": "<C-y>"
+    },
+    {
+        "command": "vscode-neovim.send",
+        // the key sequence to activate the binding
+        "key": "ctrl+p",
+        // don't activate during command mode
+        "when": "editorTextFocus && neovim.mode != cmdline",
+        // the input to send to Neovim
+        "args": "<C-p>"
+    },
+    {
+        "command": "vscode-neovim.send",
+        // the key sequence to activate the binding
+        "key": "alt+j",
+        // activate only during insert mode
+        "when": "editorTextFocus && neovim.mode == insert",
+        // the input to send to Neovim
+        "args": "<A-j>"
+    },
+    {
+        "command": "vscode-neovim.send",
+        // the key sequence to activate the binding
+        "key": "alt+oem_plus",
+        // activate only during insert mode
+        "when": "editorTextFocus && neovim.mode == insert",
+        // the input to send to Neovim
+        "args": "<A-;>"
+    },
+]
