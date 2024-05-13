@@ -1,12 +1,12 @@
 return {
    'rebelot/kanagawa.nvim',
-   {
-      'folke/tokyonight.nvim',
-      config = function()
-         vim.cmd.colorscheme 'tokyonight-storm'
-      end
-   },
+   'folke/tokyonight.nvim',
    'navarasu/onedark.nvim',
    'ellisonleao/gruvbox.nvim',
-   'sainnhe/gruvbox-material',
+   {
+      'sainnhe/gruvbox-material',
+      config = function()
+         vim.cmd.colorscheme 'gruvbox-material'
+      end
+   },
 }
