@@ -43,8 +43,8 @@ if vim.g.vscode then
   -- VSCode extension
   require('vscode_settings')
 else
-  -- ordinary Neovim
-  require('plugins_manager')
+  -- configure Neovim plugins
+  require('package_manager')
 end
 
 -- The line beneath this is called `modeline`. See `:help modeline`

@@ -1,5 +1,5 @@
 if vim.g.vscode then
-  return
+	return
 end
 
 -- See `:help nvim-treesitter`
@@ -7,7 +7,7 @@ end
 require('nvim-treesitter.configs').setup {
 	-- Add languages to be installed here that you want installed for treesitter
 	ensure_installed = { 'c', 'cpp', 'c_sharp', 'go', 'lua', 'python', 'rust', 'toml',
-		'javascript', 'tsx', 'typescript', 'html', 'css', 'help',
+		'javascript', 'tsx', 'typescript', 'html', 'css',
 		'vim', 'markdown', 'markdown_inline', 'sql' },
 
 	-- Autoinstall languages that are not installed. Defaults to false (but you can change for yourself!)

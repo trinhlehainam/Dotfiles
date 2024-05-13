@@ -1,16 +1,13 @@
 return {
   'mrcjkb/rustaceanvim',
   version = '^4', -- Recommended
-  ft = { 'rust' },
+  lazy = false,
   config = function()
     local utils = require('utils')
 
     vim.g.rustaceanvim = {
       -- Plugin configuration
       tools = {
-        inlay_hints = {
-          auto = false
-        },
       },
       -- LSP configuration
       server = {
@@ -21,7 +18,7 @@ return {
             },
           },
         },
-        on_attach = function (_, bufnr)
+        on_attach = function(_, bufnr)
           require('lsp.utils').on_attach(_, bufnr)
 
           local nmap = utils.create_nmap(bufnr)
