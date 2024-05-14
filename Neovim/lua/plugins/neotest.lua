@@ -7,10 +7,10 @@ return {
 		"nvim-treesitter/nvim-treesitter"
 	},
 	config = function()
-		require('neotest').setup {
+		require('neotest').setup({
 			adapters = {
 				require('rustaceanvim.neotest')
 			},
-		}
+		})
 	end
 }
