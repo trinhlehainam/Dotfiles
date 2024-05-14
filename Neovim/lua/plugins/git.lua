@@ -32,7 +32,7 @@ return {
         }
       }
 
-      vim.keymap.set('n', '<leader>gs', neogit.open, { desc = "Open [G]it", silent = true, noremap = true })
+      vim.keymap.set('n', '<leader>gs', neogit.open, { desc = "[S]how [G]it", silent = true, noremap = true })
       vim.keymap.set('n', '<leader>gc', ":Neogit commit<CR>", { desc = "[G]it [C]ommit", silent = true, noremap = true })
       vim.keymap.set('n', '<leader>gp', ":Neogit pull<CR>", { desc = "[G]it [P]ull", silent = true, noremap = true })
       vim.keymap.set('n', '<leader>gP', ":Neogit push<CR>", { desc = "[G]it [P]ush", silent = true, noremap = true })
