@@ -8,6 +8,6 @@ local M = {
 
 local ignore_mods = { 'base', 'init', 'utils' }
 
-M.langs = require('utils').load_mods("lsp", ignore_mods)
+M.langs = require('utils').load_mods('configs.lsp', ignore_mods)
 
 return M

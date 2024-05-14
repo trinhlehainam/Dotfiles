@@ -1,4 +1,4 @@
-local Lang = require("lsp.base")
+local Lang = require("configs.lsp.base")
 local M = Lang:new()
 
 M.lang_server = "jsonls"

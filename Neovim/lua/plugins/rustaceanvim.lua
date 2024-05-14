@@ -19,7 +19,7 @@ return {
           },
         },
         on_attach = function(_, bufnr)
-          require('lsp.utils').on_attach(_, bufnr)
+          require('configs.lsp.utils').on_attach(_, bufnr)
 
           local nmap = utils.create_nmap(bufnr)
           local vmap = utils.create_vmap(bufnr)

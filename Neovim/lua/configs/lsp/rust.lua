@@ -1,4 +1,4 @@
-local LangBase = require('lsp.base')
+local LangBase = require('configs.lsp.base')
 local M = LangBase:new()
 
 M.dap_type = "codelldb"

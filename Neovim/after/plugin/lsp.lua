@@ -61,10 +61,10 @@ local servers = {
 }
 
 ---@type table<string, custom.Lang>
-local langs = require('lsp').langs
+local langs = require('configs.lsp').langs
 
 ---@type fun(capabilities: lsp.ClientCapabilities, on_attach: fun(client: lsp.Client, bufnr: integer))
-local on_attach = require('lsp.utils').on_attach
+local on_attach = require('configs.lsp.utils').on_attach
 
 ---@class custom.LangServer
 ---@field setup custom.LspConfig.Setup

@@ -4,7 +4,7 @@ end
 
 local dap = require('dap')
 --- @type table<string, custom.Lang>
-local langs = require('lsp').langs
+local langs = require('configs.lsp').langs
 
 --- @type string[]
 local dap_types = {}
