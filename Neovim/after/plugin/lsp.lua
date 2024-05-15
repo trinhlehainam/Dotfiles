@@ -74,11 +74,11 @@ local setup_handlers = {}
 
 for _, settings in pairs(language_settings) do
   local server_name = settings.server_name
-  if not server_name or server_name == "" then goto continue end
+  if server_name == nil or server_name == "" then goto continue end
   servers[server_name] = settings.lspconfig.settings
 
   local setup = settings.lspconfig.setup
-  if not setup then goto continue end
+  if setup == nil then goto continue end
   setup_handlers[server_name] = {
     setup = setup
   }
@@ -102,8 +102,9 @@ mason_lspconfig.setup {
 local lspconfig = require('lspconfig')
 mason_lspconfig.setup_handlers {
   function(server_name)
+    --- @type custom.LspConfig.Setup | nil
     local setup = vim.tbl_get(setup_handlers, server_name, 'setup')
-    if setup then
+    if setup ~= nil and type(setup) == "function" then
       setup(capabilities, on_attach)
     else
       lspconfig[server_name].setup {

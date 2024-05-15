@@ -24,11 +24,11 @@ local daptypes = {}
 
 for language, settings in pairs(language_settings) do
   local daptype = settings.daptype
-  if not daptype then goto continue end
+  if daptype == nil or daptype == "" then goto continue end
   table.insert(daptypes, daptype)
 
   local dapconfig = settings.dapconfig
-  if not dapconfig then goto continue end
+  if dapconfig == nil then goto continue end
   dap.configurations[language] = dapconfig
 
   ::continue::
