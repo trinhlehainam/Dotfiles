@@ -2,6 +2,11 @@ if vim.g.vscode then
 	return
 end
 
+local hastelescope, _ = pcall(require, 'telescope')
+if not hastelescope then
+	return
+end
+
 -- See `:help telescope` and `:help telescope.setup()`
 require('telescope').setup {
 	defaults = {

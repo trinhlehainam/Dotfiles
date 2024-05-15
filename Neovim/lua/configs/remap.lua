@@ -48,11 +48,6 @@ vim.keymap.set('n', 'bk', ':bprevious<CR>', opts.nore)
 vim.keymap.set('n', 'bl', ':bnext<CR>', opts.nore)
 vim.keymap.set('n', 'bc', ':bd<CR>', opts.nore)
 
--- Short write, quit
-vim.keymap.set('n', '<leader>q', ':q<CR>', opts.nore)
-vim.keymap.set('n', 'bw', ':w<CR>', opts.nore)
-vim.keymap.set('n', '<leader>wq', ':wq<CR>', opts.nore)
-
 --Move to begin/end word of line
 vim.keymap.set('', 'g;', 'g_', opts.nore)
 vim.keymap.set('', 'gj', '^', opts.nore)
