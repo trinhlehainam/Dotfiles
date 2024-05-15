@@ -4,14 +4,14 @@
 ---@field setup? custom.LspConfig.Setup
 ---@field settings table
 
----@class custom.Lang
----@field lang_server? string
+---@class custom.LanguageSetting
+---@field server_name? string
 ---@field lspconfig custom.LspConfig
----@field dap_type? string
+---@field daptype? string
 ---@field dapconfig? Configuration[]
 local M = {}
 
----@return custom.Lang
+---@return custom.LanguageSetting
 function M:new()
   local t = setmetatable({}, { __index = M })
   t.lspconfig = {

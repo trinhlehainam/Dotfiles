@@ -16,25 +16,25 @@ vim.fn.sign_define('DapLogPoint', { text = '', texthl = 'DapLogPoint', linehl
 vim.fn.sign_define('DapStopped', { text = '', texthl = 'DapStopped', linehl = 'DapStopped', numhl = 'DapStopped' })
 
 local dap = require('dap')
---- @type table<string, custom.Lang>
-local langs = require('configs.lsp').langs
+--- @type table<string, custom.LanguageSetting>
+local language_settings = require('configs.lsp').language_settings
 
 --- @type string[]
-local dap_types = {}
+local daptypes = {}
 
-for lang_name, lang_config in pairs(langs) do
-  local dap_type = lang_config.dap_type
-  if not dap_type then goto continue end
-  table.insert(dap_types, dap_type)
+for language, settings in pairs(language_settings) do
+  local daptype = settings.daptype
+  if not daptype then goto continue end
+  table.insert(daptypes, daptype)
 
-  local dapconfig = lang_config.dapconfig
+  local dapconfig = settings.dapconfig
   if not dapconfig then goto continue end
-  dap.configurations[lang_name] = dapconfig
+  dap.configurations[language] = dapconfig
 
   ::continue::
 end
 
 require('mason-nvim-dap').setup {
   automatic_installation = true,
-  ensure_installed = dap_types,
+  ensure_installed = daptypes,
 }

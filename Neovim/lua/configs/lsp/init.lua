@@ -1,13 +1,13 @@
 --- @class custom.Lsp
---- @field langs table<string, custom.Lang>
+--- @field language_settings table<string, custom.LanguageSetting>
 
 --- @type custom.Lsp
 local M = {
-  langs = {},
+  language_settings= {},
 }
 
 local ignore_mods = { 'base', 'init', 'utils' }
 
-M.langs = require('utils').load_mods('configs.lsp', ignore_mods)
+M.language_settings = require('utils').load_mods('configs.lsp', ignore_mods)
 
 return M

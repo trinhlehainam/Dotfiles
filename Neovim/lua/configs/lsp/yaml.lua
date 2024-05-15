@@ -1,7 +1,7 @@
 local Lang = require("configs.lsp.base")
 local M = Lang:new()
 
-M.lang_server = "yamlls"
+M.server_name = "yamlls"
 M.lspconfig.settings = {
   yaml = {
     schemaStore = {
