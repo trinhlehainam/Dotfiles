@@ -72,11 +72,15 @@ local setup_handlers = {}
 
 for _, settings in pairs(language_settings) do
   local server_name = settings.server_name
-  if server_name == nil or server_name == "" then goto continue end
+  if server_name == nil or server_name == "" then
+    goto continue 
+  end
   servers[server_name] = settings.lspconfig.settings
 
   local setup = settings.lspconfig.setup
-  if setup == nil then goto continue end
+  if setup == nil then
+    goto continue 
+  end
   setup_handlers[server_name] = {
     setup = setup
   }
