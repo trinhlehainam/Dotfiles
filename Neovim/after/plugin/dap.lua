@@ -16,7 +16,6 @@ vim.fn.sign_define('DapLogPoint', { text = '', texthl = 'DapLogPoint', linehl
 vim.fn.sign_define('DapStopped', { text = '', texthl = 'DapStopped', linehl = 'DapStopped', numhl = 'DapStopped' })
 
 local dap = require('dap')
---- @type table<string, custom.LanguageSetting>
 local language_settings = require('configs.lsp').language_settings
 
 --- @type string[]

@@ -1,5 +1,5 @@
-local Lang = require("configs.lsp.base")
-local M = Lang:new()
+local LanguageSetting = require("configs.lsp.base")
+local M = LanguageSetting:new()
 
 M.server_name = "yamlls"
 M.lspconfig.settings = {
