@@ -1,5 +1,11 @@
 README.md
 
+{{if ne .chezmoi.os "windows"}}
+AppData/Local/nvim/
+{{ else }}
+.config/nvim
+{{end}}
+
 {{if eq .chezmoi.os "windows"}}
 .zshrc
 {{end}}
