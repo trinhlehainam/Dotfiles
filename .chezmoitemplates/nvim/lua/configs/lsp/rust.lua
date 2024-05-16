@@ -22,3 +22,4 @@ M.lspconfig.setup = function(_, _)
 end
 
 return M
+

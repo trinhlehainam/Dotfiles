@@ -41,3 +41,4 @@ return {
       vim.keymap.set('n', 'K', show_documentation, { silent = true })
    end,
 }
+

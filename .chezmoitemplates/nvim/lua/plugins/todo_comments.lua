@@ -14,3 +14,4 @@ return {
       vim.keymap.set('n', '<leader>ft', ':TodoTelescope<CR>', { desc = '[F]ind [T]odo' })
    end
 }
+

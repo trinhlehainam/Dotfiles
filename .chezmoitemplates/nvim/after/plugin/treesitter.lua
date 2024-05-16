@@ -75,3 +75,4 @@ require('nvim-treesitter.configs').setup {
 		fold_one_line_after = true,
 	}
 }
+

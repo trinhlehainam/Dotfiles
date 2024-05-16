@@ -10,3 +10,4 @@ return {
 		-- vim.keymap.set('i', '<leader>c', function() return vim.fn['codeium#Chat']() end, { expr = true })
 	end
 }
+

@@ -19,3 +19,4 @@ M.lspconfig.settings = {
 }
 
 return M
+

@@ -105,3 +105,4 @@ vim.keymap.set('v', '<A-k>', ":m '>+1<CR>gv=gv", opts.nore)
 --Re-visual after indent
 vim.keymap.set('v', '>', '>gv=gv', opts.nore)
 vim.keymap.set('v', '<', '<gv=gv', opts.nore)
+

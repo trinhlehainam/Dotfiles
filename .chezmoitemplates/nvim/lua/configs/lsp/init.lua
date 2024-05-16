@@ -11,3 +11,4 @@ local ignore_mods = { 'base', 'init', 'utils' }
 M.language_settings = require('utils').load_mods('configs.lsp', ignore_mods)
 
 return M
+

@@ -122,3 +122,4 @@ mason_lspconfig.setup_handlers {
 -- NOTE: This framework is not production ready yet, check back later
 -- lspconfig.postgres_lsp.setup{}
 --
+
