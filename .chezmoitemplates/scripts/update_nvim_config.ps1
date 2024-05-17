@@ -8,11 +8,13 @@ if ($env:OS -match "Windows_NT") {
 }
 
 # Define chezmoi directories
-$chezmoi_config_dir = "$env:HOME/.local/share/chezmoi"
-$templates_dir = "$chezmoi_config_dir/.chezmoitemplates/nvim"
+$chezmoi_config_dir = "$env:USERPROFILE\.local\share\chezmoi"
+$templates_dir = "$chezmoi_config_dir\.chezmoitemplates\nvim"
 
 # Ensure the templates directory exists
-New-Item -ItemType Directory -Force -Path $templates_dir
+if (-not (Test-Path $templates_dir)) {
+    New-Item -ItemType Directory -Force -Path $templates_dir
+}
 
 function Copy-And-Rename {
     param (
@@ -24,9 +26,11 @@ function Copy-And-Rename {
         if ($_.PSIsContainer) {
             # Create corresponding directory in the destination
             $subdir = $_.Name
-            New-Item -ItemType Directory -Force -Path "$dest_dir\$subdir"
+            if (-not (Test-Path "$dest_dir\$subdir")) {
+                New-Item -ItemType Directory -Force -Path "$dest_dir\$subdir"
+            }
             # Recursively copy and rename inside the subdirectory
-            Copy-And-Rename -src_dir "$_.FullName" -dest_dir "$dest_dir\$subdir"
+            Copy-And-Rename -src_dir $_.FullName -dest_dir "$dest_dir\$subdir"
         } else {
             $filename = $_.Name
             if ($filename -match "^\.") {
@@ -55,7 +59,9 @@ function Create-Template {
         $target_file = "$chezmoi_config_dir/dot_config/dot_$template_file.tmpl"
     }
     $target_dir = [System.IO.Path]::GetDirectoryName($target_file)
-    New-Item -ItemType Directory -Force -Path $target_dir
+    if (-not (Test-Path $target_dir)) {
+        New-Item -ItemType Directory -Force -Path $target_dir
+    }
     if (-not (Test-Path $target_file)) {
         New-Item -ItemType File -Force -Path $target_file
     }
@@ -65,9 +71,9 @@ function Create-Template {
 
 # Create the chezmoi managed files to use the templates
 Get-ChildItem -Path $templates_dir -File -Recurse | ForEach-Object {
-    $template_file = $_.FullName.Substring($templates_dir.Length + 1)
+    $template_file = $_.FullName.Substring($templates_dir.Length - "nvim".Length)
     Create-Template -chezmoi_config_dir $chezmoi_config_dir -template_file $template_file
 }
 
 # Apply chezmoi configuration
-chezmoi apply
+#chezmoi apply
