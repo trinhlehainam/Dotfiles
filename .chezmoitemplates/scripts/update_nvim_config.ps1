@@ -65,7 +65,11 @@ function Create-Template {
     if (-not (Test-Path $target_file)) {
         New-Item -ItemType File -Force -Path $target_file
     }
-    $template_string = "template $($template_file)"
+    # Avoid chezmoi template checking
+    $template_string = "template `"$template_file`" ."
+    $template_string = "{ $template_string }"
+    $template_string = "{$template_string}"
+    #
     $template_string | Set-Content -Path $target_file
 }
 

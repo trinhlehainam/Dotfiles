@@ -61,7 +61,7 @@ create_template() {
   if [ ! -f "$target_file" ]; then
     touch "$target_file"
   fi
-  echo "{{`{{- template \"`}}$template_file{{`\" . -}}`}}" > "$target_file"
+  echo "{{`{{ template \"`}}$template_file{{`\" . }}`}}" > "$target_file"
 }
 
 export -f create_template
