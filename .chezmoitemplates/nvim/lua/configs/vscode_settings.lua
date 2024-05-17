@@ -33,3 +33,4 @@ vim.keymap.set('n', ']d', "<Cmd>call VSCodeNotify('editor.action.marker.prevInFi
 vim.keymap.set({'n', 'v', 'i'}, '<A-l>', "<Cmd>call VSCodeNotify('editor.action.moveLinesUpAction')<CR>", opts.nore)
 vim.keymap.set({'n', 'v', 'i'}, '<A-k>',  "<Cmd>call VSCodeNotify('editor.action.moveLinesDownAction')<CR>", opts.nore)
 
+

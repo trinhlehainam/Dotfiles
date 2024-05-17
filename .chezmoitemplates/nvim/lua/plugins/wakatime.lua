@@ -2,3 +2,4 @@ return {
 	'wakatime/vim-wakatime',
 }
 
+

@@ -66,9 +66,10 @@ function Create-Template {
         New-Item -ItemType File -Force -Path $target_file
     }
     # Avoid chezmoi template checking
-    $template_string = "template `"$template_file`" ."
-    $template_string = "{ $template_string }"
+    $template_string = " template `"$template_file`" . "
     $template_string = "{$template_string}"
+    $template_string = "{$template_string}"
+    $template_string = $template_string.Replace("\", "/")
     #
     $template_string | Set-Content -Path $target_file
 }
@@ -80,4 +81,4 @@ Get-ChildItem -Path $templates_dir -File -Recurse | ForEach-Object {
 }
 
 # Apply chezmoi configuration
-#chezmoi apply
+# chezmoi apply
