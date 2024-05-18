@@ -1,5 +1,3 @@
-#!/bin/bash
-
 # Determine the operating system
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
   nvim_config_dir="$HOME/.config/nvim"
@@ -47,28 +45,3 @@ copy_and_rename() {
 }
 
 copy_and_rename "$nvim_config_dir" "$templates_dir"
-
-create_template() {
-  local chezmoi_config_dir="$1"
-  template_file="${2#$chezmoi_config_dir/.chezmoitemplates/}"
-  if [[ "$OSTYPE" == "cygwin" || "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
-    target_file="$chezmoi_config_dir/AppData/Local/$template_file.tmpl"
-  else
-    target_file="$chezmoi_config_dir/dot_config/dot_$template_file.tmpl"
-  fi
-  target_dir="$(dirname "$target_file")"
-  mkdir -p "$target_dir"
-  if [ ! -f "$target_file" ]; then
-    touch "$target_file"
-  fi
-  echo "{{`{{- template \"`}}$template_file{{`\" . -}}`}}" > "$target_file"
-}
-
-export -f create_template
-# Create the chezmoi managed files to use the templates
-find "$templates_dir" -type f -exec sh -c '
-  create_template "$1" "$2"
-' sh "$chezmoi_config_dir" {} \;
-
-# Apply chezmoi configuration
-chezmoi apply
