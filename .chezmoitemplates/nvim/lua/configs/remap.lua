@@ -39,7 +39,7 @@ vim.keymap.set('n', '<leader>;', '<C-w>l', opts.nore)
 vim.keymap.set('n', '<leader>l', '<C-w>k', opts.nore)
 vim.keymap.set('n', '<leader>k', '<C-w>j', opts.nore)
 vim.keymap.set('n', '<leader>j', '<C-w>h', opts.nore)
-vim.keymap.set('n', '<leader>c', '<C-w>c', opts.nore)
+vim.keymap.set('n', '<leader>wc', '<C-w>c', opts.nore)
 
 --Buffer Navigation
 vim.keymap.set('n', 'bj', ':bfirst<CR>', opts.nore)
@@ -105,6 +105,3 @@ vim.keymap.set('v', '<A-k>', ":m '>+1<CR>gv=gv", opts.nore)
 --Re-visual after indent
 vim.keymap.set('v', '>', '>gv=gv', opts.nore)
 vim.keymap.set('v', '<', '<gv=gv', opts.nore)
-
-
-

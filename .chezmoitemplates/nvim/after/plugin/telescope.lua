@@ -34,7 +34,7 @@ if hasnoiceext and hasnoice then
 	vim.keymap.set('n', '<leader>nt',
 		function()
 			noice.cmd('telescope')
-		end, { desc = '[F]ind [M]essages' })
+		end, { desc = '[N]oice [T]elescope' })
 end
 
 local builtin = require('telescope.builtin')
