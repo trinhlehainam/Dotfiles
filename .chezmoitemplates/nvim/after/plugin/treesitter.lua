@@ -2,12 +2,19 @@ if vim.g.vscode then
 	return
 end
 
+local ensure_installed = { 'c', 'cpp', 'c_sharp', 'go', 'lua', 'python', 'rust', 'toml', 'javascript', 'tsx',
+	'typescript', 'html', 'css', 'json', 'sql' }
+
+local hasnoice, _ = pcall(require, 'noice')
+local noice_parsers = { 'vim', 'regex', 'lua', 'bash', 'markdown', 'markdown_inline' }
+if hasnoice then
+	ensure_installed = vim.list_extend(ensure_installed, noice_parsers)
+end
+
 -- See `:help nvim-treesitter`
 require('nvim-treesitter.configs').setup {
 	-- Add languages to be installed here that you want installed for treesitter
-	ensure_installed = { 'c', 'cpp', 'c_sharp', 'go', 'lua', 'python', 'rust', 'toml',
-		'javascript', 'tsx', 'typescript', 'html', 'css',
-		'vim', 'markdown', 'markdown_inline', 'sql' },
+	ensure_installed = ensure_installed,
 
 	-- Autoinstall languages that are not installed. Defaults to false (but you can change for yourself!)
 	auto_install = false,
