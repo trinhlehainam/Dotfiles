@@ -63,7 +63,6 @@ noremap K :action QuickJavaDoc<CR>
 noremap <C-k> : action ParameterInfo<CR>
 
 noremap <leader>b :action BuildButton<CR>
-noremap <leader>w :action SaveDocument<CR>
 
 noremap == :action ReformatCode<CR>
 vnoremap == :action ReformatCode<CR>
@@ -86,7 +85,7 @@ noremap <C-p> :action EditorPaste<CR>
 " noremap <C-z> :action ToggleDistractionFreeMode<CR>
 noremap tt :action ActivateProjectToolWindow<CR>
 noremap sb :action ActivateBuildToolWindow<CR>
-noremap sg :action ActivateVersionControlToolWindow<CR>
+noremap <leader>gs :action ActivateVersionControlToolWindow<CR>
 noremap st :action ActivateTerminalToolWindow<CR>
 
 noremap <leader>gu :action Vcs.UpdateProject<CR>
@@ -98,4 +97,3 @@ map mc <A-n>
 map mx <A-x>
 map mp <A-p>
 ```
-

@@ -1,6 +1,6 @@
 return {
    'saecki/crates.nvim',
-   tag = 'v0.3.0',
+   tag = 'stable',
    dependencies = { 'nvim-lua/plenary.nvim' },
    config = function()
       local crates = require('crates');
@@ -41,6 +41,3 @@ return {
       vim.keymap.set('n', 'K', show_documentation, { silent = true })
    end,
 }
-
-
-
