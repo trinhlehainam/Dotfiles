@@ -12,7 +12,7 @@ vim.keymap.set('n', '[d', vim.diagnostic.goto_prev, { desc = "Go to previous dia
 vim.keymap.set('n', ']d', vim.diagnostic.goto_next, { desc = "Go to next diagnostic message" })
 vim.keymap.set('n', '<leader>e', vim.diagnostic.open_float, { desc = "Open floating diagnostic message" })
 -- Prefer Telescope Diagnostic
--- vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = "Open diagnostics list" })
+vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = "Open diagnostics list" })
 
 vim.diagnostic.config({
   virtual_text = false,
@@ -35,7 +35,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
     if client and client.server_capabilities.inlayHintProvider then
       vim.keymap.set("n", "th",
         function()
-          vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled({bufnr = args.buf}), {bufnr = args.buf})
+          vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled({ bufnr = args.buf }), { bufnr = args.buf })
         end,
         { buffer = args.buf, desc = "Toggle inlay hints" })
     end
@@ -73,13 +73,13 @@ local setup_handlers = {}
 for _, settings in pairs(language_settings) do
   local server_name = settings.server_name
   if server_name == nil or server_name == "" then
-    goto continue 
+    goto continue
   end
   servers[server_name] = settings.lspconfig.settings
 
   local setup = settings.lspconfig.setup
   if setup == nil then
-    goto continue 
+    goto continue
   end
   setup_handlers[server_name] = {
     setup = setup
@@ -121,6 +121,3 @@ mason_lspconfig.setup_handlers {
 -- Language server for Postgres written in Rust
 -- NOTE: This framework is not production ready yet, check back later
 -- lspconfig.postgres_lsp.setup{}
---
-
-

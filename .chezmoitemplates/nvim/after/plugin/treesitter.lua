@@ -3,7 +3,6 @@ if vim.g.vscode then
 end
 
 -- See `:help nvim-treesitter`
----@diagnostic disable-next-line: missing-fields
 require('nvim-treesitter.configs').setup {
 	-- Add languages to be installed here that you want installed for treesitter
 	ensure_installed = { 'c', 'cpp', 'c_sharp', 'go', 'lua', 'python', 'rust', 'toml',
@@ -75,5 +74,3 @@ require('nvim-treesitter.configs').setup {
 		fold_one_line_after = true,
 	}
 }
-
-

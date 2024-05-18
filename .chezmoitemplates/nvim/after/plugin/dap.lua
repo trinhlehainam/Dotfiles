@@ -24,13 +24,13 @@ local daptypes = {}
 for language, settings in pairs(language_settings) do
   local daptype = settings.daptype
   if daptype == nil or daptype == "" then
-    goto continue 
+    goto continue
   end
   table.insert(daptypes, daptype)
 
   local dapconfig = settings.dapconfig
   if dapconfig == nil then
-    goto continue 
+    goto continue
   end
   dap.configurations[language] = dapconfig
 
@@ -41,5 +41,3 @@ require('mason-nvim-dap').setup {
   automatic_installation = true,
   ensure_installed = daptypes,
 }
-
-

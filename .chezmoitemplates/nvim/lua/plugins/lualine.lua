@@ -7,8 +7,8 @@
 --    -- 2: Options
 --    ...
 -- }
--- 
--- Example: 
+--
+-- Example:
 -- sections = {
 --    lualine_a = {
 --       {
@@ -60,5 +60,3 @@ return {
       })
    end,
 }
-
-

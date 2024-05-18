@@ -1,5 +1,3 @@
 return {
    "RRethy/vim-illuminate",
 }
-
-

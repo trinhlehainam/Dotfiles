@@ -48,5 +48,3 @@ cmp.setup {
     { name = 'crates' },
   },
 }
-
-

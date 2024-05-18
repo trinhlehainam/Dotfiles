@@ -10,4 +10,7 @@
     },
     "workbench.iconTheme": "material-icon-theme",
     "editor.lineNumbers": "relative",
+    "remote.SSH.remotePlatform": {
+        "vice-store": "linux"
+    }
 }
