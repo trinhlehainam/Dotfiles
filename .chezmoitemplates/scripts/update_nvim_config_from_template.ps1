@@ -21,7 +21,7 @@ function Create-Template {
         New-Item -ItemType File -Force -Path $target_file
     }
     # Avoid chezmoi template checking
-    $template_string = " template `"$template_file`" . "
+    $template_string = "- template `"$template_file`" . -"
     $template_string = "{$template_string}"
     $template_string = "{$template_string}"
     $template_string = $template_string.Replace("\", "/")
