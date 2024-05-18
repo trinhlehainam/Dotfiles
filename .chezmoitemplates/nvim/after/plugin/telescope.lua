@@ -22,9 +22,19 @@ require('telescope').setup {
 -- Enable telescope fzf native, if installed
 pcall(require('telescope').load_extension, 'fzf')
 pcall(require('telescope').load_extension, 'ui-select')
-local haschezmoi, chezmoi_ext = pcall(require('telescope').load_extension, 'chezmoi')
-if haschezmoi then
+
+local haschezmoiext, chezmoi_ext = pcall(require('telescope').load_extension, 'chezmoi')
+if haschezmoiext then
 	vim.keymap.set('n', '<leader>cz', chezmoi_ext.find_files, { desc = '[C]hezmoi Find Files' })
+end
+
+local hasnoice, noice = pcall(require, 'noice')
+local hasnoiceext, _ = pcall(require('telescope').load_extension, 'noice')
+if hasnoiceext and hasnoice then
+	vim.keymap.set('n', '<leader>nt',
+		function()
+			noice.cmd('telescope')
+		end, { desc = '[F]ind [M]essages' })
 end
 
 local builtin = require('telescope.builtin')

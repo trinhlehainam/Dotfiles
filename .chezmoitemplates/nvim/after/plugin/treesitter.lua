@@ -2,6 +2,7 @@ if vim.g.vscode then
 	return
 end
 
+-- TODO: use LanguageSetting to configure language parser
 local ensure_installed = { 'c', 'cpp', 'c_sharp', 'go', 'lua', 'python', 'rust', 'toml', 'javascript', 'tsx',
 	'typescript', 'html', 'css', 'json', 'sql' }
 
