@@ -30,6 +30,3 @@ export -f create_template
 find "$templates_dir" -type f -exec sh -c '
   create_template "$1" "$2"
 ' sh "$chezmoi_root_dir" {} \;
-
-# Apply chezmoi configuration
-# chezmoi apply
