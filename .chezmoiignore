@@ -1,8 +1,0 @@
-README.md
-
-{{if ne .chezmoi.os "windows"}}
-AppData/Local/nvim/
-{{ else }}
-.config/nvim
-.zshrc
-{{end}}
