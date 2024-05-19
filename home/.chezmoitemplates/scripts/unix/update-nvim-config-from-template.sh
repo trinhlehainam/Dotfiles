@@ -78,6 +78,24 @@ for file in "${!previous_state[@]}"; do
     fi
 done
 
+hashtable_to_json() {
+    local -n hashtable=$1
+    local json="{"
+
+    for key in "${!hashtable[@]}"; do
+        input_json="\"$key\":\"${hashtable[$key]}\""
+        json="$json$input_json,"
+    done
+
+    # Remove the last comma
+    json="${json%,}"
+
+    json="$json}"
+
+    echo "$json"
+}
+
+result_json=$(hashtable_to_json current_state)
 # Save current state
-# TODO: need to install jq first
-declare -p current_state | jq -n 'reduce (input|to_entries[]) as {$key, $value} ({}; .[$key] = $value)' > "$state_file"
+echo $result_json | jq .
+# $current_state | jq . > "$state_file"
