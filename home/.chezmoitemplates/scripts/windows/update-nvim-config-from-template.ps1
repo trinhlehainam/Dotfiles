@@ -66,7 +66,10 @@ Get-ChildItem -Path $templates_dir -File -Recurse | ForEach-Object {
     if ($template_file.Contains("state.json")) {
         return
     }
-    $current_state.Add($template_file, $_.LastWriteTime)
+    $timestamp = Get-Date $_.LastWriteTime
+    $timestamp = ([DateTimeOffset]$timestamp).ToUnixTimeSeconds()
+    $timestamp = "Date($timestamp)"
+    $current_state.Add($template_file, $timestamp)
 }
 
 # Detect added files

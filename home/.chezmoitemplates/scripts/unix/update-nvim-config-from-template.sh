@@ -83,8 +83,16 @@ hashtable_to_json() {
     local json="{"
 
     for key in "${!hashtable[@]}"; do
-        input_json="\"$key\":\"${hashtable[$key]}\""
-        json="$json$input_json,"
+        # Extract the file path and timestamp from the input JSON pattern
+        file_path=$key
+        timestamp=${hashtable[$key]}
+        # Convert the file path to the desired format from "/path/to/file" to "\\path\\to\\file"
+        converted_file_path=$(sed 's/\//\\\\/g' <<< "$file_path")
+        timestamp="Date($timestamp)"
+        # Construct the output JSON pattern
+        output_json="\"$converted_file_path\":\"$timestamp\""
+
+        json="$json$output_json,"
     done
 
     # Remove the last comma
@@ -95,7 +103,6 @@ hashtable_to_json() {
     echo "$json"
 }
 
-result_json=$(hashtable_to_json current_state)
 # Save current state
-echo $result_json | jq .
-# $current_state | jq . > "$state_file"
+result_json=$(hashtable_to_json current_state)
+echo "$result_json" | jq . > "$state_file"
