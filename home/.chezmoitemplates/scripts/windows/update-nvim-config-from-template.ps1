@@ -51,6 +51,8 @@ function Remove-Template {
 $previous_state = @{}
 if (Test-Path $state_file) {
     $json = Get-Content -Path $state_file | ConvertFrom-Json
+    # ConvertFrom-Json -AsHashtable somehow doesn't work
+    # Add properties manually to hashtable
     $json.psobject.properties | ForEach-Object {
         $previous_state.Add($_.Name, $_.Value)
     }
@@ -60,13 +62,14 @@ if (Test-Path $state_file) {
 $current_state = @{}
 Get-ChildItem -Path $templates_dir -File -Recurse | ForEach-Object {
     $template_file = $_.FullName.Substring($templates_dir.Length - "nvim".Length)
+    # Ignore create template for state.json file
     if ($template_file.Contains("state.json")) {
         return
     }
     $current_state.Add($template_file, $_.LastWriteTime)
 }
 
-# Detect added
+# Detect added files
 foreach ($file in $current_state.Keys) {
     if (-not $previous_state.ContainsKey($file)) {
         Write-Host "Creating template for: $file"

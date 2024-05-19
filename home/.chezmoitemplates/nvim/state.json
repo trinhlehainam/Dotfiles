@@ -32,7 +32,7 @@
     "nvim\\lua\\configs\\lsp\\base.lua":  "\/Date(1715939571701)\/",
     "nvim\\doc\\kickstart.txt":  "\/Date(1715939571698)\/",
     "nvim\\lua\\plugins\\rust_crates.lua":  "\/Date(1716050790371)\/",
-    "nvim\\lua\\plugins\\codeium.lua":  "\/Date(1715939571725)\/",
+    "nvim\\lua\\plugins\\codeium.lua":  "\/Date(1716124158805)\/",
     "nvim\\lua\\plugins\\sourcegraph.lua":  "\/Date(1715939571752)\/",
     "nvim\\lua\\configs\\lsp\\json.lua":  "\/Date(1715939571706)\/",
     "nvim\\lua\\plugins\\auto_save.lua":  "\/Date(1715939571720)\/",
