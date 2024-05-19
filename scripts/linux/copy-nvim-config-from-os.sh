@@ -11,7 +11,7 @@ else
 fi
 
 # Define chezmoi directories
-chezmoi_config_dir="$HOME/.local/share/chezmoi"
+chezmoi_config_dir="$HOME/.local/share/chezmoi/home"
 templates_dir="$chezmoi_config_dir/.chezmoitemplates/nvim"
 
 # Ensure the templates directory exists

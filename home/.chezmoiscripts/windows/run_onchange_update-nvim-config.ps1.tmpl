@@ -1,0 +1,3 @@
+{{- if eq .chezmoi.os "windows" -}}
+{{- template "scripts/windows/update-nvim-config-from-template.ps1" . -}}
+{{- end -}}

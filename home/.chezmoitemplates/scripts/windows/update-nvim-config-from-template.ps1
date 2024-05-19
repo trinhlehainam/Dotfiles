@@ -1,5 +1,5 @@
 # Define chezmoi directories
-$chezmoi_config_dir = "$env:USERPROFILE\.local\share\chezmoi"
+$chezmoi_config_dir = "$env:USERPROFILE\.local\share\chezmoi\home"
 $templates_dir = "$chezmoi_config_dir\.chezmoitemplates\nvim"
 
 function Create-Template {
