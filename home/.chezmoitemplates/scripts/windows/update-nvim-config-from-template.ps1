@@ -89,4 +89,4 @@ foreach ($file in $previous_state.Keys) {
 }
 
 # Save current state
-$current_state | ConvertTo-Json | Set-Content -Path $state_file
+$current_state | ConvertTo-Json -Compress | Set-Content -Path $state_file

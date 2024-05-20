@@ -1,2 +1,2 @@
 # Add ~/bin to user path
-$env:Path += ";$env:USERPROFILE\bin"
+$env:PATH += ";$env:USERPROFILE\bin"

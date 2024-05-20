@@ -122,4 +122,4 @@ hashtable_to_json() {
 
 # Save current state
 result_json=$(hashtable_to_json current_state)
-echo "$result_json" | jq . > "$state_file"
+echo "$result_json" | jq -c . > "$state_file"
