@@ -1,16 +1,16 @@
 #!/bin/bash
 
-# NOTE: this script requires tools: 
+# NOTE: Required tools: 
 #   - find: File finder
 #   - read: Read from stdin
 #   - stat: File metadata processor
 #   - dirname: Path processor
 #   - sed: Text processor
 #   - jq: JSON processor
-required_tools=("find" "read" "stat" "dirname" "sed" "jq")
-for tool in "${required_tools[@]}"; do
-    if ! command -v "$tool" >/dev/null 2>&1; then
-        echo "Error: $tool is not installed." >&2
+REQUIRED_TOOLS=("find" "read" "stat" "dirname" "sed" "jq")
+for tool in "${REQUIRED_TOOLS[@]}"; do
+    if ! type "$tool" &> /dev/null; then
+        echo "Error: $tool is not installed."
         exit 1
     fi
 done
