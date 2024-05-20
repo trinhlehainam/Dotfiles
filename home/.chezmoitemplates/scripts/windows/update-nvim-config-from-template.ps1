@@ -1,3 +1,31 @@
+# Define the required tools
+$REQUIRED_TOOLS = @("chezmoi")
+
+# Function to check if a command is available
+function Test-Command {
+    param (
+        [string]$Command
+    )
+    
+    $commandPath = (Get-Command $Command -ErrorAction SilentlyContinue).Path
+    return $null -ne $commandPath
+}
+
+foreach ($tool in $REQUIRED_TOOLS) {
+    if (-not (Test-Command -Command $tool)) {
+        Write-Error "Error: $tool is not installed."
+        exit 1
+    }
+}
+
+# Determine the operating system
+if ($env:OS -match "Windows_NT") {
+    $nvim_config_dir = "$env:USERPROFILE\AppData\Local\nvim"
+} else {
+    Write-Host "Unsupported OS: $($PSVersionTable.OS)"
+    exit 1
+}
+
 # Define chezmoi directories
 $chezmoi_root_dir = "$env:USERPROFILE\.local\share\chezmoi\home"
 $templates_dir = "$chezmoi_root_dir\.chezmoitemplates\nvim"
@@ -43,7 +71,10 @@ function Remove-Template {
     }
     
     if (Test-Path $target_file) {
-        Remove-Item -Path $target_file -Force
+        $destination_file = $template_file.Substring("nvim".Length + 1) 
+        $destination_file = "$nvim_config_dir\$destination_file"
+        chezmoi remove --force $destination_file
+        # Remove-Item -Path $target_file -Force
     }
 }
 

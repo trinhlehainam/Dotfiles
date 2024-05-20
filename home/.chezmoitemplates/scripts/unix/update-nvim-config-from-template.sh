@@ -7,13 +7,25 @@
 #   - dirname: Path processor
 #   - sed: Text processor
 #   - jq: JSON processor
-REQUIRED_TOOLS=("find" "read" "stat" "dirname" "sed" "jq")
+REQUIRED_TOOLS=("find" "read" "stat" "dirname" "sed" "jq" "chezmoi")
 for tool in "${REQUIRED_TOOLS[@]}"; do
     if ! type "$tool" &> /dev/null; then
         echo "Error: $tool is not installed."
         exit 1
     fi
 done
+
+# Determine the operating system
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+  nvim_config_dir="$HOME/.config/nvim"
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+  nvim_config_dir="$HOME/.config/nvim"
+elif [[ "$OSTYPE" == "cygwin" || "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
+  nvim_config_dir="$HOME/AppData/Local/nvim"
+else
+  echo "Unsupported OS: $OSTYPE"
+  exit 1
+fi
 
 # Define chezmoi directories
 chezmoi_root_dir="$HOME/.local/share/chezmoi/home"
@@ -53,7 +65,10 @@ remove_template() {
     fi
     
     if [ -f "$target_file" ]; then
-        rm -f "$target_file"
+        $destination_file=${template_dir#nvim/}
+        $destination_file="$nvim_config_dir/$destination_file"
+        chezmoi rm -f $destination_file
+        #rm -f "$target_file"
     fi
 }
 
