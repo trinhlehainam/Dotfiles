@@ -1,5 +1,20 @@
 #!/bin/bash
 
+# NOTE: this script requires tools: 
+#   - find: File finder
+#   - read: Read from stdin
+#   - stat: File metadata processor
+#   - dirname: Path processor
+#   - sed: Text processor
+#   - jq: JSON processor
+required_tools=("find" "read" "stat" "dirname" "sed" "jq")
+for tool in "${required_tools[@]}"; do
+    if ! command -v "$tool" >/dev/null 2>&1; then
+        echo "Error: $tool is not installed." >&2
+        exit 1
+    fi
+done
+
 # Define chezmoi directories
 chezmoi_root_dir="$HOME/.local/share/chezmoi/home"
 templates_dir="$chezmoi_root_dir/.chezmoitemplates/nvim"
@@ -45,10 +60,12 @@ remove_template() {
 # Load previous state if it exists
 declare -A previous_state
 if [ -f "$state_file" ]; then
-    json=$(cat "$state_file")
+    json_data=$(cat "$state_file")
     while IFS="=" read -r key value; do
-        previous_state[$key]="$value"
-    done < <(jq -r 'to_entries|map("\(.key)=\(.value)")|.[]' <<< "$json")
+        # Convert the file path to the desired format from "\\path\\to\\file" to "/path/to/file"
+        file_path=$(sed 's/\\/\//g' <<< "$key")
+        previous_state[$file_path]="$value"
+    done < <(jq -r 'to_entries | .[] | "\(.key)=\(.value)"' <<< "$json_data")
 fi
 
 # Get current state
