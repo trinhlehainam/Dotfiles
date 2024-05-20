@@ -1,4 +1,5 @@
-# Define the required tools
+# NOTE: Required tools:
+# - chezmoi: Template processor
 $REQUIRED_TOOLS = @("chezmoi")
 
 # Function to check if a command is available
@@ -74,7 +75,6 @@ function Remove-Template {
         $destination_file = $template_file.Substring("nvim".Length + 1) 
         $destination_file = "$nvim_config_dir\$destination_file"
         chezmoi remove --force $destination_file
-        # Remove-Item -Path $target_file -Force
     }
 }
 

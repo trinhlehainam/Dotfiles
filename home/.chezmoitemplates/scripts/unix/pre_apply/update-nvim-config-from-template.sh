@@ -7,6 +7,7 @@
 #   - dirname: Path processor
 #   - sed: Text processor
 #   - jq: JSON processor
+#   - chezmoi: Template processor
 REQUIRED_TOOLS=("find" "read" "stat" "dirname" "sed" "jq" "chezmoi")
 for tool in "${REQUIRED_TOOLS[@]}"; do
     if ! type "$tool" &> /dev/null; then
@@ -65,10 +66,9 @@ remove_template() {
     fi
     
     if [ -f "$target_file" ]; then
-        $destination_file=${template_dir#nvim/}
-        $destination_file="$nvim_config_dir/$destination_file"
-        chezmoi rm -f $destination_file
-        #rm -f "$target_file"
+        destination_file="${template_file#nvim/}"
+        destination_file="$nvim_config_dir/$destination_file"
+        chezmoi remove --force $destination_file
     fi
 }
 
