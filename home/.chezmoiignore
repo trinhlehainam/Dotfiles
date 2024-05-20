@@ -1,6 +1,15 @@
+{{ if ne .chezmoi.os "darwin"}}
+{{ end }}
+
+{{ if ne .chezmoi.os "linux" }}
+{{ end }}
+
 {{ if ne .chezmoi.os "windows" }}
 AppData
+Documents/WindowsPowerShell
+.chezmoiscripts/windows
 {{ else }}
+.chezmoiscripts/unix
 .config/nvim
 .zshrc
 {{ end }}
