@@ -2,18 +2,17 @@ if vim.g.vscode then
 	return
 end
 
-print("Loading cmp")
+local log = require("utils.log")
 
 local hascmp, cmp = pcall(require, "cmp")
 if not hascmp then
-	require("utils.log").error("cmp is not installed")
+	log.error("cmp is not installed")
 	return
 end
 
 local hasluasnip, luasnip = pcall(require, "luasnip")
-
 if not hasluasnip then
-	require("utils.log").error("luasnip is not installed")
+	log.error("luasnip is not installed")
 	return
 end
 luasnip.config.setup()
@@ -61,12 +60,12 @@ cmp.setup({
 		--
 		-- <c-l> will move you to the right of each of the expansion locations.
 		-- <c-h> is similar, except moving you backwards.
-		["<C-l>"] = cmp.mapping(function()
+		["<C-k>"] = cmp.mapping(function()
 			if luasnip.expand_or_locally_jumpable() then
 				luasnip.expand_or_jump()
 			end
 		end, { "i", "s" }),
-		["<C-h>"] = cmp.mapping(function()
+		["<C-l>"] = cmp.mapping(function()
 			if luasnip.locally_jumpable(-1) then
 				luasnip.jump(-1)
 			end

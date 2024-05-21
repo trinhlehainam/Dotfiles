@@ -9,7 +9,7 @@ local log = require("utils.log")
 local hasregister, registry = pcall(require, "mason-registry")
 
 if not hasregister then
-	log.warn("mason.nvim is not installed")
+	log.error("mason.nvim is not installed")
 	return M
 end
 

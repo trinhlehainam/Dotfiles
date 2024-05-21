@@ -7,15 +7,15 @@ return {
 			"L3MON4D3/LuaSnip",
 			version = "v2.*",
 			-- install jsregexp (optional!)
-			-- build = (function()
-			-- 	-- Build Step is needed for regex support in snippets.
-			-- 	-- This step is not supported in many windows environments.
-			-- 	-- Remove the below condition to re-enable on windows.
-			-- 	if vim.fn.has("win32") == 1 or vim.fn.executable("make") == 0 then
-			-- 		return
-			-- 	end
-			-- 	return "make install_jsregexp"
-			-- end)(),
+			build = (function()
+				-- Build Step is needed for regex support in snippets.
+				-- This step is not supported in many windows environments.
+				-- Remove the below condition to re-enable on windows.
+				if vim.fn.has("win32") == 1 or vim.fn.executable("make") == 0 then
+					return
+				end
+				return "make install_jsregexp"
+			end)(),
 			dependencies = {
 				-- `friendly-snippets` contains a variety of premade snippets.
 				--    See the README about individual language/framework/plugin snippets:
@@ -33,7 +33,8 @@ return {
 		-- Adds other completion capabilities.
 		--  nvim-cmp does not ship with all sources by default. They are split
 		--  into multiple repos for maintenance purposes.
-		"hrsh7th/cmp-nvim-lsp",
 		"hrsh7th/cmp-path",
+		"hrsh7th/cmp-buffer",
+		"hrsh7th/cmp-cmdline",
 	},
 }

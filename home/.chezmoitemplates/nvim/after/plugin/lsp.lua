@@ -2,7 +2,6 @@ if vim.g.vscode then
   return
 end
 
---#region LSP
 -- IMPORTANT: make sure to setup neodev BEFORE lspconfig
 local hasneodev, neodev = pcall(require, "neodev")
 if not hasneodev then
@@ -102,8 +101,13 @@ for _, settings in pairs(language_settings) do
 end
 
 -- nvim-cmp supports additional completion capabilities, so broadcast that to servers
+local hascmplsp, cmp_nvim_lsp = pcall(require, "cmp_nvim_lsp")
+if not hascmplsp then
+  require("utils.log").error("cmp_nvim_lsp is not installed")
+  return
+end
 local capabilities = vim.lsp.protocol.make_client_capabilities()
-capabilities = require('cmp_nvim_lsp').default_capabilities(capabilities)
+capabilities = cmp_nvim_lsp.default_capabilities(capabilities)
 
 -- Setup mason so it can manage external tooling
 require('mason').setup()
@@ -135,83 +139,3 @@ mason_lspconfig.setup_handlers {
 -- NOTE: This framework is not production ready yet, check back later
 -- lspconfig.postgres_lsp.setup{}
 --
---#endregion LSP
-
---#region Format
-local hasconform, conform = pcall(require, 'conform')
-if not hasconform then
-  return
-end
-
-local ensure_installed_formatters = { 'stylua', }
-
-for _, settings in pairs(language_settings) do
-  if settings.formatterconfig.servers ~= nil and vim.islist(settings.formatterconfig.servers) then
-    vim.list_extend(ensure_installed_formatters, settings.formatterconfig.servers)
-  end
-end
-
-local formatters_by_ft = { lua = { 'stylua' }, }
-
-for _, settings in pairs(language_settings) do
-  if settings.formatterconfig.formatters_by_ft ~= nil and type(settings.formatterconfig.formatters_by_ft) == "table" then
-    vim.tbl_extend('force', formatters_by_ft, settings.formatterconfig.formatters_by_ft)
-  end
-end
-
-local mason_installer = require('utils.mason_installer')
-mason_installer.install(ensure_installed_formatters)
-
-conform.setup
-{
-  notify_on_error = false,
-  format_on_save = function(bufnr)
-    -- Disable "format_on_save lsp_fallback" for languages that don't
-    -- have a well standardized coding style. You can add additional
-    -- languages here or re-enable it for the disabled ones.
-    local disable_filetypes = { c = true, cpp = true }
-    return {
-      timeout_ms = 500,
-      lsp_fallback = not disable_filetypes[vim.bo[bufnr].filetype],
-    }
-  end,
-  formatters_by_ft = formatters_by_ft,
-}
---#endregion Format
-
---#region Lint
-local haslint, lint = pcall(require, "lint")
-
-if not haslint then
-  return
-end
-
-local ensure_installed_linters = {}
-
-for _, settings in pairs(language_settings) do
-  if settings.linterconfig.servers ~= nil and vim.islist(settings.linterconfig.servers) then
-    vim.list_extend(ensure_installed_linters, settings.linterconfig.servers)
-  end
-end
-
-local linters_by_ft = {}
-
-for _, settings in pairs(language_settings) do
-  if settings.linterconfig.linters_by_ft ~= nil and type(settings.linterconfig.linters_by_ft) == "table" then
-    vim.tbl_extend('force', linters_by_ft, settings.linterconfig.linters_by_ft)
-  end
-end
-
-mason_installer.install(ensure_installed_linters)
-
-lint.linters_by_ft = linters_by_ft
-
-local lint_augroup = vim.api.nvim_create_augroup("lint", { clear = true })
-
-vim.api.nvim_create_autocmd({ "BufEnter", "BufWritePost", "InsertLeave" }, {
-  group = lint_augroup,
-  callback = function() lint.try_lint() end,
-})
-
-vim.keymap.set("n", "<leader>ll", function() lint.try_lint() end, { desc = "Trigger linting for current file" })
---#endregion Lint
