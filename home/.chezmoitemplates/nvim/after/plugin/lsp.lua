@@ -51,6 +51,8 @@ vim.api.nvim_create_autocmd("LspAttach", {
 --  See https://github.com/neovim/nvim-lspconfig/blob/master/doc/server_configurations.md
 local servers = {
   dockerls = {},
+  bashls = {},
+  powershell_es = {},
   lua_ls = {
     Lua = {
       workspace = { checkThirdParty = false },
@@ -62,7 +64,7 @@ local servers = {
 
 local language_settings = require('configs.lsp').language_settings
 
-local on_attach = require('configs.lsp.utils').on_attach
+local on_attach = require('utils.lsp').on_attach
 
 ---@class custom.LspSetupHandler
 ---@field setup custom.LspConfig.Setup

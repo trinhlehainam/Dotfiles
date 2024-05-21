@@ -44,7 +44,7 @@ if vim.g.vscode then
   require('configs.vscode')
 else
   -- configure Neovim plugins
-  require('configs.lazy')
+  require('configs.plugins')
 end
 
 -- The line beneath this is called `modeline`. See `:help modeline`

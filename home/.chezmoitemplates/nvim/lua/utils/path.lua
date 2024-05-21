@@ -119,6 +119,3 @@ function M.load_mods(modname, ignore_mods)
 end
 
 return M
-
-
-

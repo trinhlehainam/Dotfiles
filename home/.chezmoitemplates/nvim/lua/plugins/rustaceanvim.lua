@@ -3,7 +3,7 @@ return {
   version = '^4', -- Recommended
   lazy = false,
   config = function()
-    local utils = require('utils')
+    local utils = require('utils.path')
 
     vim.g.rustaceanvim = {
       -- Plugin configuration
@@ -19,7 +19,7 @@ return {
           },
         },
         on_attach = function(_, bufnr)
-          require('configs.lsp.utils').on_attach(_, bufnr)
+          require('utils.lsp').on_attach(_, bufnr)
 
           local nmap = utils.create_nmap(bufnr)
           local vmap = utils.create_vmap(bufnr)
@@ -51,6 +51,3 @@ return {
     }
   end
 }
-
-
-

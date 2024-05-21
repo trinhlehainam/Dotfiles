@@ -18,7 +18,7 @@ vim.opt.rtp:prepend(lazypath)
 -- Only load if `make` is available. Make sure you have the system
 -- requirements installed.
 local function get_telescope_fzf_native_setup()
-  return require("utils").IS_WINDOWS and
+  return require("utils.path").IS_WINDOWS and
       {
         'nvim-telescope/telescope-fzf-native.nvim',
         build =
