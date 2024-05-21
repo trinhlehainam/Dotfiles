@@ -35,16 +35,15 @@ I hope you enjoy your Neovim journey,
 
 P.S. You can delete this when you're done too. It's your config now :)
 --]]
-
-require('configs.settings')
-require('configs.remap')
+require("configs.settings")
+require("configs.remap")
 --
 if vim.g.vscode then
-  -- VSCode extension
-  require('configs.vscode')
+	-- VSCode extension
+	require("configs.vscode")
 else
-  -- configure Neovim plugins
-  require('configs.plugins')
+	-- configure Neovim plugins
+	require("configs.plugins")
 end
 
 -- The line beneath this is called `modeline`. See `:help modeline`

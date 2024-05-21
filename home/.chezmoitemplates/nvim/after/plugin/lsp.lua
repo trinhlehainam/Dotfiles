@@ -4,7 +4,12 @@ end
 
 --#region LSP
 -- IMPORTANT: make sure to setup neodev BEFORE lspconfig
-require("neodev").setup({
+local hasneodev, neodev = pcall(require, "neodev")
+if not hasneodev then
+  require("utils.log").error("neodev is not installed")
+  return
+end
+neodev.setup({
   -- add any options here, or leave empty to use the default settings
 })
 
@@ -138,27 +143,15 @@ if not hasconform then
   return
 end
 
-
-
-local ensure_installed_formatters = {
-  'stylua',
-}
+local ensure_installed_formatters = { 'stylua', }
 
 for _, settings in pairs(language_settings) do
-  if settings.formatterconfig.servers ~= nil and type(settings.formatterconfig.servers) == "table" then
+  if settings.formatterconfig.servers ~= nil and vim.islist(settings.formatterconfig.servers) then
     vim.list_extend(ensure_installed_formatters, settings.formatterconfig.servers)
   end
 end
 
-local formatters_by_ft = {
-  lua = { 'stylua' },
-  -- Conform can also run multiple formatters sequentially
-  -- python = { "isort", "black" },
-  --
-  -- You can use a sub-list to tell conform to run *until* a formatter
-  -- is found.
-  -- javascript = { { "prettierd", "prettier" } },
-}
+local formatters_by_ft = { lua = { 'stylua' }, }
 
 for _, settings in pairs(language_settings) do
   if settings.formatterconfig.formatters_by_ft ~= nil and type(settings.formatterconfig.formatters_by_ft) == "table" then
@@ -196,7 +189,7 @@ end
 local ensure_installed_linters = {}
 
 for _, settings in pairs(language_settings) do
-  if settings.linterconfig.servers ~= nil and type(settings.linterconfig.servers) == "table" then
+  if settings.linterconfig.servers ~= nil and vim.islist(settings.linterconfig.servers) then
     vim.list_extend(ensure_installed_linters, settings.linterconfig.servers)
   end
 end
