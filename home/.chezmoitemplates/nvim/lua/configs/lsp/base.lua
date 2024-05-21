@@ -15,7 +15,7 @@
 
 ---@class custom.LinterConfig
 ---@field servers? string[]
----@field linters_by_ft? table<string, string>
+---@field linters_by_ft? table<string, table>
 
 ---@class custom.LanguageSetting
 ---@field lspconfig custom.LspConfig

@@ -5,7 +5,7 @@ local notify_fn = function(level)
 	return
 	---@param message string
 	function(message)
-		vim.notify(message, level, { title = "nvim-config" })
+		vim.notify(message, level, { title = "Nvim Dotfiles" })
 	end
 end
 
