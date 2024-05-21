@@ -23,15 +23,9 @@ return {
 
           local nmap = utils.create_nmap(bufnr)
           local vmap = utils.create_vmap(bufnr)
-          nmap("<leader>ca",
-            function()
-              vim.cmd.RustLsp('codeAction')
-            end,
+          nmap("<leader>ca", function() vim.cmd.RustLsp('codeAction') end,
             '[C]ode [A]ction')
-          vmap("<leader>ca",
-            function()
-              vim.cmd.RustLsp('codeAction')
-            end,
+          vmap("<leader>ca", function() vim.cmd.RustLsp('codeAction') end,
             '[C]ode [A]ction Groups')
         end,
         cmd = { utils.RUST_ANALYZER_CMD, },

@@ -31,6 +31,11 @@ end
 vim.api.nvim_create_autocmd("LspAttach", {
   group = vim.api.nvim_create_augroup("UserLspConfig", {}),
   callback = function(args)
+    if vim.version().minor < 10 then
+      require("utils.log").warn("Inlay hints require Neovim 0.10+")
+      return
+    end
+
     local client = vim.lsp.get_client_by_id(args.data.client_id)
     if client and client.server_capabilities.inlayHintProvider then
       vim.keymap.set("n", "th",
