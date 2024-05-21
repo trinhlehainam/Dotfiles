@@ -138,12 +138,12 @@ if not hasconform then
   return
 end
 
-local ensure_installed = {
+local ensure_installed_formatters = {
   'stylua',
 }
 
 local mason_installer = require('utils.mason_installer')
-mason_installer.install(ensure_installed)
+mason_installer.install(ensure_installed_formatters)
 
 conform.setup
 {
@@ -169,3 +169,40 @@ conform.setup
   },
 }
 --#endregion Format
+
+--#region Lint
+local haslint, lint = pcall(require, "lint")
+
+if not haslint then
+  return
+end
+
+local ensure_installed_linters = {
+}
+
+mason_installer.install(ensure_installed_linters)
+
+lint.linters_by_ft = {
+-- 	javascript = { "eslint_d" },
+-- 	typescript = { "eslint_d" },
+-- 	javascriptreact = { "eslint_d" },
+-- 	typescriptreact = { "eslint_d" },
+-- 	svelte = { "eslint_d" },
+-- 	kotlin = { "ktlint" },
+-- 	terraform = { "tflint" },
+-- 	ruby = { "standardrb" },
+}
+
+local lint_augroup = vim.api.nvim_create_augroup("lint", { clear = true })
+
+vim.api.nvim_create_autocmd({ "BufEnter", "BufWritePost", "InsertLeave" }, {
+  group = lint_augroup,
+  callback = function()
+    lint.try_lint()
+  end,
+})
+
+vim.keymap.set("n", "<leader>ll", function()
+  lint.try_lint()
+  end, { desc = "Trigger linting for current file" })
+--#endregion Lint

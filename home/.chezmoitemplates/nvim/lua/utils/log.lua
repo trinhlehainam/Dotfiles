@@ -1,5 +1,3 @@
----@param message string
----@param message string
 local levels = vim.log.levels
 
 ---@return fun(message: string)
