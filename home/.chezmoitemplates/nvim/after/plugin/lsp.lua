@@ -79,7 +79,7 @@ local on_attach = require('utils.lsp').on_attach
 local setup_handlers = {}
 
 for _, settings in pairs(language_settings) do
-  local server_name = settings.server_name
+  local server_name = settings.lspconfig.server
   if server_name == nil or server_name == "" then
     goto continue
   end

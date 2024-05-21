@@ -1,7 +1,7 @@
 local LanguageSetting = require("configs.lsp.base")
 local M = LanguageSetting:new()
 
-M.server_name = "jsonls"
+M.lspconfig.server = "jsonls"
 M.lspconfig.settings = {
 	json = {
 		schemas = require("schemastore").json.schemas({

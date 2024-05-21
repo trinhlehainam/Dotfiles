@@ -22,17 +22,17 @@ local language_settings = require('configs.lsp').language_settings
 local daptypes = {}
 
 for language, settings in pairs(language_settings) do
-  local daptype = settings.daptype
+  local daptype = settings.dapconfig.type
   if daptype == nil or daptype == "" then
     goto continue
   end
   table.insert(daptypes, daptype)
 
-  local dapconfig = settings.dapconfig
-  if dapconfig == nil then
+  local configs = settings.dapconfig.configs
+  if configs == nil then
     goto continue
   end
-  dap.configurations[language] = dapconfig
+  dap.configurations[language] = configs
 
   ::continue::
 end
