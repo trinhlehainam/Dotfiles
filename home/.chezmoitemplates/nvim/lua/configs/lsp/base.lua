@@ -11,7 +11,7 @@
 
 ---@class custom.FormatterConfig
 ---@field servers? string[]
----@field formatters_by_ft? table<string, string>
+---@field formatters_by_ft? table<string, table>
 
 ---@class custom.LinterConfig
 ---@field servers? string[]

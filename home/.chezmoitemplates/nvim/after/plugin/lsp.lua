@@ -138,9 +138,33 @@ if not hasconform then
   return
 end
 
+
+
 local ensure_installed_formatters = {
   'stylua',
 }
+
+for _, settings in pairs(language_settings) do
+  if settings.formatterconfig.servers ~= nil and type(settings.formatterconfig.servers) == "table" then
+    vim.list_extend(ensure_installed_formatters, settings.formatterconfig.servers)
+  end
+end
+
+local formatters_by_ft = {
+  lua = { 'stylua' },
+  -- Conform can also run multiple formatters sequentially
+  -- python = { "isort", "black" },
+  --
+  -- You can use a sub-list to tell conform to run *until* a formatter
+  -- is found.
+  -- javascript = { { "prettierd", "prettier" } },
+}
+
+for _, settings in pairs(language_settings) do
+  if settings.formatterconfig.formatters_by_ft ~= nil and type(settings.formatterconfig.formatters_by_ft) == "table" then
+    vim.tbl_extend('force', formatters_by_ft, settings.formatterconfig.formatters_by_ft)
+  end
+end
 
 local mason_installer = require('utils.mason_installer')
 mason_installer.install(ensure_installed_formatters)
@@ -158,15 +182,7 @@ conform.setup
       lsp_fallback = not disable_filetypes[vim.bo[bufnr].filetype],
     }
   end,
-  formatters_by_ft = {
-    lua = { 'stylua' },
-    -- Conform can also run multiple formatters sequentially
-    -- python = { "isort", "black" },
-    --
-    -- You can use a sub-list to tell conform to run *until* a formatter
-    -- is found.
-    -- javascript = { { "prettierd", "prettier" } },
-  },
+  formatters_by_ft = formatters_by_ft,
 }
 --#endregion Format
 
@@ -177,32 +193,32 @@ if not haslint then
   return
 end
 
-local ensure_installed_linters = {
-}
+local ensure_installed_linters = {}
+
+for _, settings in pairs(language_settings) do
+  if settings.linterconfig.servers ~= nil and type(settings.linterconfig.servers) == "table" then
+    vim.list_extend(ensure_installed_linters, settings.linterconfig.servers)
+  end
+end
+
+local linters_by_ft = {}
+
+for _, settings in pairs(language_settings) do
+  if settings.linterconfig.linters_by_ft ~= nil and type(settings.linterconfig.linters_by_ft) == "table" then
+    vim.tbl_extend('force', linters_by_ft, settings.linterconfig.linters_by_ft)
+  end
+end
 
 mason_installer.install(ensure_installed_linters)
 
-lint.linters_by_ft = {
--- 	javascript = { "eslint_d" },
--- 	typescript = { "eslint_d" },
--- 	javascriptreact = { "eslint_d" },
--- 	typescriptreact = { "eslint_d" },
--- 	svelte = { "eslint_d" },
--- 	kotlin = { "ktlint" },
--- 	terraform = { "tflint" },
--- 	ruby = { "standardrb" },
-}
+lint.linters_by_ft = linters_by_ft
 
 local lint_augroup = vim.api.nvim_create_augroup("lint", { clear = true })
 
 vim.api.nvim_create_autocmd({ "BufEnter", "BufWritePost", "InsertLeave" }, {
   group = lint_augroup,
-  callback = function()
-    lint.try_lint()
-  end,
+  callback = function() lint.try_lint() end,
 })
 
-vim.keymap.set("n", "<leader>ll", function()
-  lint.try_lint()
-  end, { desc = "Trigger linting for current file" })
+vim.keymap.set("n", "<leader>ll", function() lint.try_lint() end, { desc = "Trigger linting for current file" })
 --#endregion Lint
