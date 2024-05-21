@@ -2,6 +2,7 @@ if vim.g.vscode then
   return
 end
 
+--#region LSP
 -- IMPORTANT: make sure to setup neodev BEFORE lspconfig
 require("neodev").setup({
   -- add any options here, or leave empty to use the default settings
@@ -128,3 +129,43 @@ mason_lspconfig.setup_handlers {
 -- Language server for Postgres written in Rust
 -- NOTE: This framework is not production ready yet, check back later
 -- lspconfig.postgres_lsp.setup{}
+--
+--#endregion LSP
+
+--#region Format
+local hasconform, conform = pcall(require, 'conform')
+if not hasconform then
+  return
+end
+
+local ensure_installed = {
+  'stylua',
+}
+
+local mason_installer = require('utils.mason_installer')
+mason_installer.install(ensure_installed)
+
+conform.setup
+{
+  notify_on_error = false,
+  format_on_save = function(bufnr)
+    -- Disable "format_on_save lsp_fallback" for languages that don't
+    -- have a well standardized coding style. You can add additional
+    -- languages here or re-enable it for the disabled ones.
+    local disable_filetypes = { c = true, cpp = true }
+    return {
+      timeout_ms = 500,
+      lsp_fallback = not disable_filetypes[vim.bo[bufnr].filetype],
+    }
+  end,
+  formatters_by_ft = {
+    lua = { 'stylua' },
+    -- Conform can also run multiple formatters sequentially
+    -- python = { "isort", "black" },
+    --
+    -- You can use a sub-list to tell conform to run *until* a formatter
+    -- is found.
+    -- javascript = { { "prettierd", "prettier" } },
+  },
+}
+--#endregion Format
