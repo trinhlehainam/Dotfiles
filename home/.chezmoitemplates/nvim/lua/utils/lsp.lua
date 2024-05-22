@@ -13,7 +13,7 @@ local function on_attach(_, bufnr)
 	--
 	-- In this case, we create a function that lets us more easily define mappings specific
 	-- for LSP related items. It sets the mode, buffer and description for us each time.
-	local nmap = require("utils.path").create_nmap(bufnr)
+	local nmap = require("utils.common").create_nmap(bufnr)
 
 	nmap("<leader>rn", vim.lsp.buf.rename, "[R]e[n]ame")
 	nmap("<leader>ca", vim.lsp.buf.code_action, "[C]ode [A]ction")

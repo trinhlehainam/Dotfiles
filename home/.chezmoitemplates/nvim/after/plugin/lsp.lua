@@ -76,7 +76,7 @@ local on_attach = require('utils.lsp').on_attach
 
 ---@class custom.LspSetupHandler
 ---@field use_setup boolean
----@field setup custom.LspConfig.Setup
+---@field setup? custom.LspConfig.Setup
 
 ---@type table<string, custom.LspSetupHandler>
 local setup_handlers = {}
@@ -90,9 +90,6 @@ for _, settings in pairs(language_settings) do
 
   local setup = settings.lspconfig.setup
   local use_setup = settings.lspconfig.use_setup
-  if setup == nil then
-    goto continue
-  end
   setup_handlers[server_name] = {
     use_setup = use_setup,
     setup = setup
@@ -126,7 +123,7 @@ mason_lspconfig.setup_handlers {
   function(server_name)
     --- @type boolean
     local useSetup = vim.tbl_get(setup_handlers, server_name, 'use_setup')
-    if not useSetup then
+    if useSetup ~= nil and type(useSetup) == "boolean" and not useSetup then
       return
     end
 

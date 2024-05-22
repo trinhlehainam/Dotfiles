@@ -2,7 +2,7 @@
 -- Only load if `make` is available. Make sure you have the system
 -- requirements installed.
 local function get_telescope_fzf_native_setup()
-	return require("utils.path").IS_WINDOWS
+	return require("utils.common").IS_WINDOWS
 			and {
 				"nvim-telescope/telescope-fzf-native.nvim",
 				build = "cmake -S. -Bbuild -DCMAKE_BUILD_TYPE=Release && cmake --build build --config Release && cmake --install build --prefix build",
