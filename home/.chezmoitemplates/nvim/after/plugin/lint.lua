@@ -1,3 +1,7 @@
+if vim.g.vscode then
+	return
+end
+
 local hasmason, mason_installer = pcall(require, "utils.mason_installer")
 
 if not hasmason then
