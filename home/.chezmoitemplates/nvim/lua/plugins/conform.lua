@@ -1,4 +1,4 @@
-return {
+return { -- Formatter
 	"stevearc/conform.nvim",
 	lazy = false,
 	keys = {

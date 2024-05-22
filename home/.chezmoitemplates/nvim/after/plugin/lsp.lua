@@ -8,9 +8,7 @@ if not hasneodev then
   require("utils.log").error("neodev is not installed")
   return
 end
-neodev.setup({
-  -- add any options here, or leave empty to use the default settings
-})
+neodev.setup({})
 
 -- Diagnostic keymaps
 vim.keymap.set('n', '[d', vim.diagnostic.goto_prev, { desc = "Go to previous diagnostic message" })
@@ -110,7 +108,9 @@ local capabilities = vim.lsp.protocol.make_client_capabilities()
 capabilities = cmp_nvim_lsp.default_capabilities(capabilities)
 
 -- Setup mason so it can manage external tooling
-require('mason').setup()
+require('mason').setup({
+  inlay_hints = { enalbed = true },
+})
 
 -- Ensure the servers above are installed
 local mason_lspconfig = require('mason-lspconfig')
