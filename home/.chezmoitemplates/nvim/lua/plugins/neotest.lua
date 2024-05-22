@@ -4,13 +4,13 @@ return {
 		"nvim-neotest/nvim-nio",
 		"nvim-lua/plenary.nvim",
 		"antoinemadec/FixCursorHold.nvim",
-		"nvim-treesitter/nvim-treesitter"
+		"nvim-treesitter/nvim-treesitter",
 	},
 	config = function()
-		require('neotest').setup({
+		require("neotest").setup({
 			adapters = {
-				require('rustaceanvim.neotest')
+				require("rustaceanvim.neotest"),
 			},
 		})
-	end
+	end,
 }

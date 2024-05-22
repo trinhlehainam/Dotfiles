@@ -1,13 +1,12 @@
 return {
-	'xvzc/chezmoi.nvim',
+	"xvzc/chezmoi.nvim",
 	dependencies = {
-		'nvim-lua/plenary.nvim',
-		'nvim-telescope/telescope.nvim'
+		"nvim-lua/plenary.nvim",
+		"nvim-telescope/telescope.nvim",
 	},
 	config = function()
-		require("chezmoi").setup {
+		require("chezmoi").setup({
 			-- your configurations
-		}
-	end
+		})
+	end,
 }
-

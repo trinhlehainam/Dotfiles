@@ -31,32 +31,32 @@
 -- }
 
 return {
-   -- Set lualine as statusline
-   'nvim-lualine/lualine.nvim',
-   -- See `:help lualine.txt`
-   dependencies = { 'nvim-tree/nvim-web-devicons' },
-   config = function()
-      require('lualine').setup({
-         options = {
-            icons_enabled = true,
-            -- theme = 'onedark',
-            component_separators = '|',
-            section_separators = '',
-         },
-         sections = {
-            lualine_x = {
-               'encoding',
-               {
-                  'fileformat',
-                  symbols = {
-                     unix = ' LF', -- e712
-                     dos = ' CRLF', -- e70f
-                     mac = ' CR', -- e711
-                  }
-               },
-               'filetype'
-            }
-         }
-      })
-   end,
+	-- Set lualine as statusline
+	"nvim-lualine/lualine.nvim",
+	-- See `:help lualine.txt`
+	dependencies = { "nvim-tree/nvim-web-devicons" },
+	config = function()
+		require("lualine").setup({
+			options = {
+				icons_enabled = true,
+				-- theme = 'onedark',
+				component_separators = "|",
+				section_separators = "",
+			},
+			sections = {
+				lualine_x = {
+					"encoding",
+					{
+						"fileformat",
+						symbols = {
+							unix = " LF", -- e712
+							dos = " CRLF", -- e70f
+							mac = " CR", -- e711
+						},
+					},
+					"filetype",
+				},
+			},
+		})
+	end,
 }
