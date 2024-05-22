@@ -2,9 +2,7 @@ local LanguageSetting = require("configs.lsp.base")
 local M = LanguageSetting:new()
 
 M.lspconfig.server = "tsserver"
-M.lspconfig.setup = function(_, _)
-	-- NOTE: typescript-tools will automatically configure tsserver in nvim-lspconfig
-end
+M.lspconfig.use_setup = false
 
 M.formatterconfig.servers = { "prettierd" }
 M.formatterconfig.formatters_by_ft = {

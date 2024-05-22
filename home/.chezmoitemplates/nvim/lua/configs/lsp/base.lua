@@ -3,6 +3,7 @@
 ---@class custom.LspConfig
 ---@field server? string
 ---@field setup? custom.LspConfig.Setup
+---@field use_setup boolean
 ---@field settings table
 
 ---@class custom.DapConfig
@@ -22,6 +23,7 @@
 ---@field dapconfig custom.DapConfig
 ---@field formatterconfig custom.FormatterConfig
 ---@field linterconfig custom.LinterConfig
+---@field config? fun()
 local M = {}
 
 ---@return custom.LanguageSetting
@@ -30,6 +32,7 @@ function M:new()
 	t.lspconfig = {
 		server = nil,
 		setup = nil,
+		use_setup = true,
 		settings = {},
 	}
 	t.dapconfig = {
@@ -44,6 +47,7 @@ function M:new()
 		servers = nil,
 		linters_by_ft = nil,
 	}
+	t.config = nil
 	return t
 end
 
