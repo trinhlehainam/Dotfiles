@@ -5,7 +5,12 @@ local notify_fn = function(level)
 	return
 	---@param message string
 	function(message)
-		vim.notify(message, level, { title = "Nvim Dotfiles" })
+		vim.schedule_wrap(function()
+			local hasnotify, _ = pcall(require, "notify")
+			if hasnotify then
+				vim.notify(message, level, { title = "Nvim Dotfiles" })
+			end
+		end)()
 	end
 end
 
