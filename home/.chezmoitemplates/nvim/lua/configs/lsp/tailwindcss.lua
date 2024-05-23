@@ -5,8 +5,8 @@ M.lspconfig.server = "tailwindcss"
 M.lspconfig.use_setup = true
 
 ---@param capabilities lsp.ClientCapabilities
----@param on_attach fun(client: lsp.Client, bufnr: integer)
-local function setup(capabilities, on_attach)
+---@param _ fun(client: lsp.Client, bufnr: integer)
+local function setup(capabilities, _)
 	local log = require("utils.log")
 	local haslspconfig, lspconfig = pcall(require, "lspconfig")
 
@@ -17,7 +17,6 @@ local function setup(capabilities, on_attach)
 
 	lspconfig[M.lspconfig.server].setup({
 		capabilities = capabilities,
-		-- on_attach = on_attach,
 	})
 end
 
@@ -33,6 +32,16 @@ local function tailwindtools_config()
 	end
 
 	tailwindtools.setup({})
+
+	local hastailwindsorter, tailwindsorter = pcall(require, "tailwind-sorter")
+	if not hastailwindsorter then
+		log.error("tailwind-sorter is not installed")
+		return
+	end
+
+	tailwindsorter.setup({
+		on_save_patterns = { "*.html", "*.js", "*.jsx", "*.ts", "*.tsx", "*.vue" },
+	})
 end
 
 M.config = tailwindtools_config

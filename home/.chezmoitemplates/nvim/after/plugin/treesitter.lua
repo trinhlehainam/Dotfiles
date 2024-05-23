@@ -26,6 +26,7 @@ local ensure_installed = {
 	"typescript",
 	"html",
 	"css",
+	"vue",
 	"json",
 	"sql",
 }
