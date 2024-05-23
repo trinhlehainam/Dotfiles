@@ -21,7 +21,7 @@ local language_settings = require("configs.lsp").language_settings
 local ensure_installed_linters = {}
 
 for _, settings in pairs(language_settings) do
-	if settings.linterconfig.servers ~= nil and vim.islist(settings.linterconfig.servers) then
+	if vim.islist(settings.linterconfig.servers) then
 		vim.list_extend(ensure_installed_linters, settings.linterconfig.servers)
 	end
 end
@@ -29,7 +29,7 @@ end
 local linters_by_ft = {}
 
 for _, settings in pairs(language_settings) do
-	if settings.linterconfig.linters_by_ft ~= nil and type(settings.linterconfig.linters_by_ft) == "table" then
+	if type(settings.linterconfig.linters_by_ft) == "table" then
 		vim.tbl_extend("force", linters_by_ft, settings.linterconfig.linters_by_ft)
 	end
 end

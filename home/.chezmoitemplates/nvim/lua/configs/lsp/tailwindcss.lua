@@ -4,6 +4,8 @@ local M = LanguageSetting:new()
 M.lspconfig.server = "tailwindcss"
 M.lspconfig.use_setup = true
 
+M.formatterconfig.servers = { "rustywind" }
+
 ---@param capabilities lsp.ClientCapabilities
 ---@param _ fun(client: lsp.Client, bufnr: integer)
 local function setup(capabilities, _)
@@ -32,16 +34,6 @@ local function tailwindtools_config()
 	end
 
 	tailwindtools.setup({})
-
-	local hastailwindsorter, tailwindsorter = pcall(require, "tailwind-sorter")
-	if not hastailwindsorter then
-		log.error("tailwind-sorter is not installed")
-		return
-	end
-
-	tailwindsorter.setup({
-		on_save_patterns = { "*.html", "*.js", "*.jsx", "*.ts", "*.tsx", "*.vue" },
-	})
 end
 
 M.config = tailwindtools_config
