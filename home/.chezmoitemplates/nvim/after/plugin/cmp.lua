@@ -17,6 +17,12 @@ if not hasluasnip then
 end
 luasnip.config.setup()
 
+local haslspkind, lspkind = pcall(require, "lspkind")
+if not haslspkind then
+	log.error("lspkind.nvim is not installed")
+	return
+end
+
 cmp.setup({
 	snippet = {
 		expand = function(args)
@@ -77,5 +83,18 @@ cmp.setup({
 		{ name = "crates" },
 		{ name = "buffer" },
 		{ name = "path" },
+	},
+	formatting = {
+		format = lspkind.cmp_format({
+			before = function(entry, vim_item)
+				local hastailwindtools, tailwindtools = pcall(require, "tailwind-tools.cmp")
+
+				if not hastailwindtools then
+					return vim_item
+				end
+
+				return tailwindtools.lspkind_format(entry, vim_item)
+			end,
+		}),
 	},
 })

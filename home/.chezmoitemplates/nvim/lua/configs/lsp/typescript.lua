@@ -43,9 +43,11 @@ local function setup(capabilities, on_attach)
 		return
 	end
 
-	--Ref: https://github.com/vuejs/language-tools?tab=readme-ov-file#community-integration
-	--Ref: https://vuejs.org/guide/typescript/overview.html#volar-takeover-mode
-	--Ref: https://stackoverflow.com/a/59788563
+	--Ref:
+	--	- https://github.com/vuejs/language-tools?tab=readme-ov-file#community-integration
+	--	- https://vuejs.org/guide/typescript/overview.html#volar-takeover-mode
+	--	- https://github.com/mason-org/mason-registry/issues/5064
+	--	- https://stackoverflow.com/a/59788563
 	local vue_language_server_path = volar_pkg:get_install_path() .. "/node_modules/@vue/language-server"
 
 	lspconfig.vtsls.setup({
