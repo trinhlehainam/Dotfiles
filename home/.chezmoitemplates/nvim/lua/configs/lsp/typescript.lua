@@ -5,9 +5,9 @@ M.formatterconfig.servers = { "prettierd" }
 M.formatterconfig.formatters_by_ft = {
 	javascript = { "prettierd" },
 	typescript = { "prettierd" },
-	javascriptreact = { "prettierd" },
-	typescriptreact = { "prettierd" },
-	vue = { "prettierd" },
+	javascriptreact = { "rustywind", "prettierd" },
+	typescriptreact = { "rustywind", "prettierd" },
+	vue = { "rustywind", "prettierd" },
 }
 
 M.linterconfig.servers = { "eslint_d" }

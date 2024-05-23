@@ -31,7 +31,7 @@ local linters_by_ft = {}
 
 for _, settings in pairs(language_settings) do
 	if type(settings.linterconfig.linters_by_ft) == "table" then
-		vim.tbl_extend("force", linters_by_ft, settings.linterconfig.linters_by_ft)
+		linters_by_ft = vim.tbl_extend("keep", linters_by_ft, settings.linterconfig.linters_by_ft)
 	end
 end
 

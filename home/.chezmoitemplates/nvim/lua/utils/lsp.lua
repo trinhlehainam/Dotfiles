@@ -46,6 +46,14 @@ local function on_attach(_, bufnr)
 			vim.lsp.buf.format()
 		end
 	end, { desc = "Format current buffer with LSP" })
+
+	-- Create a command `:Lint` local to the LSP buffer
+	vim.api.nvim_buf_create_user_command(bufnr, "Lint", function(_)
+		local haslint, lint = pcall(require, "lint")
+		if haslint then
+			lint.try_lint()
+		end
+	end, { desc = "Lint current buffer with LSP" })
 end
 
 M.on_attach = on_attach

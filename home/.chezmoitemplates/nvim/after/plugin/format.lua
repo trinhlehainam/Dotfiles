@@ -29,7 +29,7 @@ local formatters_by_ft = { lua = { "stylua" } }
 
 for _, settings in pairs(language_settings) do
 	if type(settings.formatterconfig.formatters_by_ft) == "table" then
-		vim.tbl_extend("force", formatters_by_ft, settings.formatterconfig.formatters_by_ft)
+		formatters_by_ft = vim.tbl_extend("keep", formatters_by_ft, settings.formatterconfig.formatters_by_ft)
 	end
 end
 
