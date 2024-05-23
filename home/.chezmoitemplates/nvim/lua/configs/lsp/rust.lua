@@ -24,9 +24,9 @@ local common = require("utils.common")
 ---@return string
 local function rust_analyzer_exec(rust_analyzer_pkg_path)
 	if common.IS_WINDOWS then
-		return rust_analyzer_pkg_path .. "\rust-analyzer.exe"
+		return rust_analyzer_pkg_path .. "/rust-analyzer.exe"
 	else
-		return rust_analyzer_pkg_path .. "\rust-analyzer"
+		return rust_analyzer_pkg_path .. "/rust-analyzer"
 	end
 end
 

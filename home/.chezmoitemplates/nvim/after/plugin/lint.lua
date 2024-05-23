@@ -3,16 +3,17 @@ if vim.g.vscode then
 end
 
 local hasmason, mason_installer = pcall(require, "utils.mason_installer")
+local log = require("utils.log")
 
-if not hasmason then
-	require("utils.log").error("Cannot load mason installer")
+if not hasmason or mason_installer.install == nil then
+	log.error("Cannot load mason installer")
 	return
 end
 
 local haslint, lint = pcall(require, "lint")
 
 if not haslint then
-	require("utils.log").error("nvim-lint is not installed")
+	log.error("nvim-lint is not installed")
 	return
 end
 

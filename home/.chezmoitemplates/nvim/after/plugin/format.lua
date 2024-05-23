@@ -5,7 +5,7 @@ end
 local hasmason, mason_installer = pcall(require, "utils.mason_installer")
 local log = require("utils.log")
 
-if not hasmason then
+if not hasmason or mason_installer.install == nil then
 	log.error("Cannot load mason installer")
 	return
 end
