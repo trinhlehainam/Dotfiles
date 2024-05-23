@@ -11,6 +11,6 @@ return {
 			-- refer to the configuration section below
 		})
 
-		vim.keymap.set("n", "<leader>ft", ":TodoTelescope<CR>", { desc = "[F]ind [T]odo" })
+		vim.keymap.set("n", "<leader>ftd", ":TodoTelescope<CR>", { desc = "[F]ind [T]o[d]o" })
 	end,
 }

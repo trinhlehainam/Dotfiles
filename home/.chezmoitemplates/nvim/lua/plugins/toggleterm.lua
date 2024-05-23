@@ -20,9 +20,12 @@ return {
 				end
 			end
 
-			require("toggleterm").setup()
+			require("toggleterm").setup({
+				open_mapping = { [[<c-\>]], [[<c-¥>]] },
+			})
 
-			vim.keymap.set("n", "<leader>tt", "<cmd>ToggleTerm<cr>", { desc = "[T]oggle [T]erminal" })
+			vim.keymap.set("n", "<leader>ftm", ":TermSelect<CR>", { desc = "[F]ind [T]er[m]inal" })
+			vim.keymap.set("n", "<leader>trn", ":ToggleTermSetName", { desc = "[T]oggleTerm [R]e[n]ame" })
 			function _G.set_terminal_keymaps()
 				local opts = { buffer = 0, silent = true }
 				vim.keymap.set("t", "<esc>", [[<C-\><C-n>]], opts)
