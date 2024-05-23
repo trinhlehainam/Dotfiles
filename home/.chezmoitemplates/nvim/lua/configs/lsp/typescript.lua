@@ -55,6 +55,18 @@ local function setup(capabilities, on_attach)
 		capabilities = capabilities,
 		on_attach = on_attach,
 		settings = {
+			-- Inlay hints config
+			-- Ref: https://github.com/yioneko/nvim-vtsls?tab=readme-ov-file#other-useful-snippets
+			typescript = {
+				inlayHints = {
+					parameterNames = { enabled = "literals" },
+					parameterTypes = { enabled = true },
+					variableTypes = { enabled = true },
+					propertyDeclarationTypes = { enabled = true },
+					functionLikeReturnTypes = { enabled = true },
+					enumMemberValues = { enabled = true },
+				},
+			},
 			vtsls = {
 				tsserver = {
 					globalPlugins = {
