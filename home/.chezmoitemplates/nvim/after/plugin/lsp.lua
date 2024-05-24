@@ -81,6 +81,12 @@ local on_attach = require('utils.lsp').on_attach
 ---@type table<string, custom.LspSetupHandler>
 local setup_handlers = {}
 
+for server_name, _ in pairs(servers) do
+  setup_handlers[server_name] = {
+    use_setup = true,
+  }
+end
+
 for _, settings in pairs(language_settings) do
   local server_name = settings.lspconfig.server
   if server_name == nil or server_name == "" then

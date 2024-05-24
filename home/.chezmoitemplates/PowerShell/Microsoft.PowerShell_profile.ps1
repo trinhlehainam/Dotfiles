@@ -1,4 +1,4 @@
-# NOTE: need to add below block code to $PROFILE script if it is set to OneDrive
+# NOTE: need to add below block code to $PROFILE if $PROFILE is not located in ~/Documents/WindowsPowerShell
 # if (Test-Path "$HOME\Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1") {
 #     . "$HOME\Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1"
 # }
