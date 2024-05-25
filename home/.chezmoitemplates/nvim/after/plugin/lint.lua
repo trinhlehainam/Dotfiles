@@ -19,6 +19,7 @@ end
 
 local language_settings = require("configs.lsp").language_settings
 
+--- @type string[]
 local ensure_installed_linters = {}
 
 for _, settings in pairs(language_settings) do
@@ -38,6 +39,22 @@ end
 mason_installer.install(ensure_installed_linters)
 
 lint.linters_by_ft = linters_by_ft
+
+-- BUG: https://github.com/mfussenegger/nvim-lint/issues/462
+if vim.tbl_contains(ensure_installed_linters, "eslint_d") then
+	local eslint_d = lint.linters.eslint_d
+
+	eslint_d.args = {
+		"--no-warn-ignored", -- <-- this is the key argument
+		"--format",
+		"json",
+		"--stdin",
+		"--stdin-filename",
+		function()
+			return vim.api.nvim_buf_get_name(0)
+		end,
+	}
+end
 
 local lint_augroup = vim.api.nvim_create_augroup("lint", { clear = true })
 
