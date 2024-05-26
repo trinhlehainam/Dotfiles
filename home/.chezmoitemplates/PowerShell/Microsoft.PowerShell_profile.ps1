@@ -11,7 +11,8 @@ oh-my-posh init pwsh --config "$env:POSH_THEMES_PATH/gruvbox.omp.json" | Invoke-
 # for `choco` will not function.
 # See https://ch0.co/tab-completion for details.
 $ChocolateyProfile = "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
-if (Test-Path($ChocolateyProfile)) {
+if (Test-Path($ChocolateyProfile))
+{
   Import-Module "$ChocolateyProfile"
 }
 
@@ -20,3 +21,4 @@ $env:PATH += ";$env:USERPROFILE\bin"
 
 Set-Alias -Name v -Value nvim
 Set-Alias -Name ll -Value Get-ChildItem
+Set-Alias -Name pm -Value pnpm

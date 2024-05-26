@@ -16,5 +16,7 @@ return {
 				},
 			},
 		})
+
+		vim.keymap.set("n", "<leader>tt", "<cmd>Neotree<cr>", { desc = "[T]oggle Neo[T]ree" })
 	end,
 }

@@ -26,7 +26,9 @@ local function on_attach(_, bufnr)
 	nmap("<leader>ws", require("telescope.builtin").lsp_dynamic_workspace_symbols, "[W]orkspace [S]ymbols")
 
 	-- See `:help K` for why this keymap
-	nmap("K", vim.lsp.buf.hover, "Hover Documentation")
+	if vim.version.range("<0.10.0"):has(vim.version()) then
+		nmap("K", vim.lsp.buf.hover, "Hover Documentation")
+	end
 	nmap("<C-k>", vim.lsp.buf.signature_help, "Signature Documentation")
 
 	-- Lesser used LSP functionality

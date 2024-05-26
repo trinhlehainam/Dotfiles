@@ -34,8 +34,11 @@ end
 vim.api.nvim_create_autocmd("LspAttach", {
   group = vim.api.nvim_create_augroup("UserLspConfig", {}),
   callback = function(args)
-    if vim.version().minor < 10 then
-      require("utils.log").warn("Inlay hints require Neovim 0.10+")
+    local log = require("utils.log")
+
+    if vim.version.range("<0.10.0"):has(vim.version()) then
+      log.info("Current Neovim version: " .. vim.inspect(vim.version()))
+      log.warn("Inlay hints require Neovim >=0.10")
       return
     end
 
