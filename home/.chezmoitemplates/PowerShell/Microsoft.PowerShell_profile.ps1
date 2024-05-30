@@ -21,4 +21,4 @@ $env:PATH += ";$env:USERPROFILE\bin"
 
 Set-Alias -Name v -Value nvim
 Set-Alias -Name ll -Value Get-ChildItem
-Set-Alias -Name pm -Value pnpm
+Set-Alias -Name pn -Value pnpm

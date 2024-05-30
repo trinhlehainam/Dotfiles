@@ -1,0 +1,16 @@
+-- NOTE: An inbox todo list
+-- Awesome TUIs: https://github.com/rothgar/awesome-tuis
+-- TODO: Research plugins:
+-- - NeoComposer.nvim: Neovim macro processer
+-- - cmp-dbee: autocompletion for nvim-dbee
+-- - rest.nvim: Request API inside Neovim
+-- - incr-rename: incremental rename
+-- - nvim-ts-autopairs: auto pairs with	treesitter
+-- - auto-session: Manage Neovim sessions
+-- - refactoring.nvim: refactor code
+-- - flash.nvim: Neovim jump
+-- - lazydocker: TUI docker
+-- - k9s: TUI kubernetes
+-- - obsidian.nvim: intergrate obsidian inside Neovim
+-- - fix neo-git keymaps
+return {}
