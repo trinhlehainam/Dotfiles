@@ -121,6 +121,20 @@ local function rustaceanvim_config()
 			},
 		},
 	}
+
+	local hasneotest, neotest = pcall(require, "neotest")
+
+	-- NOTE: may need a standalone lsp config for neotest
+	if not hasneotest then
+		log.error("neotest is not installed")
+		return
+	end
+
+	neotest.setup({
+		adapters = {
+			require("rustaceanvim.neotest"),
+		},
+	})
 end
 
 M.config = rustaceanvim_config

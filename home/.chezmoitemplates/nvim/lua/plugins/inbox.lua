@@ -1,5 +1,7 @@
 -- NOTE: An inbox todo list
 -- Awesome TUIs: https://github.com/rothgar/awesome-tuis
+-- Awesome cli apps: https://github.com/agarrharr/awesome-cli-apps
+-- Awesome terminals: https://github.com/cdleon/awesome-terminals
 -- TODO: Research plugins:
 -- - NeoComposer.nvim: Neovim macro processer
 -- - cmp-dbee: autocompletion for nvim-dbee

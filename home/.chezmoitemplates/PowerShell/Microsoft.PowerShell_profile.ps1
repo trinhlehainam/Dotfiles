@@ -3,6 +3,9 @@
 #     . "$HOME\Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1"
 # }
 
+# NOTE: install chocolatey as non-admistrative user
+# https://docs.chocolatey.org/en-us/choco/setup#non-administrative-install
+
 oh-my-posh init pwsh --config "$env:POSH_THEMES_PATH/gruvbox.omp.json" | Invoke-Expression
 
 # Import the Chocolatey Profile that contains the necessary code to enable
@@ -22,3 +25,5 @@ $env:PATH += ";$env:USERPROFILE\bin"
 Set-Alias -Name v -Value nvim
 Set-Alias -Name ll -Value Get-ChildItem
 Set-Alias -Name pn -Value pnpm
+
+Invoke-Expression (& { (zoxide init powershell | Out-String) })

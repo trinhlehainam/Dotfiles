@@ -20,6 +20,7 @@ local ensure_installed = {
 	"lua",
 	"python",
 	"rust",
+	"dockerfile",
 	"toml",
 	"javascript",
 	"tsx",
