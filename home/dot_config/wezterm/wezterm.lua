@@ -5,9 +5,9 @@
 require("events.gui-startup").setup()
 -- require("events.gui-attached").setup()
 require("events.right-status").setup()
-require("events.left-status").setup()
-require("events.tab-title").setup()
-require("events.new-tab-button").setup()
+-- require("events.left-status").setup()
+-- require("events.tab-title").setup()
+-- require("events.new-tab-button").setup()
 
 local config = require("config")
 	:init()
