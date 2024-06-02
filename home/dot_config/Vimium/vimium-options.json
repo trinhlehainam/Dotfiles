@@ -1,5 +1,5 @@
 {
-  "keyMappings": "# Unmap default keys\nunmap h\nunmap J\nunmap K\nunmap t\nunmap gt\nunmap gT\nunmap g0\nunmap g$\nunmap j\nunmap x\nunmap X\n\nmap k scrollDown\nmap l scrollUp\n\n# Tab Navigation\nmap tn createTab\nmap tk previousTab\nmap tl nextTab\nmap tj firstTab\nmap t; lastTab\nmap tc removeTab\nmap tu restoreTab",
+  "keyMappings": "# Unmap default keys\nunmap h\nunmap J\nunmap K\nunmap t\nunmap gt\nunmap gT\nunmap g0\nunmap g$\nunmap j\nunmap x\nunmap X\nunmap H\nunmap L\n\nmap k scrollDown\nmap l scrollUp\n\n# Tab Navigation\nmap tn createTab\nmap tk previousTab\nmap tl nextTab\nmap tj firstTab\nmap t; lastTab\nmap tq removeTab\nmap tu restoreTab\nmap J goBack\nmap : goForward",
   "searchUrl": "https://duckduckgo.com/?q=%s",
   "settingsVersion": "2.1.2"
 }
