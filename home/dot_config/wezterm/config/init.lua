@@ -16,7 +16,7 @@ end
 ---@return Config
 function Config:append(new_options)
    for k, v in pairs(new_options) do
-      if type(v) ~= 'table' or v == {} then
+      if v == nil then
          goto continue
       end
       self[k] = v
