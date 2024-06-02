@@ -107,14 +107,7 @@ for _, settings in pairs(language_settings) do
   ::continue::
 end
 
--- nvim-cmp supports additional completion capabilities, so broadcast that to servers
-local hascmplsp, cmp_nvim_lsp = pcall(require, "cmp_nvim_lsp")
-if not hascmplsp then
-  require("utils.log").error("cmp_nvim_lsp is not installed")
-  return
-end
-local capabilities = vim.lsp.protocol.make_client_capabilities()
-capabilities = cmp_nvim_lsp.default_capabilities(capabilities)
+local capabilities = require("utils.lsp").get_cmp_capabilities()
 
 -- Setup mason so it can manage external tooling
 require('mason').setup({

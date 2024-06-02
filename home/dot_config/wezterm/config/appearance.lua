@@ -10,6 +10,7 @@ return {
 	-- webgpu_preferred_adapter = gpu_adapters:pick_best(),
 
 	-- color scheme
+	-- https://wezfurlong.org/wezterm/colorschemes/index.html
 	color_scheme = "Gruvbox dark, hard (base16)",
 
 	-- background

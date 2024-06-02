@@ -2,10 +2,26 @@ return {
 	{
 		"akinsho/toggleterm.nvim",
 		version = "*",
+		-- NOTE: avoid conflict with tree-sitter installation
+		-- Tree-sitter installs tree-sitter-nu every startup time,
+		-- Avoid switch to nu shell before installing tree-sitter-nu
+		event = "VeryLazy",
 		config = function()
-			-- Change default shell to powershell on Windows
-			-- Ref: https://github.com/akinsho/toggleterm.nvim/wiki/Tips-and-Tricks#using-toggleterm-with-powershell
-			if vim.fn.has("win32") == 1 then
+			if vim.fn.executable("nu") == 1 then
+				-- Ref: https://github.com/neovim/neovim/issues/19648#issuecomment-1212295560
+				local nushell_options = {
+					shell = "nu",
+					shellcmdflag = "-c",
+					shellquote = "",
+					shellxquote = "",
+				}
+
+				for option, value in pairs(nushell_options) do
+					vim.opt[option] = value
+				end
+			elseif vim.fn.has("win32") == 1 then
+				-- Change default shell to powershell on Windows
+				-- Ref: https://github.com/akinsho/toggleterm.nvim/wiki/Tips-and-Tricks#using-toggleterm-with-powershell
 				local powershell_options = {
 					shell = vim.fn.executable("pwsh") == 1 and "pwsh" or "powershell",
 					shellcmdflag = "-NoLogo -NoProfile -ExecutionPolicy RemoteSigned -Command [Console]::InputEncoding=[Console]::OutputEncoding=[System.Text.Encoding]::UTF8;",

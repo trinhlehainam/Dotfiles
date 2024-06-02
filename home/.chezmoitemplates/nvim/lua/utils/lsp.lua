@@ -3,6 +3,20 @@ local M = {
 	on_attach = nil,
 }
 
+--- nvim-cmp supports additional completion capabilities, so broadcast that to servers
+--- @return lsp.ClientCapabilities
+local function get_cmp_capabilities()
+	local hascmplsp, cmp_nvim_lsp = pcall(require, "cmp_nvim_lsp")
+	local capabilities = vim.lsp.protocol.make_client_capabilities()
+	if not hascmplsp then
+		require("utils.log").error("cmp_nvim_lsp is not installed")
+		return capabilities
+	end
+	capabilities = cmp_nvim_lsp.default_capabilities(capabilities)
+
+	return capabilities
+end
+
 ---This function gets run when an LSP connects to a particular buffer.
 ---@param _ lsp.Client
 ---@param bufnr number
@@ -59,5 +73,6 @@ local function on_attach(_, bufnr)
 end
 
 M.on_attach = on_attach
+M.get_cmp_capabilities = get_cmp_capabilities
 
 return M
