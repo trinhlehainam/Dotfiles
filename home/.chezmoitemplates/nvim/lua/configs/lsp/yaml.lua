@@ -2,7 +2,6 @@ local LanguageSetting = require("configs.lsp.base")
 local M = LanguageSetting:new()
 
 M.lspconfig.server = "yamlls"
-M.lspconfig.use_setup = true
 
 M.lspconfig.setup = function(capabilities, on_attach)
 	require("lspconfig")[M.lspconfig.server].setup({

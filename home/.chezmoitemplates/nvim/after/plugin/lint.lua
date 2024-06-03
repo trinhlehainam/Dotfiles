@@ -2,10 +2,10 @@ if vim.g.vscode then
 	return
 end
 
-local hasmason, mason_installer = pcall(require, "utils.mason_installer")
+local mason_utils = require("utils.mason")
 local log = require("utils.log")
 
-if not hasmason or mason_installer.install == nil then
+if not mason_utils.has_mason() then
 	log.error("Cannot load mason installer")
 	return
 end
@@ -36,7 +36,7 @@ for _, settings in pairs(language_settings) do
 	end
 end
 
-mason_installer.install(ensure_installed_linters)
+mason_utils.install(ensure_installed_linters)
 
 lint.linters_by_ft = linters_by_ft
 

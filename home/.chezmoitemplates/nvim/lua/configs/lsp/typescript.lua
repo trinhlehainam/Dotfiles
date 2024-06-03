@@ -95,7 +95,6 @@ local function setup(capabilities, on_attach)
 end
 
 M.lspconfig.server = "vtsls"
-M.lspconfig.use_setup = true
 M.lspconfig.setup = setup
 
 return M

@@ -70,17 +70,25 @@ local function rustaceanvim_config()
 		return
 	end
 
-	local hasregistry, registry = pcall(require, "mason-registry")
-	local hasmasonsettings, masonsettings = pcall(require, "mason.settings")
-
-	if not hasregistry or not hasmasonsettings then
+	local mason_utils = require("utils.mason")
+	if not mason_utils.has_mason() then
 		log.error("mason.nvim is not installed")
 		return
 	end
 
-	local mason_path = masonsettings.current.install_root_dir
-	local rust_analyzer_path = registry.get_package("rust-analyzer"):get_install_path()
-	local codelldb_path = registry.get_package("codelldb"):get_install_path()
+	local mason_path = mason_utils.get_mason_path()
+	local rust_analyzer_path = mason_utils.get_mason_package_path("rust-analyzer")
+	local codelldb_path = mason_utils.get_mason_package_path("codelldb")
+
+	if not rust_analyzer_path then
+		log.error("rust-analyzer is not installed in mason package")
+		return
+	end
+
+	if not codelldb_path then
+		log.error("codelldb is not installed in mason package")
+		return
+	end
 
 	vim.g.rustaceanvim = {
 		-- Plugin configuration
