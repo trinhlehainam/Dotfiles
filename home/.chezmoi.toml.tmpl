@@ -1,8 +1,8 @@
 [hooks.apply.pre]
-{{- if eq .chezmoi.os "windows" }}
+{{ if eq .chezmoi.os "windows" }}
 command = "powershell"
 args = ["-ExecutionPolicy", "Bypass", "-File", "{{ .chezmoi.homeDir }}/.local/share/chezmoi/home/.chezmoitemplates/scripts/windows/pre_apply/update-nvim-config-from-template.ps1"]
-{{- else -}}
+{{ else }}
 command = "bash"
 args = ["-c", "{{ .chezmoi.homeDir }}/.local/share/chezmoi/home/.chezmoitemplates/scripts/unix/pre_apply/update-nvim-config-from-template.sh"]
 {{- end -}}
