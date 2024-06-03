@@ -1,7 +1,11 @@
+{{- /* https://github.com/adrg/xdg/blob/master/README.md */ -}}
+
 {{ if ne .chezmoi.os "darwin"}}
+Library/Application Support/nushell
 {{ end }}
 
 {{ if ne .chezmoi.os "linux" }}
+.config/nushell
 {{ end }}
 
 {{ if ne .chezmoi.os "windows" }}
@@ -12,4 +16,5 @@ Documents/WindowsPowerShell
 .chezmoiscripts/unix
 .config/nvim
 .zshrc
+.bashrc
 {{ end }}
