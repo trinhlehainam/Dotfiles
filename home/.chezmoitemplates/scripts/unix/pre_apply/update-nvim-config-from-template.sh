@@ -39,7 +39,7 @@ new_template() {
   if [[ "$OSTYPE" == "cygwin" || "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
     target_file="$chezmoi_root_dir/AppData/Local/$template_file.tmpl"
   else
-    target_file="$chezmoi_root_dir/dot_config/dot_$template_file.tmpl"
+    target_file="$chezmoi_root_dir/dot_config/$template_file.tmpl"
   fi
   target_dir="$(dirname "$target_file")"
   mkdir -p "$target_dir"
@@ -62,7 +62,7 @@ remove_template() {
     if [ "$OSTYPE" == "msys" ]; then
         target_file="$chezmoi_root_dir/AppData/Local/$template_file.tmpl"
     else
-        target_file="$chezmoi_root_dir/dot_config/dot_$template_file.tmpl"
+        target_file="$chezmoi_root_dir/dot_config/$template_file.tmpl"
     fi
     
     if [ -f "$target_file" ]; then
