@@ -144,8 +144,8 @@ mason_lspconfig.setup_handlers {
 }
 
 for _, settings in pairs(language_settings) do
-  if settings.config ~= nil and type(settings.config) == "function" then
-    settings.config()
+  if settings.after_lspconfig ~= nil and type(settings.after_lspconfig) == "function" then
+    settings.after_lspconfig()
   end
 end
 

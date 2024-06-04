@@ -23,7 +23,7 @@
 ---@field dapconfig custom.DapConfig
 ---@field formatterconfig custom.FormatterConfig
 ---@field linterconfig custom.LinterConfig
----@field config? fun()
+---@field after_lspconfig? fun()
 local M = {}
 
 ---@return custom.LanguageSetting
@@ -47,7 +47,7 @@ function M:new()
 		servers = nil,
 		linters_by_ft = nil,
 	}
-	t.config = nil
+	t.after_lspconfig = nil
 	return t
 end
 

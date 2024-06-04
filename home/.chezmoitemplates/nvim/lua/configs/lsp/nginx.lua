@@ -7,7 +7,7 @@ local M = LanguageSetting:new()
 M.lspconfig.server = ""
 M.lspconfig.use_setup = false
 
-M.config = function()
+M.after_lspconfig = function()
 	-- local mason_utils = require("utils.mason")
 	local log = require("utils.log")
 

@@ -13,10 +13,11 @@ end
 
 -- TODO: use LanguageSetting to configure language parser
 local ensure_installed = {
+	"nu",
+	"php",
 	"c",
 	"cpp",
 	"c_sharp",
-	"nu",
 	"python",
 	"rust",
 	"dockerfile",

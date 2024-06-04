@@ -4,5 +4,7 @@ return { -- Highlight, edit, and navigate code
 	dependencies = {
 		{ "nvim-treesitter/nvim-treesitter-textobjects" },
 		{ "nushell/tree-sitter-nu" },
+		-- TODO: some tree-sitter extension require manually install
+		-- { "EmranMR/tree-sitter-blade" },
 	},
 }

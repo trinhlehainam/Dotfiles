@@ -145,5 +145,5 @@ local function rustaceanvim_config()
 	})
 end
 
-M.config = rustaceanvim_config
+M.after_lspconfig = rustaceanvim_config
 return M
