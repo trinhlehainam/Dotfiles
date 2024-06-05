@@ -78,7 +78,7 @@ local language_settings = require('configs.lsp').language_settings
 local on_attach = require('utils.lsp').on_attach
 
 ---@class custom.LspSetupHandler
----@field use_setup boolean
+---@field use_masonlsp_setup boolean
 ---@field setup? custom.LspConfig.Setup
 
 ---@type table<string, custom.LspSetupHandler>
@@ -86,7 +86,7 @@ local setup_handlers = {}
 
 for server_name, _ in pairs(servers) do
   setup_handlers[server_name] = {
-    use_setup = true,
+    use_masonlsp_setup = true,
   }
 end
 
@@ -98,9 +98,9 @@ for _, settings in pairs(language_settings) do
   servers[server_name] = settings.lspconfig.settings
 
   local setup = settings.lspconfig.setup
-  local use_setup = settings.lspconfig.use_masonlsp_setup
+  local use_masonlsp_setup = settings.lspconfig.use_masonlsp_setup
   setup_handlers[server_name] = {
-    use_setup = use_setup,
+    use_masonlsp_setup = use_masonlsp_setup,
     setup = setup
   }
 
@@ -124,8 +124,8 @@ local lspconfig = require('lspconfig')
 mason_lspconfig.setup_handlers {
   function(server_name)
     --- @type boolean
-    local useSetup = vim.tbl_get(setup_handlers, server_name, 'use_setup')
-    if useSetup ~= nil and type(useSetup) == "boolean" and not useSetup then
+    local use_masonlsp_setup = vim.tbl_get(setup_handlers, server_name, 'use_masonlsp_setup')
+    if use_masonlsp_setup ~= nil and type(use_masonlsp_setup) == "boolean" and not use_masonlsp_setup then
       return
     end
 

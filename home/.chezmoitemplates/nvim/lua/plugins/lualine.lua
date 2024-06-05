@@ -56,7 +56,7 @@ return {
 					},
 					"filetype",
 					-- TODO: Use to debug Codeium status
-					" %3{codeium#GetStatusString()}",
+					"%3{codeium#GetStatusString()}",
 				},
 			},
 		})

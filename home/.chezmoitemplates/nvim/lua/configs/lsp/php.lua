@@ -33,7 +33,13 @@ M.after_masonlsp_setup = function()
 		return
 	end
 
-	laravel.setup()
+	laravel.setup({
+		features = {
+			null_ls = {
+				enable = false,
+			},
+		},
+	})
 
 	vim.keymap.set("n", "<leader>la", ":Laravel artisan<cr>", { desc = "[L]aravel [A]rtisan" })
 	vim.keymap.set("n", "<leader>lm", ":Laravel related<cr>", { desc = "[L]aravel [R]elated" })
