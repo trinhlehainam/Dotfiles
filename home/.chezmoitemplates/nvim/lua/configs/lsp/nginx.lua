@@ -5,9 +5,9 @@ local M = LanguageSetting:new()
 -- https://github.com/williamboman/mason-lspconfig.nvim/issues/298
 
 M.lspconfig.server = ""
-M.lspconfig.use_setup = false
+M.lspconfig.use_masonlsp_setup = false
 
-M.after_lspconfig = function()
+M.after_masonlsp_setup = function()
 	-- local mason_utils = require("utils.mason")
 	local log = require("utils.log")
 

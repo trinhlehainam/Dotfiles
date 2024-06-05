@@ -35,6 +35,6 @@ local function tailwindtools_config()
 	tailwindtools.setup({})
 end
 
-M.after_lspconfig = tailwindtools_config
+M.after_masonlsp_setup = tailwindtools_config
 
 return M

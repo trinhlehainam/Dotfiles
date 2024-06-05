@@ -85,8 +85,8 @@ vim.keymap.set("n", "J", "mmJ`m", opts.nore)
 vim.keymap.set("n", "gJ", "mmgJ`m", opts.nore)
 
 -- NOTE: the following doesn't work for some reason
--- vim.keymap.set('n', '<C-u>', '<C-u>zz', opts.nore)
--- vim.keymap.set('n', '<C-d>', '<C-d>zz', opts.nore)
+vim.keymap.set("n", "<C-u>", "<C-u>zz", opts.nore)
+vim.keymap.set("n", "<C-d>", "<C-d>zz", opts.nore)
 
 --Undo break point
 vim.keymap.set("i", ",", ",<C-g>u", opts.nore)

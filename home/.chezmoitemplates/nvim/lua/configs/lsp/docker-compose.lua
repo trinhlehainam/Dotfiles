@@ -3,7 +3,7 @@ local M = LanguageSetting:new()
 
 M.lspconfig.server = "docker_compose_language_service"
 
-M.after_lspconfig = function()
+M.after_masonlsp_setup = function()
 	-- NOTE: need to set filetype for docker-compose can detect
 	-- https://github.com/neovim/neovim/discussions/26571
 	-- https://github.com/neovim/nvim-lspconfig/blob/master/doc/server_configurations.md#docker_compose_language_service

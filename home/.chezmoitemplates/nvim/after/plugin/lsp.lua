@@ -48,7 +48,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
         function()
           vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled({ bufnr = args.buf }), { bufnr = args.buf })
         end,
-        { buffer = args.buf, desc = "Toggle inlay hints" })
+        { buffer = args.buf, desc = "[T]oggle inlay [h]ints" })
     end
     -- whatever other lsp config you want
   end
@@ -98,7 +98,7 @@ for _, settings in pairs(language_settings) do
   servers[server_name] = settings.lspconfig.settings
 
   local setup = settings.lspconfig.setup
-  local use_setup = settings.lspconfig.use_setup
+  local use_setup = settings.lspconfig.use_masonlsp_setup
   setup_handlers[server_name] = {
     use_setup = use_setup,
     setup = setup
@@ -144,8 +144,8 @@ mason_lspconfig.setup_handlers {
 }
 
 for _, settings in pairs(language_settings) do
-  if settings.after_lspconfig ~= nil and type(settings.after_lspconfig) == "function" then
-    settings.after_lspconfig()
+  if settings.after_masonlsp_setup ~= nil and type(settings.after_masonlsp_setup) == "function" then
+    settings.after_masonlsp_setup()
   end
 end
 

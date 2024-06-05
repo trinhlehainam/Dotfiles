@@ -1,8 +1,15 @@
 local LanguageSetting = require("configs.lsp.base")
 local M = LanguageSetting:new()
 
+local log = require("utils.log")
+local utils = require("utils.common")
+if utils.IS_WINDOWS and not utils.IS_WSL then
+	log.info("php lsp setup only available on unix")
+	return
+end
+
 M.lspconfig.server = "phpactor"
-M.lspconfig.use_setup = true
+M.lspconfig.use_masonlsp_setup = true
 
 M.formatterconfig.servers = { "blade-formatter" }
 M.formatterconfig.formatters_by_ft = {
@@ -18,9 +25,8 @@ M.lspconfig.setup = function(capabilities, on_attach)
 	})
 end
 
-M.after_lspconfig = function()
+M.after_masonlsp_setup = function()
 	local haslaravel, laravel = pcall(require, "laravel")
-	local log = require("utils.log")
 
 	if not haslaravel then
 		log.error("laravel.nvim is not installed")
@@ -31,10 +37,7 @@ M.after_lspconfig = function()
 
 	vim.keymap.set("n", "<leader>la", ":Laravel artisan<cr>", { desc = "[L]aravel [A]rtisan" })
 	vim.keymap.set("n", "<leader>lm", ":Laravel related<cr>", { desc = "[L]aravel [R]elated" })
-	local haslaravelext, laravelext = pcall(require("telescope").load_extension, "laravel")
-	if haslaravelext then
-		vim.keymap.set("n", "<leader>lr", laravelext.routes, { desc = "Find [L]aravel [R]outes" })
-	end
+	vim.keymap.set("n", "<leader>lr", ":Laravel routes<cr>", { desc = "Find [L]aravel [R]outes" })
 end
 
 return M

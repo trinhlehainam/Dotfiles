@@ -2,9 +2,9 @@ local LanguageSetting = require("configs.lsp.base")
 local M = LanguageSetting:new()
 
 M.lspconfig.server = ""
-M.lspconfig.use_setup = false
+M.lspconfig.use_masonlsp_setup = false
 
-M.after_lspconfig = function()
+M.after_masonlsp_setup = function()
 	-- Check nu command is excutable
 	if vim.fn.executable("nu") == 0 then
 		require("utils.log").error("Nushell is not installed")

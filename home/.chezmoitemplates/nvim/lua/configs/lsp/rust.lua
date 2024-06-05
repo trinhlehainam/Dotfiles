@@ -16,7 +16,7 @@ M.dapconfig.configs = {
 }
 
 M.lspconfig.server = "rust_analyzer"
-M.lspconfig.use_setup = false
+M.lspconfig.use_masonlsp_setup = false
 
 local common = require("utils.common")
 
@@ -145,5 +145,5 @@ local function rustaceanvim_config()
 	})
 end
 
-M.after_lspconfig = rustaceanvim_config
+M.after_masonlsp_setup = rustaceanvim_config
 return M

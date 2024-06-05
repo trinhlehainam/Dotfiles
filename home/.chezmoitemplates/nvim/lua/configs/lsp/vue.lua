@@ -3,6 +3,6 @@ local M = LanguageSetting:new()
 
 -- NOTE: only use for install volar language server
 M.lspconfig.server = "volar"
-M.lspconfig.use_setup = false
+M.lspconfig.use_masonlsp_setup = false
 
 return M
