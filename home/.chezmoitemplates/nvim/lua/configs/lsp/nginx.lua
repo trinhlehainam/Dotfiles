@@ -4,7 +4,6 @@ local M = LanguageSetting:new()
 -- NOTE: mason-lspconfig hasn't supported for nginx-language-server yet
 -- https://github.com/williamboman/mason-lspconfig.nvim/issues/298
 
-M.lspconfig.server = ""
 M.lspconfig.use_masonlsp_setup = false
 
 M.after_masonlsp_setup = function()

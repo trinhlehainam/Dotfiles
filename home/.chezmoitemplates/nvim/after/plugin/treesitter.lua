@@ -32,7 +32,7 @@ local language_settings = require("configs.lsp").language_settings
 
 for _, settings in pairs(language_settings) do
 	local filetypes = settings.treesitter.filetypes
-	if vim.islist(filetypes) then
+	if filetypes ~= nil and vim.islist(filetypes) then
 		vim.list_extend(ensure_installed, filetypes)
 	end
 end

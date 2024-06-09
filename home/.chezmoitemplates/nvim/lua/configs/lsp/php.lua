@@ -1,15 +1,14 @@
 local LanguageSetting = require("configs.lsp.base")
 local M = LanguageSetting:new()
 
-M.treesitter.filetypes = { "php" }
-
 local log = require("utils.log")
 local utils = require("utils.common")
 if utils.IS_WINDOWS and not utils.IS_WSL then
 	log.info("php lsp setup only available on unix")
-	return
+	return M
 end
 
+M.treesitter.filetypes = { "php" }
 M.lspconfig.server = "phpactor"
 M.lspconfig.use_masonlsp_setup = true
 
