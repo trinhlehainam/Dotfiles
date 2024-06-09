@@ -1,6 +1,8 @@
 local LanguageSetting = require("configs.lsp.base")
 local M = LanguageSetting:new()
 
+M.treesitter.filetypes = { "json" }
+
 M.lspconfig.server = "jsonls"
 M.lspconfig.settings = {
 	json = {

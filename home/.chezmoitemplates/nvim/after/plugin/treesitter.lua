@@ -13,22 +13,12 @@ end
 
 -- TODO: use LanguageSetting to configure language parser
 local ensure_installed = {
-	"nu",
-	"php",
 	"c",
 	"cpp",
 	"c_sharp",
-	"python",
-	"rust",
-	"dockerfile",
 	"toml",
-	"javascript",
-	"tsx",
-	"typescript",
+	"dockerfile",
 	"html",
-	"css",
-	"vue",
-	"json",
 	"sql",
 }
 
@@ -36,6 +26,15 @@ local hasnoice, _ = pcall(require, "noice")
 if hasnoice then
 	local noice_parsers = { "vim", "regex", "lua", "bash", "markdown", "markdown_inline" }
 	ensure_installed = vim.list_extend(ensure_installed, noice_parsers)
+end
+
+local language_settings = require("configs.lsp").language_settings
+
+for _, settings in pairs(language_settings) do
+	local filetypes = settings.treesitter.filetypes
+	if vim.islist(filetypes) then
+		vim.list_extend(ensure_installed, filetypes)
+	end
 end
 
 -- See `:help nvim-treesitter`

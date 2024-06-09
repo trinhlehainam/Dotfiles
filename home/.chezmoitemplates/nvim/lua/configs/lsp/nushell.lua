@@ -1,6 +1,8 @@
 local LanguageSetting = require("configs.lsp.base")
 local M = LanguageSetting:new()
 
+M.treesitter.filetypes = { "nu" }
+
 M.lspconfig.server = ""
 M.lspconfig.use_masonlsp_setup = false
 

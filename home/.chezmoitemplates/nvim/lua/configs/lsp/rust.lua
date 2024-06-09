@@ -1,6 +1,8 @@
 local LanguageSetting = require("configs.lsp.base")
 local M = LanguageSetting:new()
 
+M.treesitter.filetypes = { "rust" }
+
 M.dapconfig.type = "codelldb"
 M.dapconfig.configs = {
 	{

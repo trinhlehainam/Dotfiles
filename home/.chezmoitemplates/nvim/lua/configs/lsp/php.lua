@@ -1,6 +1,8 @@
 local LanguageSetting = require("configs.lsp.base")
 local M = LanguageSetting:new()
 
+M.treesitter.filetypes = { "php" }
+
 local log = require("utils.log")
 local utils = require("utils.common")
 if utils.IS_WINDOWS and not utils.IS_WSL then

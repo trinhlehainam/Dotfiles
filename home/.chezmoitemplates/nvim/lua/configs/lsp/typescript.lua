@@ -1,6 +1,12 @@
 local LanguageSetting = require("configs.lsp.base")
 local M = LanguageSetting:new()
 
+M.treesitter.filetypes = {
+	"javascript",
+	"tsx",
+	"typescript",
+}
+
 M.formatterconfig.servers = { "prettierd" }
 M.formatterconfig.formatters_by_ft = {
 	javascript = { "prettierd" },

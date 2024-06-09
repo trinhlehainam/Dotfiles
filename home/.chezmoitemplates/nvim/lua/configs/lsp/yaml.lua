@@ -1,6 +1,8 @@
 local LanguageSetting = require("configs.lsp.base")
 local M = LanguageSetting:new()
 
+M.treesitter.filetypes = { "yaml" }
+
 M.lspconfig.server = "yamlls"
 
 M.lspconfig.setup = function(capabilities, on_attach)
