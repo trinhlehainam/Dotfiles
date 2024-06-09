@@ -16,9 +16,7 @@ local ensure_installed = {
 	"c",
 	"cpp",
 	"c_sharp",
-	"toml",
 	"dockerfile",
-	"html",
 	"sql",
 }
 

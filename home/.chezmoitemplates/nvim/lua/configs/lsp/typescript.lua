@@ -5,6 +5,8 @@ M.treesitter.filetypes = {
 	"javascript",
 	"tsx",
 	"typescript",
+	"html",
+	"css",
 }
 
 M.formatterconfig.servers = { "prettierd" }
