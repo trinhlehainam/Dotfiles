@@ -1,4 +1,3 @@
-```
 " Setting
 set timeoutlen=200
 net nowrap
@@ -96,4 +95,3 @@ noremap <leader>gc :action CheckinProject<CR>
 map mc <A-n>
 map mx <A-x>
 map mp <A-p>
-```
