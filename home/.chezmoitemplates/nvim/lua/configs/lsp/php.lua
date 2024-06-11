@@ -2,14 +2,15 @@ local LanguageSetting = require("configs.lsp.base")
 local M = LanguageSetting:new()
 
 local log = require("utils.log")
-local utils = require("utils.common")
-if utils.IS_WINDOWS and not utils.IS_WSL then
-	log.info("php lsp setup only available on unix")
-	return M
-end
+local common = require("utils.common")
 
 M.treesitter.filetypes = { "php" }
-M.lspconfig.server = "phpactor"
+if common.IS_WINDOWS then
+	M.lspconfig.server = "intelephense"
+else
+	-- NOTE: phpactor is not yet supported for Windows platform.
+	M.lspconfig.server = "phpactor"
+end
 M.lspconfig.use_masonlsp_setup = true
 
 M.formatterconfig.servers = { "blade-formatter" }

@@ -11,9 +11,9 @@ local common = require("utils.common")
 ---@param nginx_lsp_pkg_path string
 local function nginx_lsp_cmd(nginx_lsp_pkg_path)
 	if common.IS_WINDOWS then
-		return nginx_lsp_pkg_path .. "/venv/bin/python3.9.exe"
+		return nginx_lsp_pkg_path .. "/venv/bin/nginx-language-server.exe"
 	else
-		return nginx_lsp_pkg_path .. ""
+		return nginx_lsp_pkg_path .. "/venv/bin/nginx-language-server"
 	end
 end
 
