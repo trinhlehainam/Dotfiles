@@ -20,12 +20,12 @@ return { -- Autocompletion
 				-- `friendly-snippets` contains a variety of premade snippets.
 				--    See the README about individual language/framework/plugin snippets:
 				--    https://github.com/rafamadriz/friendly-snippets
-				-- {
-				--   'rafamadriz/friendly-snippets',
-				--   config = function()
-				--     require('luasnip.loaders.from_vscode').lazy_load()
-				--   end,
-				-- },
+				{
+					"rafamadriz/friendly-snippets",
+					config = function()
+						require("luasnip.loaders.from_vscode").lazy_load()
+					end,
+				},
 			},
 		},
 		"onsails/lspkind.nvim",
@@ -36,6 +36,6 @@ return { -- Autocompletion
 		--  into multiple repos for maintenance purposes.
 		"hrsh7th/cmp-path",
 		"hrsh7th/cmp-buffer",
-		"hrsh7th/cmp-cmdline",
+		-- "hrsh7th/cmp-cmdline",
 	},
 }

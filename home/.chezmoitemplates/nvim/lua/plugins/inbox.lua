@@ -14,5 +14,5 @@
 -- - lazydocker: TUI docker
 -- - k9s: TUI kubernetes
 -- - obsidian.nvim: intergrate obsidian inside Neovim
--- - fix neo-git keymaps
+-- - neovim zellij intergration: https://www.reddit.com/r/vimporn/comments/10eqj6z/neovim_zellij/
 return {}

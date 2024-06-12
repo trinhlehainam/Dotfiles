@@ -26,6 +26,12 @@ if hasnoice then
 	ensure_installed = vim.list_extend(ensure_installed, noice_parsers)
 end
 
+local hasrest, _ = pcall(require, "rest")
+if hasrest then
+	local rest_parsers = { "lua", "xml", "http", "json", "graphql" }
+	ensure_installed = vim.list_extend(ensure_installed, rest_parsers)
+end
+
 local language_settings = require("configs.lsp").language_settings
 
 for _, settings in pairs(language_settings) do
