@@ -62,7 +62,6 @@ vim.api.nvim_create_autocmd("LspAttach", {
 --  See https://github.com/neovim/nvim-lspconfig/blob/master/doc/server_configurations.md
 local servers = {
   dockerls = {},
-  bashls = {},
   powershell_es = {},
   lua_ls = {
     Lua = {
