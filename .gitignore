@@ -1,0 +1,2 @@
+# nvim file changes state will managed locally so we don't need to store it in git
+home/.chezmoitemplates/nvim/state.json
