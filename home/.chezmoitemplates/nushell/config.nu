@@ -867,5 +867,6 @@ $env.config = {
 
 alias v = nvim
 
+# TODO: ensure zoxide and starship are installed.
 source ~/.zoxide.nu
 use ~/.cache/starship/init.nu

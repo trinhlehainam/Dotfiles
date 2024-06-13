@@ -1,6 +1,8 @@
 local LanguageSetting = require("configs.lsp.base")
 local M = LanguageSetting:new()
 
+-- NOTE: https://github.com/nushell/nu_scripts
+
 -- TODO: need to fix treesitter reinstall at startup
 -- M.treesitter.filetypes = { "nu" }
 
