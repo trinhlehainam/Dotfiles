@@ -15,6 +15,7 @@ Documents/WindowsPowerShell
 {{ else }}
 .chezmoiscripts/unix
 .config/nvim
+.config/yazi
 .zshrc
 .bashrc
 {{ end }}
