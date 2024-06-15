@@ -13,9 +13,15 @@ else
 end
 M.lspconfig.use_masonlsp_setup = true
 
-M.formatterconfig.servers = { "blade-formatter" }
+M.formatterconfig.servers = { "blade-formatter", "php-cs-fixer" }
 M.formatterconfig.formatters_by_ft = {
 	blade = { "blade-formatter" },
+	-- php = { "php-cs-fixer" },
+}
+
+M.linterconfig.servers = { "easy-coding-standard" }
+M.linterconfig.linters_by_ft = {
+	-- php = { "easy-coding-standard" },
 }
 
 M.lspconfig.setup = function(capabilities, on_attach)

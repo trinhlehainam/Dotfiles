@@ -9,10 +9,13 @@ return {
 	},
 	config = function()
 		require("neo-tree").setup({
-			window = {
-				mappings = {
-					["L"] = "focus_preview",
-					["l"] = "",
+			filesystem = {
+				filtered_items = {
+					hide_dotfiles = false,
+					hide_gitignored = false,
+					hide_by_name = {
+						".git",
+					},
 				},
 			},
 		})

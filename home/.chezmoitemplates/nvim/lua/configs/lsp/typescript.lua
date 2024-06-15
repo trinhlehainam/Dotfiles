@@ -18,13 +18,13 @@ M.formatterconfig.formatters_by_ft = {
 	vue = { "rustywind", "prettierd" },
 }
 
-M.linterconfig.servers = { "eslint_d" }
+M.linterconfig.servers = { "eslint_d", "markuplint" }
 M.linterconfig.linters_by_ft = {
 	javascript = { "eslint_d" },
 	typescript = { "eslint_d" },
-	javascriptreact = { "eslint_d" },
-	typescriptreact = { "eslint_d" },
-	vue = { "eslint_d" },
+	javascriptreact = { "eslint_d", "markuplint" },
+	typescriptreact = { "eslint_d", "markuplint" },
+	vue = { "eslint_d", "markuplint" },
 }
 
 ---@param capabilities lsp.ClientCapabilities

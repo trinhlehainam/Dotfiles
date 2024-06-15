@@ -21,19 +21,12 @@ let mapleader=" "
 nmap <Esc> :action HideActiveWindow<CR>
 inoremap jk <Esc>
 
-" Remap h j k l
-noremap j h
-noremap k j
-noremap l k
-noremap ; l
-noremap h ""
-
-noremap gj ^
-noremap g; $
+noremap gh ^
+noremap gl $
 
 " Move Next/Pre letter in INSERT mode
-inoremap <A-j> <Esc>i
-inoremap <A-;> <Esc>la
+inoremap <A-h> <Esc>i
+inoremap <A-l> <Esc>la
 
 " Telescope fzf like keymap 
 noremap <leader>ff :action GotoFile<CR>
@@ -66,13 +59,13 @@ noremap <leader>b :action BuildButton<CR>
 noremap == :action ReformatCode<CR>
 vnoremap == :action ReformatCode<CR>
 
-noremap <A-k> :action MoveLineDown<CR>:action ReformatCode<CR>
-noremap <A-l> :action MoveLineUp<CR>:action ReformatCode<CR>
-inoremap <A-k> <Esc>:action MoveLineDown<CR>:action ReformatCode<CR>a
-inoremap <A-l> <Esc>:action MoveLineUp<CR>:action ReformatCode<CR>a
+noremap <A-j> :action MoveLineDown<CR>:action ReformatCode<CR>
+noremap <A-k> :action MoveLineUp<CR>:action ReformatCode<CR>
+inoremap <A-j> <Esc>:action MoveLineDown<CR>:action ReformatCode<CR>a
+inoremap <A-k> <Esc>:action MoveLineUp<CR>:action ReformatCode<CR>a
 
-noremap bl :action NextTab<CR>
-noremap bk :action PreviousTab<CR>
+noremap bk :action NextTab<CR>
+noremap bj :action PreviousTab<CR>
 noremap bc :action CloseContent<CR>
 
 noremap <C-i> :action Forward<CR>
@@ -82,10 +75,10 @@ vnoremap <C-y> :action EditorCopy<CR><C-c>
 noremap <C-p> :action EditorPaste<CR>
 
 " noremap <C-z> :action ToggleDistractionFreeMode<CR>
-noremap tt :action ActivateProjectToolWindow<CR>
+noremap <leader>tt :action ActivateProjectToolWindow<CR>
 noremap sb :action ActivateBuildToolWindow<CR>
 noremap <leader>gs :action ActivateVersionControlToolWindow<CR>
-noremap st :action ActivateTerminalToolWindow<CR>
+noremap <C-\> :action ActivateTerminalToolWindow<CR>
 
 noremap <leader>gu :action Vcs.UpdateProject<CR>
 noremap <leader>gf :action Git.Fetch<CR>

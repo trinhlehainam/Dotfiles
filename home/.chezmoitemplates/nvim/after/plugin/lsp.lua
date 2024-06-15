@@ -63,6 +63,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
 local servers = {
   dockerls = {},
   powershell_es = {},
+  html = {},
   lua_ls = {
     Lua = {
       workspace = { checkThirdParty = false },

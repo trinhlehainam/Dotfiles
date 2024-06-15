@@ -19,29 +19,12 @@ end
 neogit.setup({
 	mappings = {
 		-- Setting any of these to `false` will disable the mapping.
-		popup = {
-			["l"] = false,
-			["L"] = "LogPopup",
-		},
-		status = {
-			["j"] = false,
-			["k"] = "MoveDown",
-			["l"] = "MoveUp",
-		},
+		popup = {},
+		status = {},
 	},
 })
 
-local actions = require("diffview.actions")
-diffview.setup({
-	keymaps = {
-		file_panel = {
-			{ "n", "j", false },
-			{ "n", ";", false },
-			{ "n", "k", actions.next_entry, { desc = "Bring the cursor to the next file entry" } },
-			{ "n", "l", actions.prev_entry, { desc = "Bring the cursor to the previous file entry" } },
-		},
-	},
-})
+diffview.setup()
 
 vim.keymap.set("n", "<leader>gs", neogit.open, { desc = "[S]how [G]it", silent = true, noremap = true })
 vim.keymap.set("n", "<leader>gc", ":Neogit commit<CR>", { desc = "[G]it [C]ommit", silent = true, noremap = true })
