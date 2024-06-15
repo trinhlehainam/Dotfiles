@@ -873,5 +873,3 @@ alias lt = eza -l -a --tree --level=2 --git
 
 source ~/.zoxide.nu
 use ~/.cache/starship/init.nu
-
-source ~/.local/share/atuin/init.nu
