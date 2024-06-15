@@ -865,8 +865,13 @@ $env.config = {
     ]
 }
 
+# TODO: ensure executable before alias and sourcing
 alias v = nvim
+alias la = eza -a
+alias ll = eza -l -a
+alias lt = eza -l -a --tree --level=2 --git
 
-# TODO: ensure zoxide and starship are installed.
 source ~/.zoxide.nu
 use ~/.cache/starship/init.nu
+
+source ~/.local/share/atuin/init.nu
