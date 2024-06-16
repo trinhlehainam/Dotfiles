@@ -65,8 +65,8 @@ vim.keymap.set("n", "<C-p>", '"+p', opts.nore)
 vim.keymap.set("i", "<C-p>", '<Esc>"+pa', opts.nore)
 
 --Go to next/prev word in INSERT
-vim.keymap.set("i", "<A-l>", "<Esc>i", opts.nore)
-vim.keymap.set("i", "<A-h>", "<Esc>la", opts.nore)
+vim.keymap.set("i", "<A-h>", "<Esc>i", opts.nore)
+vim.keymap.set("i", "<A-l>", "<Esc>la", opts.nore)
 
 --Keep cursor centered
 vim.keymap.set("n", "n", "nzzzv", opts.nore)

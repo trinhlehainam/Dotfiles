@@ -62,4 +62,21 @@ function M.load_mods(modname, ignore_mods)
 	return M.load_mods_in_dir(mods_dir, ignore_mods)
 end
 
+-- Function to create a temporary file with a specific extension
+--- @param extension string?
+--- @return string
+function M.create_temp_file(extension)
+	-- Generate a temporary filename
+	local temp_file = os.tmpname()
+
+	if type(extension) == "nil" then
+		return temp_file
+	end
+
+	-- Rename the file to have the desired extension
+	local temp_file_with_extension = temp_file .. "." .. extension
+	os.rename(temp_file, temp_file_with_extension)
+	return temp_file_with_extension
+end
+
 return M
