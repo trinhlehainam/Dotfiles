@@ -4,13 +4,11 @@ local M = LanguageSetting:new()
 local log = require("utils.log")
 local common = require("utils.common")
 
-M.treesitter.filetypes = { "php" }
 if common.IS_WINDOWS then
-	M.lspconfig.server = "intelephense"
-else
-	-- NOTE: phpactor is not yet supported for Windows platform.
-	M.lspconfig.server = "phpactor"
+	log.info("php language server is not supported on Windows")
+	return
 end
+M.treesitter.filetypes = { "php" }
 M.lspconfig.use_masonlsp_setup = true
 
 M.formatterconfig.servers = { "blade-formatter", "php-cs-fixer" }
