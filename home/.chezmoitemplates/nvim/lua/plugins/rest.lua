@@ -10,9 +10,13 @@ local function json_format_cmd()
 	local mason_path = mason_utils.get_mason_path()
 	local jq_path = mason_utils.get_mason_package_path("jq")
 
+	if not jq_path then
+		return "jq"
+	end
+
 	if common.IS_WINDOWS then
 		-- TODO: need to check executation of jq in Windows
-		return jq_path .. "/jq-win64.exe"
+		return mason_path .. "/jq.cmd"
 	else
 		return mason_path .. "/bin/jq"
 	end
@@ -29,12 +33,15 @@ local function format_html_body(body)
 	end
 
 	local mason_path = mason_utils.get_mason_path()
-	local prettierd = mason_utils.get_mason_package_path("prettierd")
+	local prettierd_path = mason_utils.get_mason_package_path("prettierd")
+
+	if not prettierd_path then
+		return body, { found = false, name = "prettierd" }
+	end
 
 	local function prettierd_cmd()
 		if common.IS_WINDOWS then
-			-- TODO: check Windows prettierd command
-			return prettierd .. "/bin/prettierd.exe"
+			return mason_path .. "/bin/prettierd.cmd"
 		else
 			return mason_path .. "/bin/prettierd"
 		end
