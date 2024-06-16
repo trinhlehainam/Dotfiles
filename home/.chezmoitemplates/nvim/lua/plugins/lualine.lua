@@ -36,6 +36,10 @@ return {
 	-- See `:help lualine.txt`
 	dependencies = { "nvim-tree/nvim-web-devicons" },
 	config = function()
+		local function show_codeium_status()
+			return "{…}" .. vim.fn["codeium#GetStatusString"]()
+		end
+
 		require("lualine").setup({
 			options = {
 				icons_enabled = true,
@@ -55,8 +59,8 @@ return {
 						},
 					},
 					"filetype",
-					-- TODO: Use to debug Codeium status
-					"%3{codeium#GetStatusString()}",
+					-- https://github.com/Exafunction/codeium.vim/issues/100
+					{ show_codeium_status },
 				},
 			},
 		})

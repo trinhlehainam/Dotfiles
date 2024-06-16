@@ -11,7 +11,6 @@ if not hastreesitter then
 	return
 end
 
--- TODO: use LanguageSetting to configure language parser
 local ensure_installed = {
 	"c",
 	"cpp",
