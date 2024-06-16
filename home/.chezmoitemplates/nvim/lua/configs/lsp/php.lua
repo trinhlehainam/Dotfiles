@@ -6,8 +6,9 @@ local common = require("utils.common")
 
 if common.IS_WINDOWS then
 	log.info("php language server is not supported on Windows")
-	return
+	return M
 end
+
 M.treesitter.filetypes = { "php" }
 M.lspconfig.use_masonlsp_setup = true
 
