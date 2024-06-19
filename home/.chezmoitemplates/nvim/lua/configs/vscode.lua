@@ -10,10 +10,10 @@ vim.keymap.set({ "x", "v" }, "gc", "<Plug>VSCodeCommentary", opts.nore)
 vim.keymap.set("n", "<leader>", "<Cmd>call VSCodeNotify('whichkey.show')<CR>", opts.nore)
 
 --Buffer Navigation
-vim.keymap.set("n", "bj", ":Tabfirst<CR>", opts.nore)
-vim.keymap.set("n", "b;", ":Tablast<CR>", opts.nore)
-vim.keymap.set("n", "bk", ":Tabprevious<CR>", opts.nore)
-vim.keymap.set("n", "bl", ":Tabnext<CR>", opts.nore)
+vim.keymap.set("n", "bh", ":Tabfirst<CR>", opts.nore)
+vim.keymap.set("n", "bl", ":Tablast<CR>", opts.nore)
+vim.keymap.set("n", "bj", ":Tabprevious<CR>", opts.nore)
+vim.keymap.set("n", "bk", ":Tabnext<CR>", opts.nore)
 vim.keymap.set("n", "bc", ":Tabclose<CR>", opts.nore)
 
 vim.keymap.set("n", "tt", "<Cmd>call VSCodeNotify('workbench.view.explorer')<CR>", opts.nore)
@@ -30,5 +30,5 @@ vim.keymap.set("n", "[d", "<Cmd>call VSCodeNotify('editor.action.marker.nextInFi
 vim.keymap.set("n", "]d", "<Cmd>call VSCodeNotify('editor.action.marker.prevInFiles')<CR>", opts.nore)
 
 --Moving line of text
-vim.keymap.set({ "n", "v", "i" }, "<A-l>", "<Cmd>call VSCodeNotify('editor.action.moveLinesUpAction')<CR>", opts.nore)
-vim.keymap.set({ "n", "v", "i" }, "<A-k>", "<Cmd>call VSCodeNotify('editor.action.moveLinesDownAction')<CR>", opts.nore)
+vim.keymap.set({ "n", "v", "i" }, "<A-k>", "<Cmd>call VSCodeNotify('editor.action.moveLinesUpAction')<CR>", opts.nore)
+vim.keymap.set({ "n", "v", "i" }, "<A-j>", "<Cmd>call VSCodeNotify('editor.action.moveLinesDownAction')<CR>", opts.nore)
