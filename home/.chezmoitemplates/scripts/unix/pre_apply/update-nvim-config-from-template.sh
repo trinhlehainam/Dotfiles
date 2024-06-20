@@ -68,7 +68,7 @@ remove_template() {
     if [ -f "$target_file" ]; then
         destination_file="${template_file#nvim/}"
         destination_file="$nvim_config_dir/$destination_file"
-        chezmoi remove --force "$destination_file"
+        chezmoi destroy -v "$destination_file"
     fi
 }
 

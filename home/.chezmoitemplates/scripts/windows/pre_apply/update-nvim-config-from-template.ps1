@@ -68,13 +68,13 @@ function Remove-Template {
     if ($env:OS -match "Windows_NT") {
         $target_file = "$chezmoi_root_dir\AppData\Local\$template_file.tmpl"
     } else {
-        $target_file = "$chezmoi_root_dir/dot_config/dot_$template_file.tmpl"
+        $target_file = "$chezmoi_root_dir/dot_config/$template_file.tmpl"
     }
     
     if (Test-Path $target_file) {
         $destination_file = $template_file.Substring("nvim".Length + 1) 
         $destination_file = "$nvim_config_dir\$destination_file"
-        chezmoi remove --force $destination_file
+        chezmoi destroy -v $destination_file
     }
 }
 
