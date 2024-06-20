@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# NOTE: Required tools: 
+# NOTE: Required tools:
 #   - find: File finder
 #   - read: Read from stdin
 #   - stat: File metadata processor
@@ -10,7 +10,7 @@
 #   - chezmoi: Template processor
 REQUIRED_TOOLS=("find" "read" "stat" "dirname" "sed" "jq" "chezmoi")
 for tool in "${REQUIRED_TOOLS[@]}"; do
-    if ! type "$tool" &> /dev/null; then
+    if ! type "$tool" &>/dev/null; then
         echo "Error: $tool is not installed."
         exit 1
     fi
@@ -18,14 +18,14 @@ done
 
 # Determine the operating system
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-  nvim_config_dir="$HOME/.config/nvim"
+    nvim_config_dir="$HOME/.config/nvim"
 elif [[ "$OSTYPE" == "darwin"* ]]; then
-  nvim_config_dir="$HOME/.config/nvim"
+    nvim_config_dir="$HOME/.config/nvim"
 elif [[ "$OSTYPE" == "cygwin" || "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
-  nvim_config_dir="$HOME/AppData/Local/nvim"
+    nvim_config_dir="$HOME/AppData/Local/nvim"
 else
-  echo "Unsupported OS: $OSTYPE"
-  exit 1
+    echo "Unsupported OS: $OSTYPE"
+    exit 1
 fi
 
 # Define chezmoi directories
@@ -34,41 +34,41 @@ templates_dir="$chezmoi_root_dir/.chezmoitemplates/nvim"
 state_file="$templates_dir/state.json"
 
 new_template() {
-  local chezmoi_root_dir="$1"
-  template_file="${2#$chezmoi_root_dir/.chezmoitemplates/}"
-  if [[ "$OSTYPE" == "cygwin" || "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
-    target_file="$chezmoi_root_dir/AppData/Local/$template_file.tmpl"
-  else
-    target_file="$chezmoi_root_dir/dot_config/$template_file.tmpl"
-  fi
-  target_dir="$(dirname "$target_file")"
-  mkdir -p "$target_dir"
-  if [ ! -f "$target_file" ]; then
-    touch "$target_file"
-  fi
-  # Avoid chezmoi template checking
-  template_string="- template \"$template_file\" . -"
-  template_string="{$template_string}"
-  template_string="{$template_string}"
-  #
-  echo "$template_string" > "$target_file"
+    local chezmoi_root_dir="$1"
+    template_file="${2#"$chezmoi_root_dir"/.chezmoitemplates/}"
+    if [[ "$OSTYPE" == "cygwin" || "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
+        target_file="$chezmoi_root_dir/AppData/Local/$template_file.tmpl"
+    else
+        target_file="$chezmoi_root_dir/dot_config/$template_file.tmpl"
+    fi
+    target_dir="$(dirname "$target_file")"
+    mkdir -p "$target_dir"
+    if [ ! -f "$target_file" ]; then
+        touch "$target_file"
+    fi
+    # Avoid chezmoi template checking
+    template_string="- template \"$template_file\" . -"
+    template_string="{$template_string}"
+    template_string="{$template_string}"
+    #
+    echo "$template_string" >"$target_file"
 }
 
 # Function to remove a template
 remove_template() {
     local chezmoi_root_dir=$1
     local template_file=$2
-    
+
     if [ "$OSTYPE" == "msys" ]; then
         target_file="$chezmoi_root_dir/AppData/Local/$template_file.tmpl"
     else
         target_file="$chezmoi_root_dir/dot_config/$template_file.tmpl"
     fi
-    
+
     if [ -f "$target_file" ]; then
         destination_file="${template_file#nvim/}"
         destination_file="$nvim_config_dir/$destination_file"
-        chezmoi remove --force $destination_file
+        chezmoi remove --force "$destination_file"
     fi
 }
 
@@ -78,15 +78,15 @@ if [ -f "$state_file" ]; then
     json_data=$(cat "$state_file")
     while IFS="=" read -r key value; do
         # Convert the file path to the desired format from "\\path\\to\\file" to "/path/to/file"
-        file_path=$(sed 's/\\/\//g' <<< "$key")
+        file_path=$(sed 's/\\/\//g' <<<"$key")
         previous_state[$file_path]="$value"
-    done < <(jq -r 'to_entries | .[] | "\(.key)=\(.value)"' <<< "$json_data")
+    done < <(jq -r 'to_entries | .[] | "\(.key)=\(.value)"' <<<"$json_data")
 fi
 
 # Get current state
 declare -A current_state
 while IFS= read -r -d '' file; do
-    template_file=${file#$chezmoi_root_dir/.chezmoitemplates/}
+    template_file=${file#"$chezmoi_root_dir"/.chezmoitemplates/}
     # Ignore create template for state.json file
     if [[ "$template_file" == *"state.json"* ]]; then
         continue
@@ -119,7 +119,7 @@ hashtable_to_json() {
         file_path=$key
         timestamp=${hashtable[$key]}
         # Convert the file path to the desired format from "/path/to/file" to "\\path\\to\\file"
-        converted_file_path=$(sed 's/\//\\\\/g' <<< "$file_path")
+        converted_file_path=$(sed 's/\//\\\\/g' <<<"$file_path")
         timestamp="Date($timestamp)"
         # Construct the output JSON pattern
         output_json="\"$converted_file_path\":\"$timestamp\""
@@ -137,4 +137,4 @@ hashtable_to_json() {
 
 # Save current state
 result_json=$(hashtable_to_json current_state)
-echo "$result_json" | jq -c . > "$state_file"
+echo "$result_json" | jq -c . >"$state_file"

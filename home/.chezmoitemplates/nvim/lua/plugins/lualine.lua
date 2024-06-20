@@ -37,7 +37,7 @@ return {
 	dependencies = { "nvim-tree/nvim-web-devicons" },
 	config = function()
 		local function show_codeium_status()
-			return "{…}" .. vim.fn["codeium#GetStatusString"]()
+			return "{…} " .. vim.fn["codeium#GetStatusString"]()
 		end
 
 		require("lualine").setup({
