@@ -1,6 +1,6 @@
 # Nushell Environment Config File
 #
-# version = "0.93.0"
+# version = "0.94.2"
 
 def create_left_prompt [] {
     let dir = match (do --ignore-shell-errors { $env.PWD | path relative-to $nu.home-path }) {
@@ -96,9 +96,29 @@ $env.NU_PLUGIN_DIRS = [
 # path add ($env.HOME | path join ".local" "bin")
 # $env.PATH = ($env.PATH | uniq)
 
-
 # To load from a custom file you can use:
 # source ($nu.default-config-dir | path join 'custom.nu')
+
+let os_family = ($nu.os-info | get family)
+use std "path add"
+match $os_family {
+    "unix" => {
+        # NOTE: use '/home/linuxbrew/.linuxbrew/bin/brew shellenv' cmd to log brew env setup
+        $env.HOMEBREW_PREFIX = "/home/linuxbrew/.linuxbrew"
+        $env.HOMEBREW_CELLAR = "/home/linuxbrew/.linuxbrew/Cellar"
+        $env.HOMEBREW_REPOSITORY = "/home/linuxbrew/.linuxbrew/Homebrew"
+
+        $env.HOMEBREW_FORCE_BREWED_CURL = 1
+
+        path add /home/linuxbrew/.linuxbrew/bin
+        path add /home/linuxbrew/.linuxbrew/sbin
+
+        # $env.MANPATH = ($env.MANPATH | split row (char esep) | append '/home/linuxbrew/.linuxbrew/share/man')
+        # $env.INFOPATH = ($env.INFOPATH | split row (char esep) | append '/home/linuxbrew/.linuxbrew/share/info')
+        #
+    },
+    _ => {}
+}
 
 zoxide init nushell | save -f ~/.zoxide.nu
 
