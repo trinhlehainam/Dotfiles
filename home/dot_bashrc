@@ -73,8 +73,8 @@ esac
 
 # enable color support of ls and also add handy aliases
 if [ -x /usr/bin/dircolors ]; then
-	test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
-	alias ls='ls --color=auto'
+	# test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
+	# alias ls='ls --color=auto'
 	#alias dir='dir --color=auto'
 	#alias vdir='vdir --color=auto'
 
@@ -86,10 +86,12 @@ fi
 # colored GCC warnings and errors
 #export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
 
-# some more ls aliases
-alias ll='ls -alF'
-alias la='ls -A'
-alias l='ls -CF'
+# Use eza to list files
+alias ls='eza'
+alias ll='eza -alF'
+alias la='eza -aF'
+alias l='eza -F'
+alias lt='eza -alF --tree --level=2 --git'
 
 # Add an "alert" alias for long running commands.  Use like so:
 #   sleep 10; alert
@@ -115,6 +117,8 @@ if ! shopt -oq posix; then
 	fi
 fi
 
+export EDITOR=nvim
+
 # Ctrl-l clears the screen in vi mode
 # https://unix.stackexchange.com/a/104101
 set -o vi
@@ -123,6 +127,9 @@ bind -m vi-insert 'Control-l: clear-screen'
 
 eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 export HOMEBREW_FORCE_BREWED_CURL=1
+
+# Set up fzf key bindings and fuzzy completion
+eval "$(fzf --bash)"
 
 eval "$(starship init bash)"
 eval "$(zoxide init bash)"
@@ -140,3 +147,5 @@ if type brew &>/dev/null; then
 		done
 	fi
 fi
+
+source ~/bash-wakatime/bash-wakatime.sh
