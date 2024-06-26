@@ -6,11 +6,13 @@ M.treesitter.filetypes = { "bash" }
 M.formatterconfig.servers = { "shfmt" }
 M.formatterconfig.formatters_by_ft = {
 	bash = { "shfmt" },
+	sh = { "shfmt" },
 }
 
-M.linterconfig.servers = { "shellharden" }
+M.linterconfig.servers = { "shellcheck" }
 M.linterconfig.linters_by_ft = {
-	bash = { "shellharden" },
+	bash = { "shellcheck" },
+	sh = { "shellcheck" },
 }
 
 M.lspconfig.server = "bashls"

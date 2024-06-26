@@ -18,4 +18,5 @@ Documents/WindowsPowerShell
 .config/yazi
 .zshrc
 .bashrc
+.bash_aliases
 {{ end }}

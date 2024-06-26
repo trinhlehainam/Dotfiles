@@ -16,10 +16,12 @@ M.formatterconfig.servers = { "blade-formatter", "php-cs-fixer" }
 M.formatterconfig.formatters_by_ft = {
 	blade = { "blade-formatter" },
 	-- php = { "php-cs-fixer" },
+	-- php = { "easy-coding-standard" },
 }
 
-M.linterconfig.servers = { "easy-coding-standard" }
+M.linterconfig.servers = { "phpcs" }
 M.linterconfig.linters_by_ft = {
+	-- php = { "phpcs" },
 	-- php = { "easy-coding-standard" },
 }
 
