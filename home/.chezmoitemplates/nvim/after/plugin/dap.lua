@@ -23,7 +23,7 @@ local daptypes = {}
 
 for language, settings in pairs(language_settings) do
   local daptype = settings.dapconfig.type
-  if daptype == nil or daptype == "" then
+  if type(daptype) ~= "string" or daptype == "" then
     goto continue
   end
   table.insert(daptypes, daptype)

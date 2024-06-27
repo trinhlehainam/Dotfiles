@@ -123,15 +123,16 @@ mason_lspconfig.setup {
 local lspconfig = require('lspconfig')
 mason_lspconfig.setup_handlers {
   function(server_name)
-    --- @type boolean
-    local use_masonlsp_setup = vim.tbl_get(setup_handlers, server_name, 'use_masonlsp_setup')
-    if use_masonlsp_setup ~= nil and type(use_masonlsp_setup) == "boolean" and not use_masonlsp_setup then
+    if vim.tbl_get(setup_handlers, server_name) == nil then
+      return
+    end
+    local use_masonlsp_setup = setup_handlers[server_name].use_masonlsp_setup
+    if not use_masonlsp_setup then
       return
     end
 
-    --- @type custom.LspConfig.Setup | nil
-    local setup = vim.tbl_get(setup_handlers, server_name, 'setup')
-    if setup ~= nil and type(setup) == "function" then
+    local setup = setup_handlers[server_name].setup
+    if type(setup) == "function" then
       setup(capabilities, on_attach)
     else
       lspconfig[server_name].setup {
@@ -144,7 +145,7 @@ mason_lspconfig.setup_handlers {
 }
 
 for _, settings in pairs(language_settings) do
-  if settings.after_masonlsp_setup ~= nil and type(settings.after_masonlsp_setup) == "function" then
+  if type(settings.after_masonlsp_setup) == "function" then
     settings.after_masonlsp_setup()
   end
 end

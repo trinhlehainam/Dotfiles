@@ -12,9 +12,14 @@ if not hastreesitter then
 end
 
 local ensure_installed = {
+	-- #region Required
+	-- A list of parser names, or "all" (the five listed parsers should always be installed)
 	"c",
-	"cpp",
-	"c_sharp",
+	"lua",
+	"vim",
+	"vimdoc",
+	"query",
+	-- #endregion Required
 	"dockerfile",
 	"sql",
 }
