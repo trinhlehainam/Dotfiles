@@ -74,7 +74,7 @@ function Remove-Template {
     if (Test-Path $target_file) {
         $destination_file = $template_file.Substring("nvim".Length + 1) 
         $destination_file = "$nvim_config_dir\$destination_file"
-        chezmoi destroy -v $destination_file
+        chezmoi destroy --force $destination_file
     }
 }
 

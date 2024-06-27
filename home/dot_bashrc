@@ -124,6 +124,9 @@ export EDITOR=nvim
 set -o vi
 bind -m vi-command 'Control-l: clear-screen'
 bind -m vi-insert 'Control-l: clear-screen'
+bind -m vi-insert '"jk": vi-movement-mode'
+bind -m vi-command '"gl": end-of-line'
+bind -m vi-command '"gh": beginning-of-line'
 
 eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 export HOMEBREW_FORCE_BREWED_CURL=1

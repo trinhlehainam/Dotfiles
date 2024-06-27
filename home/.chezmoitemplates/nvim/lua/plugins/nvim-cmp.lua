@@ -56,7 +56,6 @@ return { -- Autocompletion
 				completion = cmp.config.window.bordered(),
 				documentation = cmp.config.window.bordered(),
 			},
-			-- completion = { completeopt = "menu,menuone,noinsert" },
 			mapping = cmp.mapping.preset.insert({
 				["<C-b>"] = cmp.mapping.scroll_docs(-4),
 				["<C-f>"] = cmp.mapping.scroll_docs(4),
@@ -111,7 +110,7 @@ return { -- Autocompletion
 				{ name = "buffer" },
 				{ name = "path" },
 			}, {
-				{ name = "crate" },
+				{ name = "crates" },
 			}),
 			formatting = {
 				format = lspkind.cmp_format({
