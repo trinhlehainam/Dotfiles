@@ -27,10 +27,10 @@ return { -- Highlight, edit, and navigate code
 		local noice_parsers = { "vim", "regex", "lua", "bash", "markdown", "markdown_inline" }
 		ensure_installed = vim.list_extend(ensure_installed, noice_parsers)
 
-		local language_settings = require("configs.lsp").language_settings
+		local treesitters = require("configs.lsp").treesitters
 
-		for _, settings in pairs(language_settings) do
-			local filetypes = settings.treesitter.filetypes
+		for _, config in pairs(treesitters) do
+			local filetypes = config.filetypes
 			if filetypes ~= nil and vim.islist(filetypes) then
 				vim.list_extend(ensure_installed, filetypes)
 			end

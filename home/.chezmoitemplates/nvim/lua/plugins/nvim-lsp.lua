@@ -82,7 +82,7 @@ return {
 			},
 		}
 
-		local language_settings = require('configs.lsp').language_settings
+		local lspconfigs = require('configs.lsp').lspconfigs
 
 		local on_attach = require('utils.lsp').on_attach
 
@@ -99,15 +99,15 @@ return {
 			}
 		end
 
-		for _, settings in pairs(language_settings) do
-			local server_name = settings.lspconfig.server
+		for _, lspconfig in pairs(lspconfigs) do
+			local server_name = lspconfig.server
 			if server_name == nil or server_name == "" then
 				goto continue
 			end
-			servers[server_name] = settings.lspconfig.settings
+			servers[server_name] = lspconfig.settings
 
-			local setup = settings.lspconfig.setup
-			local use_masonlsp_setup = settings.lspconfig.use_masonlsp_setup
+			local setup = lspconfig.setup
+			local use_masonlsp_setup = lspconfig.use_masonlsp_setup
 			setup_handlers[server_name] = {
 				use_masonlsp_setup = use_masonlsp_setup,
 				setup = setup

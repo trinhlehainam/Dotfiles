@@ -9,22 +9,22 @@ return { -- Linter
 		local mason_utils = require("utils.mason")
 		local lint = require("lint")
 
-		local language_settings = require("configs.lsp").language_settings
+		local linters = require("configs.lsp").linters
 
 		--- @type string[]
 		local ensure_installed_linters = {}
 
-		for _, settings in pairs(language_settings) do
-			if vim.islist(settings.linterconfig.servers) then
-				vim.list_extend(ensure_installed_linters, settings.linterconfig.servers)
+		for _, linter in pairs(linters) do
+			if vim.islist(linter.servers) then
+				vim.list_extend(ensure_installed_linters, linter.servers)
 			end
 		end
 
 		local linters_by_ft = {}
 
-		for _, settings in pairs(language_settings) do
-			if type(settings.linterconfig.linters_by_ft) == "table" then
-				linters_by_ft = vim.tbl_extend("keep", linters_by_ft, settings.linterconfig.linters_by_ft)
+		for _, linter in pairs(linters) do
+			if type(linter.linters_by_ft) == "table" then
+				linters_by_ft = vim.tbl_extend("keep", linters_by_ft, linter.linters_by_ft)
 			end
 		end
 

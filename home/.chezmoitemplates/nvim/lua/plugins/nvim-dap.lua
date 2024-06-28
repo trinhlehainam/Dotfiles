@@ -65,20 +65,19 @@ return {
 		vim.fn.sign_define('DapLogPoint', { text = '', texthl = 'DapLogPoint', linehl = 'DapLogPoint', numhl = 'DapLogPoint' })
 		vim.fn.sign_define('DapStopped', { text = '', texthl = 'DapStopped', linehl = 'DapStopped', numhl = 'DapStopped' })
 
-		local dap = require('dap')
-		local language_settings = require('configs.lsp').language_settings
+		local dapconfigs = require('configs.lsp').dapconfigs
 
 		--- @type string[]
 		local daptypes = {}
 
-		for language, settings in pairs(language_settings) do
-			local daptype = settings.dapconfig.type
+		for language, dapconfig in pairs(dapconfigs) do
+			local daptype = dapconfig.type
 			if type(daptype) ~= "string" or daptype == "" then
 				goto continue
 			end
 			table.insert(daptypes, daptype)
 
-			local configs = settings.dapconfig.configs
+			local configs = dapconfig.configs
 			if configs == nil then
 				goto continue
 			end

@@ -16,20 +16,20 @@ return { -- Formatter
 		local mason_utils = require("utils.mason")
 		local conform = require("conform")
 
-		local language_settings = require("configs.lsp").language_settings
+		local formatters = require("configs.lsp").formatters
 		local ensure_installed_formatters = { "stylua" }
 
-		for _, settings in pairs(language_settings) do
-			if vim.islist(settings.formatterconfig.servers) then
-				vim.list_extend(ensure_installed_formatters, settings.formatterconfig.servers)
+		for _, formatter in pairs(formatters) do
+			if vim.islist(formatter.servers) then
+				vim.list_extend(ensure_installed_formatters, formatter.servers)
 			end
 		end
 
 		local formatters_by_ft = { lua = { "stylua" } }
 
-		for _, settings in pairs(language_settings) do
-			if type(settings.formatterconfig.formatters_by_ft) == "table" then
-				formatters_by_ft = vim.tbl_extend("keep", formatters_by_ft, settings.formatterconfig.formatters_by_ft)
+		for _, formatter in pairs(formatters) do
+			if type(formatter.formatters_by_ft) == "table" then
+				formatters_by_ft = vim.tbl_extend("keep", formatters_by_ft, formatter.formatters_by_ft)
 			end
 		end
 
