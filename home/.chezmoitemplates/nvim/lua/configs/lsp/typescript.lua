@@ -29,7 +29,7 @@ M.linterconfig.linters_by_ft = {
 
 ---@param capabilities lsp.ClientCapabilities
 ---@param on_attach fun(client: lsp.Client, bufnr: integer)
-local function setup(capabilities, on_attach)
+local function vtsls_setup(capabilities, on_attach)
 	local log = require("utils.log")
 
 	local hasmason, registry = pcall(require, "mason-registry")
@@ -103,6 +103,6 @@ local function setup(capabilities, on_attach)
 end
 
 M.lspconfig.server = "vtsls"
-M.lspconfig.setup = setup
+M.lspconfig.setup = vtsls_setup
 
 return M

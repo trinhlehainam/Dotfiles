@@ -63,7 +63,7 @@ local function dap_adapter_agrs(codelldb_pkg_path)
 	end
 end
 
-local function rustaceanvim_config()
+local function rustaceanvim_setup()
 	local log = require("utils.log")
 	local hasrustaceanvim, _ = pcall(require, "rustaceanvim")
 
@@ -147,5 +147,5 @@ local function rustaceanvim_config()
 	})
 end
 
-M.after_masonlsp_setup = rustaceanvim_config
+M.after_masonlsp_setup = rustaceanvim_setup
 return M
