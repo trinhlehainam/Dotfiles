@@ -1,4 +1,4 @@
--- Ref: https://github.com/WhoIsSethDaniel/mason-tool-installer.nvim/issues/39
+-- INFO: https://github.com/WhoIsSethDaniel/mason-tool-installer.nvim/issues/39
 
 local M = {
 	install = nil,
