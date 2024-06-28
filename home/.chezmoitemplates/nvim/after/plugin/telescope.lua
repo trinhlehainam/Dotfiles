@@ -69,6 +69,7 @@ vim.keymap.set("n", "<leader>ff", function()
 		},
 	})
 end, { desc = "[F]ind [F]iles" })
+
 vim.keymap.set("n", "<leader>fk", builtin.keymaps, { desc = "[F]ind [K]eymaps" })
 vim.keymap.set("n", "<leader>fh", builtin.help_tags, { desc = "[F]ind [H]elp" })
 vim.keymap.set("n", "<leader>fw", builtin.grep_string, { desc = "[F]ind current [W]ord" })

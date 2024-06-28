@@ -3,10 +3,8 @@ local M = LanguageSetting:new()
 
 -- NOTE: https://github.com/nushell/nu_scripts
 
--- TODO: need to fix treesitter reinstall at startup
--- M.treesitter.filetypes = { "nu" }
+M.treesitter.filetypes = { "nu" }
 
-M.lspconfig.server = ""
 M.lspconfig.use_masonlsp_setup = false
 
 M.after_masonlsp_setup = function()

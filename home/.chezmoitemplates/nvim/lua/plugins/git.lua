@@ -7,6 +7,45 @@ return {
 
 			"nvim-telescope/telescope.nvim", -- optional
 		},
+		config = function()
+			local neogit = require("neogit")
+			neogit.setup({
+				mappings = {
+					-- Setting any of these to `false` will disable the mapping.
+					popup = {},
+					status = {},
+				},
+			})
+
+			local diffview = require("diffview")
+			diffview.setup()
+
+			vim.keymap.set("n", "<leader>gs", neogit.open, { desc = "[S]how [G]it", silent = true, noremap = true })
+			vim.keymap.set(
+				"n",
+				"<leader>gc",
+				":Neogit commit<CR>",
+				{ desc = "[G]it [C]ommit", silent = true, noremap = true }
+			)
+			vim.keymap.set(
+				"n",
+				"<leader>gp",
+				":Neogit pull<CR>",
+				{ desc = "[G]it [P]ull", silent = true, noremap = true }
+			)
+			vim.keymap.set(
+				"n",
+				"<leader>gP",
+				":Neogit push<CR>",
+				{ desc = "[G]it [P]ush", silent = true, noremap = true }
+			)
+			vim.keymap.set(
+				"n",
+				"<leader>gb",
+				":Telescope git_branches<CR>",
+				{ desc = "[G]it [B]ranches", silent = true, noremap = true }
+			)
+		end,
 	},
 	-- 'tpope/vim-rhubarb',
 	{
@@ -31,5 +70,8 @@ return {
 			"nvim-telescope/telescope.nvim",
 			"nvim-tree/nvim-web-devicons",
 		},
+		config = function()
+			require("octo").setup()
+		end,
 	},
 }
