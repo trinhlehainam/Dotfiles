@@ -21,5 +21,8 @@ return {
 				},
 			}),
 		})
+
+		local chezmoi_ext = require("telescope").load_extension("chezmoi")
+		vim.keymap.set("n", "<leader>cz", chezmoi_ext.find_files, { desc = "[C]hezmoi Find Files" })
 	end,
 }
