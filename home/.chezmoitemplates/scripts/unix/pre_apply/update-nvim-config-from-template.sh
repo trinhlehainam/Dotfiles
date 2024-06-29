@@ -10,7 +10,7 @@
 #   - chezmoi: Template processor
 REQUIRED_TOOLS=("find" "read" "stat" "dirname" "sed" "jq" "chezmoi")
 for tool in "${REQUIRED_TOOLS[@]}"; do
-	if ! type "$tool" &>/dev/null; then
+	if ! command -v "$tool" &>/dev/null; then
 		echo "Error: $tool is not installed."
 		exit 1
 	fi
@@ -111,7 +111,7 @@ for file in "${!previous_state[@]}"; do
 done
 
 hashtable_to_json() {
-	local -n hashtable=$1
+	local -n hashtable="$1"
 	local json="{"
 
 	for key in "${!hashtable[@]}"; do

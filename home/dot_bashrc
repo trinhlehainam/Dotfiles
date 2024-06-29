@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # ~/.bashrc: executed by bash(1) for non-login shells.
 # see /usr/share/doc/bash/examples/startup-files (in the package bash-doc)
 # for examples
@@ -86,25 +88,9 @@ fi
 # colored GCC warnings and errors
 #export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
 
-# Use eza to list files
-alias ls='eza'
-alias ll='eza -alF'
-alias la='eza -aF'
-alias l='eza -F'
-alias lt='eza -alF --tree --level=2 --git'
-
 # Add an "alert" alias for long running commands.  Use like so:
 #   sleep 10; alert
 alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
-
-# Alias definitions.
-# You may want to put all your additions into a separate file like
-# ~/.bash_aliases, instead of adding them here directly.
-# See /usr/share/doc/bash-doc/examples in the bash-doc package.
-
-if [ -f ~/.bash_aliases ]; then
-	. ~/.bash_aliases
-fi
 
 # enable programmable completion features (you don't need to enable
 # this, if it's already enabled in /etc/bash.bashrc and /etc/profile
@@ -128,16 +114,22 @@ bind -m vi-insert '"jk": vi-movement-mode'
 bind -m vi-command '"gl": end-of-line'
 bind -m vi-command '"gh": beginning-of-line'
 
+# #region Homebrew
 eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 export HOMEBREW_FORCE_BREWED_CURL=1
 
-# Set up fzf key bindings and fuzzy completion
-eval "$(fzf --bash)"
+# NOTE: Some aliases depends on commands installed by Homebrew
+# So need to set up Homebrew environment first
+#
+# Alias definitions.
+# You may want to put all your additions into a separate file like
+# ~/.bash_aliases, instead of adding them here directly.
+# See /usr/share/doc/bash-doc/examples in the bash-doc package.
+if [ -f "$HOME"/.bash_aliases ]; then
+	. "$HOME"/.bash_aliases
+fi
 
-eval "$(starship init bash)"
-eval "$(zoxide init bash)"
-eval "$(atuin init bash)"
-
+# NOTE: Configure bash-completion before configuring another tools to avoid overwriting their completions
 # Homebrew Bash Shell completion
 # https://docs.brew.sh/Shell-Completion
 if type brew &>/dev/null; then
@@ -150,5 +142,15 @@ if type brew &>/dev/null; then
 		done
 	fi
 fi
+# #endregion Homebrew
 
-source ~/bash-wakatime/bash-wakatime.sh
+# #region Tools
+# Set up fzf key bindings and fuzzy completion
+eval "$(fzf --bash)"
+
+eval "$(starship init bash)"
+eval "$(zoxide init bash)"
+eval "$(thefuck --alias)"
+
+source "$HOME"/bash-wakatime/bash-wakatime.sh
+# #endregion Tools

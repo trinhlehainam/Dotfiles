@@ -1,1 +1,14 @@
-alias v='nvim'
+#!/bin/bash
+
+if command -v "nvim" &>/dev/null; then
+	alias v='nvim'
+fi
+
+# Use eza to list files
+if command -v "eza" &>/dev/null; then
+	alias ls='eza'
+	alias ll='eza -alF'
+	alias la='eza -aF'
+	alias l='eza -F'
+	alias lt='eza -alF --tree --level=2 --git'
+fi
