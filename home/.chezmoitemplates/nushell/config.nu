@@ -903,11 +903,6 @@ alias lt = eza -l -a --tree --level=2 --git
 source ~/.zoxide.nu
 use ~/.cache/starship/init.nu
 
-let os_family = ($nu.os-info | get family)
-match $os_family {
-    "unix" => {
-        # NOTE: atuin only support unix for now
-        source ~/.local/share/atuin/init.nu
-    },
-    _ => {}
+if ("~/.local/share/atuin/init.nu" | path exists) { 
+    source ~/.local/share/atuin/init.nu
 }
