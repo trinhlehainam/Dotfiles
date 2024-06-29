@@ -22,8 +22,50 @@ if (Test-Path($ChocolateyProfile))
 # Add ~/bin to user path
 $env:PATH += ";$env:USERPROFILE\bin"
 
-Set-Alias -Name v -Value nvim
-Set-Alias -Name ll -Value Get-ChildItem
-Set-Alias -Name pn -Value pnpm
+function Test-Command
+{
+  param (
+    [string]$Command
+  )
+    
+  $commandPath = (Get-Command $Command -ErrorAction SilentlyContinue).Path
+  return $null -ne $commandPath
+}
+
+Set-Alias which Get-Command
+if (Test-Command nvim)
+{
+  Set-Alias -Name v -Value nvim
+}
+
+if (Test-Command pnpm)
+{
+  Set-Alias -Name pn -Value pnpm
+}
+
+if (Test-Command eza)
+{
+  function Invoke-Eza-alF
+  {
+    eza -alF
+  }
+  function Invoke-Eza-aF
+  {
+    eza -aF
+  }
+  function Invoke-Eza-F
+  {
+    eza -F
+  }
+  function Invoke-Eza-tree
+  {
+    eza -alF --tree --level=2 --git
+  }
+  Set-Alias ls eza
+  Set-Alias ll Invoke-Eza-alF
+  Set-Alias la Invoke-Eza-aF
+  Set-Alias l Invoke-Eza-F
+  Set-Alias lt Invoke-Eza-tree
+}
 
 Invoke-Expression (& { (zoxide init powershell | Out-String) })
