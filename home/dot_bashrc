@@ -103,8 +103,7 @@ if ! shopt -oq posix; then
 	fi
 fi
 
-export EDITOR=nvim
-
+# #region Keybindings
 # Ctrl-l clears the screen in vi mode
 # https://unix.stackexchange.com/a/104101
 set -o vi
@@ -113,13 +112,13 @@ bind -m vi-insert 'Control-l: clear-screen'
 bind -m vi-insert '"jk": vi-movement-mode'
 bind -m vi-command '"gl": end-of-line'
 bind -m vi-command '"gh": beginning-of-line'
+# #endregion Keybindings
 
 # #region Homebrew
-eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 export HOMEBREW_FORCE_BREWED_CURL=1
+eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 
-# NOTE: Some aliases depends on commands installed by Homebrew
-# So need to set up Homebrew environment first
+# NOTE:Need to set up Homebrew environment first for commands installed by Homebrew added to $PATH
 #
 # Alias definitions.
 # You may want to put all your additions into a separate file like
@@ -127,6 +126,10 @@ export HOMEBREW_FORCE_BREWED_CURL=1
 # See /usr/share/doc/bash-doc/examples in the bash-doc package.
 if [ -f "$HOME"/.bash_aliases ]; then
 	. "$HOME"/.bash_aliases
+fi
+
+if command -v nvim &>/dev/null; then
+	export EDITOR=nvim
 fi
 
 # NOTE: Configure bash-completion before configuring another tools to avoid overwriting their completions
@@ -145,12 +148,25 @@ fi
 # #endregion Homebrew
 
 # #region Tools
+
+# #region FZF
+# NOTE: customize fzf layout
+# INFO: https://vitormv.github.io/fzf-themes/
+
+# INFO: https://github.com/junegunn/fzf?tab=readme-ov-file#tips
+if command -v fzf &>/dev/null && command -v fd &>/dev/null; then
+	# Use the CLI fd to respect ignore files (like '.gitignore'),
+	# display hidden files, and exclude the '.git' directory.
+	export FZF_DEFAULT_COMMAND="fd . --hidden --exclude .git"
+	export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+fi
+# INFO: https://github.com/junegunn/fzf?tab=readme-ov-file#setting-up-shell-integration
 # Set up fzf key bindings and fuzzy completion
 eval "$(fzf --bash)"
+# #endregion FZF
 
 eval "$(starship init bash)"
 eval "$(zoxide init bash)"
-eval "$(thefuck --alias)"
 
 source "$HOME"/bash-wakatime/bash-wakatime.sh
 # #endregion Tools
