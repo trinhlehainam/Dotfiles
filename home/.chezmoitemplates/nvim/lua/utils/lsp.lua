@@ -43,7 +43,6 @@ local function on_attach(_, bufnr)
 	if vim.version.range("<0.10.0"):has(vim.version()) then
 		nmap("K", vim.lsp.buf.hover, "Hover Documentation")
 	end
-	nmap("<C-k>", vim.lsp.buf.signature_help, "Signature Documentation")
 
 	-- Lesser used LSP functionality
 	nmap("gD", vim.lsp.buf.declaration, "[G]oto [D]eclaration")

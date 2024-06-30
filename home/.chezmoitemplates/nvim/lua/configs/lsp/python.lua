@@ -1,4 +1,5 @@
 local LanguageSetting = require("configs.lsp.base")
+local LspConfig = require("configs.lsp.lspconfig")
 local M = LanguageSetting:new()
 
 M.treesitter.filetypes = { "python" }
@@ -19,8 +20,9 @@ M.linterconfig.linters_by_ft = {
 }
 
 -- TODO: allow configure multiple lsp servers
-M.lspconfig.server = "pyright"
-M.lspconfig.use_masonlsp_setup = false
+local pyright = LspConfig:new("pyright")
+pyright.use_masonlsp_setup = false
+M.lspconfigs = { pyright }
 
 M.dapconfig.type = "python"
 
@@ -49,7 +51,7 @@ local function python_lsp_setup()
 	local lsp_utils = require("utils.lsp")
 	local capabilities = lsp_utils.capabilities
 	local on_attach = lsp_utils.on_attach
-	lspconfig[M.lspconfig.server].setup({
+	lspconfig[pyright.server].setup({
 		capabilities = capabilities,
 		on_attach = on_attach,
 	})

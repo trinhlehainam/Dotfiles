@@ -1,4 +1,5 @@
 local LanguageSetting = require("configs.lsp.base")
+local LspConfig = require("configs.lsp.lspconfig")
 local M = LanguageSetting:new()
 
 M.treesitter.filetypes = {
@@ -27,9 +28,8 @@ M.linterconfig.linters_by_ft = {
 	vue = { "eslint_d", "markuplint" },
 }
 
----@param capabilities lsp.ClientCapabilities
----@param on_attach fun(client: lsp.Client, bufnr: integer)
-local function vtsls_setup(capabilities, on_attach)
+local vtsls = LspConfig:new("vtsls")
+vtsls.setup = function(capabilities, on_attach)
 	local log = require("utils.log")
 
 	local hasmason, registry = pcall(require, "mason-registry")
@@ -101,8 +101,6 @@ local function vtsls_setup(capabilities, on_attach)
 		},
 	})
 end
-
-M.lspconfig.server = "vtsls"
-M.lspconfig.setup = vtsls_setup
+M.lspconfigs = { vtsls }
 
 return M

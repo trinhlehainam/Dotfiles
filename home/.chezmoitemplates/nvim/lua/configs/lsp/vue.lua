@@ -1,10 +1,12 @@
 local LanguageSetting = require("configs.lsp.base")
+local LspConfig = require("configs.lsp.lspconfig")
 local M = LanguageSetting:new()
 
 M.treesitter.filetypes = { "vue" }
 
--- NOTE: only use for install volar language server
-M.lspconfig.server = "volar"
-M.lspconfig.use_masonlsp_setup = false
+local volar = LspConfig:new("volar")
+volar.use_masonlsp_setup = false
+
+M.lspconfigs = { volar }
 
 return M

@@ -1,4 +1,5 @@
 local LanguageSetting = require("configs.lsp.base")
+local LspConfig = require("configs.lsp.lspconfig")
 local M = LanguageSetting:new()
 
 M.treesitter.filetypes = { "bash" }
@@ -15,6 +16,7 @@ M.linterconfig.linters_by_ft = {
 	sh = { "shellcheck" },
 }
 
-M.lspconfig.server = "bashls"
+local bashls = LspConfig:new("bashls")
+M.lspconfigs = { bashls }
 
 return M

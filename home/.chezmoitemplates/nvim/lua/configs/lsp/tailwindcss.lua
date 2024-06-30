@@ -1,13 +1,11 @@
 local LanguageSetting = require("configs.lsp.base")
+local LspConfig = require("configs.lsp.lspconfig")
 local M = LanguageSetting:new()
-
-M.lspconfig.server = "tailwindcss"
 
 M.formatterconfig.servers = { "rustywind" }
 
----@param capabilities lsp.ClientCapabilities
----@param _ fun(client: lsp.Client, bufnr: integer)
-local function setup(capabilities, _)
+local tailwindcss = LspConfig:new("tailwindcss")
+tailwindcss.setup = function(capabilities, _)
 	local log = require("utils.log")
 	local haslspconfig, lspconfig = pcall(require, "lspconfig")
 
@@ -16,12 +14,11 @@ local function setup(capabilities, _)
 		return
 	end
 
-	lspconfig[M.lspconfig.server].setup({
+	lspconfig[tailwindcss.server].setup({
 		capabilities = capabilities,
 	})
 end
-
-M.lspconfig.setup = setup
+M.lspconfigs = { tailwindcss }
 
 local function tailwindtools_config()
 	local log = require("utils.log")

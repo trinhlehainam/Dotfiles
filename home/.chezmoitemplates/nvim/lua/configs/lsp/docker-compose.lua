@@ -1,7 +1,9 @@
 local LanguageSetting = require("configs.lsp.base")
+local LspConfig = require("configs.lsp.lspconfig")
 local M = LanguageSetting:new()
 
-M.lspconfig.server = "docker_compose_language_service"
+local docker_compose_language_service = LspConfig:new("docker_compose_language_service")
+M.lspconfigs = { docker_compose_language_service }
 
 M.after_masonlsp_setup = function()
 	-- NOTE: need to set filetype for docker-compose can detect

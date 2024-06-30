@@ -1,4 +1,5 @@
 local LanguageSetting = require("configs.lsp.base")
+local LspConfig = require("configs.lsp.lspconfig")
 local M = LanguageSetting:new()
 
 M.treesitter.filetypes = { "rust", "toml" }
@@ -17,8 +18,9 @@ M.dapconfig.configs = {
 	},
 }
 
-M.lspconfig.server = "rust_analyzer"
-M.lspconfig.use_masonlsp_setup = false
+local rust_analyzer = LspConfig:new("rust_analyzer")
+rust_analyzer.use_masonlsp_setup = false
+M.lspconfigs = { rust_analyzer }
 
 local common = require("utils.common")
 

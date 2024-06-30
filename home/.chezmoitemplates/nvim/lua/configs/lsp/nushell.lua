@@ -5,8 +5,6 @@ local M = LanguageSetting:new()
 
 M.treesitter.filetypes = { "nu" }
 
-M.lspconfig.use_masonlsp_setup = false
-
 M.after_masonlsp_setup = function()
 	-- Check nu command is excutable
 	if vim.fn.executable("nu") == 0 then

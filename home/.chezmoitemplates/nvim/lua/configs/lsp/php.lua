@@ -1,4 +1,5 @@
 local LanguageSetting = require("configs.lsp.base")
+local LspConfig = require("configs.lsp.lspconfig")
 local M = LanguageSetting:new()
 
 local log = require("utils.log")
@@ -10,7 +11,6 @@ if common.IS_WINDOWS then
 end
 
 M.treesitter.filetypes = { "php" }
-M.lspconfig.use_masonlsp_setup = true
 
 M.formatterconfig.servers = { "blade-formatter", "php-cs-fixer" }
 M.formatterconfig.formatters_by_ft = {
@@ -25,14 +25,17 @@ M.linterconfig.linters_by_ft = {
 	-- php = { "easy-coding-standard" },
 }
 
-M.lspconfig.setup = function(capabilities, on_attach)
+local phpactor = LspConfig:new("phpactor")
+phpactor.use_masonlsp_setup = true
+phpactor.setup = function(capabilities, on_attach)
 	-- NOTE: laravel.nvim use lspconfig to detect installed servers
 	-- Need to set up lspconfig first
-	require("lspconfig")[M.lspconfig.server].setup({
+	require("lspconfig")[phpactor.server].setup({
 		capabilities = capabilities,
 		on_attach = on_attach,
 	})
 end
+M.lspconfigs = { phpactor }
 
 M.after_masonlsp_setup = function()
 	local haslaravel, laravel = pcall(require, "laravel")

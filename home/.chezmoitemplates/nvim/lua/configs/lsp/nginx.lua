@@ -4,8 +4,6 @@ local M = LanguageSetting:new()
 -- NOTE: mason-lspconfig hasn't supported for nginx-language-server yet
 -- https://github.com/williamboman/mason-lspconfig.nvim/issues/298
 
-M.lspconfig.use_masonlsp_setup = false
-
 local common = require("utils.common")
 
 ---@param nginx_lsp_pkg_path string

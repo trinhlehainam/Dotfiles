@@ -1,12 +1,12 @@
 local LanguageSetting = require("configs.lsp.base")
+local LspConfig = require("configs.lsp.lspconfig")
 local M = LanguageSetting:new()
 
 M.treesitter.filetypes = { "yaml" }
 
-M.lspconfig.server = "yamlls"
-
-M.lspconfig.setup = function(capabilities, on_attach)
-	require("lspconfig")[M.lspconfig.server].setup({
+local yamlls = LspConfig:new("yamlls")
+yamlls.setup = function(capabilities, on_attach)
+	require("lspconfig")[yamlls.server].setup({
 		-- NOTE: yaml.docker-compose has its own lsp config, not use yamlls
 		-- https://github.com/neovim/nvim-lspconfig/blob/master/doc/server_configurations.md#yamlls
 		filetypes = { "yaml", "yaml.gitlab" },
@@ -26,5 +26,6 @@ M.lspconfig.setup = function(capabilities, on_attach)
 		},
 	})
 end
+M.lspconfigs = { yamlls }
 
 return M

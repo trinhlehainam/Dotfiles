@@ -1,4 +1,5 @@
 local LanguageSetting = require("configs.lsp.base")
+local LspConfig = require("configs.lsp.lspconfig")
 local M = LanguageSetting:new()
 
 M.treesitter.filetypes = { "json" }
@@ -8,8 +9,9 @@ M.formatterconfig.formatters_by_ft = {
 	json = { "jq" },
 }
 
-M.lspconfig.server = "jsonls"
-M.lspconfig.settings = {
+local jsonls = LspConfig:new("jsonls")
+jsonls.server = "jsonls"
+jsonls.settings = {
 	json = {
 		schemas = require("schemastore").json.schemas({
 			extra = {
@@ -24,5 +26,7 @@ M.lspconfig.settings = {
 		validate = { enable = true },
 	},
 }
+
+M.lspconfigs = { jsonls }
 
 return M
