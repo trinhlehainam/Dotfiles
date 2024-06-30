@@ -1,11 +1,3 @@
---- @class custom.Lsp
---- @field treesitters custom.TreeSitter[]
---- @field lspconfigs custom.LspConfig[]
---- @field dapconfigs table<string, custom.DapConfig>
---- @field formatters custom.FormatterConfig[]
---- @field linters custom.LinterConfig[]
---- @field after_masonlsp_setups function[]
-
 --- @type custom.Lsp
 local M = {
 	treesitters = {},
