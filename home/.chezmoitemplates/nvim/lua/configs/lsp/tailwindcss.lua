@@ -20,7 +20,7 @@ tailwindcss.setup = function(capabilities, _)
 end
 M.lspconfigs = { tailwindcss }
 
-local function tailwindtools_config()
+M.after_masonlsp_setup = function()
 	local log = require("utils.log")
 	local hastailwindtools, tailwindtools = pcall(require, "tailwind-tools")
 
@@ -31,7 +31,5 @@ local function tailwindtools_config()
 
 	tailwindtools.setup({})
 end
-
-M.after_masonlsp_setup = tailwindtools_config
 
 return M

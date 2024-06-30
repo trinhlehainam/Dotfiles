@@ -19,14 +19,19 @@ M.linterconfig.linters_by_ft = {
 	python = { "ruff" },
 }
 
--- TODO: allow configure multiple lsp servers
+-- TODO: congifure for both pyright and ruff lsp work together
+
 local pyright = LspConfig:new("pyright")
 pyright.use_masonlsp_setup = false
-M.lspconfigs = { pyright }
+
+local ruff = LspConfig:new("ruff")
+ruff.use_masonlsp_setup = false
+
+M.lspconfigs = { pyright, ruff }
 
 M.dapconfig.type = "python"
 
-local function python_lsp_setup()
+M.after_masonlsp_setup = function()
 	local log = require("utils.log")
 
 	local hasmason, registry = pcall(require, "mason-registry")
@@ -51,10 +56,13 @@ local function python_lsp_setup()
 	local lsp_utils = require("utils.lsp")
 	local capabilities = lsp_utils.capabilities
 	local on_attach = lsp_utils.on_attach
+
 	lspconfig[pyright.server].setup({
 		capabilities = capabilities,
 		on_attach = on_attach,
 	})
+
+	lspconfig[ruff.server].setup({})
 
 	local has_dappython, dappython = pcall(require, "dap-python")
 	if not has_dappython then
@@ -65,7 +73,5 @@ local function python_lsp_setup()
 	local debugpy_path = debugpy_pkg:get_install_path() .. "/venv/bin/python"
 	dappython.setup(debugpy_path)
 end
-
-M.after_masonlsp_setup = python_lsp_setup
 
 return M
