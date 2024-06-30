@@ -4,7 +4,7 @@ local conform = require("conform")
 local formatters = require("configs.lsp").formatters
 local ensure_installed_formatters = { "stylua" }
 
-for _, formatter in pairs(formatters) do
+for _, formatter in ipairs(formatters) do
 	if vim.islist(formatter.servers) then
 		vim.list_extend(ensure_installed_formatters, formatter.servers)
 	end
@@ -12,7 +12,7 @@ end
 
 local formatters_by_ft = { lua = { "stylua" } }
 
-for _, formatter in pairs(formatters) do
+for _, formatter in ipairs(formatters) do
 	if type(formatter.formatters_by_ft) == "table" then
 		formatters_by_ft = vim.tbl_extend("keep", formatters_by_ft, formatter.formatters_by_ft)
 	end

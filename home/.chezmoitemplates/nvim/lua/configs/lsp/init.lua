@@ -1,10 +1,10 @@
 --- @class custom.Lsp
---- @field treesitters table<string, custom.TreeSitter>
---- @field lspconfigs table<string, custom.LspConfig>
+--- @field treesitters custom.TreeSitter[]
+--- @field lspconfigs custom.LspConfig[]
 --- @field dapconfigs table<string, custom.DapConfig>
---- @field formatters table<string, custom.FormatterConfig>
---- @field linters table<string, custom.LinterConfig>
---- @field after_masonlsp_setups table<string, fun()>
+--- @field formatters custom.FormatterConfig[]
+--- @field linters custom.LinterConfig[]
+--- @field after_masonlsp_setups function[]
 
 --- @type custom.Lsp
 local M = {
@@ -22,12 +22,12 @@ local ignore_mods = { "base", "init", "utils" }
 local language_settings = require("utils.common").load_mods("configs.lsp", ignore_mods)
 
 for lang, settings in pairs(language_settings) do
-	M.treesitters[lang] = settings.treesitter
-	M.lspconfigs[lang] = settings.lspconfig
+	table.insert(M.treesitters, settings.treesitter)
+	table.insert(M.lspconfigs, settings.lspconfig)
 	M.dapconfigs[lang] = settings.dapconfig
-	M.formatters[lang] = settings.formatterconfig
-	M.linters[lang] = settings.linterconfig
-	M.after_masonlsp_setups[lang] = settings.after_masonlsp_setup
+	table.insert(M.formatters, settings.formatterconfig)
+	table.insert(M.linters, settings.linterconfig)
+	table.insert(M.after_masonlsp_setups, settings.after_masonlsp_setup)
 end
 
 return M

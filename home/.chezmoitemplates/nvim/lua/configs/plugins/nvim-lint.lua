@@ -6,7 +6,7 @@ local linters = require("configs.lsp").linters
 --- @type string[]
 local ensure_installed_linters = {}
 
-for _, linter in pairs(linters) do
+for _, linter in ipairs(linters) do
 	if vim.islist(linter.servers) then
 		vim.list_extend(ensure_installed_linters, linter.servers)
 	end
@@ -14,7 +14,7 @@ end
 
 local linters_by_ft = {}
 
-for _, linter in pairs(linters) do
+for _, linter in ipairs(linters) do
 	if type(linter.linters_by_ft) == "table" then
 		linters_by_ft = vim.tbl_extend("keep", linters_by_ft, linter.linters_by_ft)
 	end

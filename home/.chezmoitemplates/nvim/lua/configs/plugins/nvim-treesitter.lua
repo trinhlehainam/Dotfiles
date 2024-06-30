@@ -19,7 +19,7 @@ ensure_installed = vim.list_extend(ensure_installed, noice_parsers)
 
 local treesitters = require("configs.lsp").treesitters
 
-for _, config in pairs(treesitters) do
+for _, config in ipairs(treesitters) do
 	local filetypes = config.filetypes
 	if filetypes ~= nil and vim.islist(filetypes) then
 		vim.list_extend(ensure_installed, filetypes)

@@ -41,7 +41,7 @@
 ---@field dapconfig custom.DapConfig
 ---@field formatterconfig custom.FormatterConfig
 ---@field linterconfig custom.LinterConfig
----@field after_masonlsp_setup? fun()
+---@field after_masonlsp_setup? function
 local M = {}
 
 ---@return custom.LanguageSetting
