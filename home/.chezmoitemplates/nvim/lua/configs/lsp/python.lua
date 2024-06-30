@@ -19,8 +19,6 @@ M.linterconfig.linters_by_ft = {
 	python = { "ruff" },
 }
 
--- TODO: congifure for both pyright and ruff lsp work together
-
 local pyright = LspConfig:new("pyright")
 pyright.use_masonlsp_setup = false
 
@@ -55,14 +53,35 @@ M.after_masonlsp_setup = function()
 
 	local lsp_utils = require("utils.lsp")
 	local capabilities = lsp_utils.capabilities
-	local on_attach = lsp_utils.on_attach
+
+	-- Ruff configuration for Neovim
+	-- INFO: https://github.com/astral-sh/ruff/blob/main/crates/ruff_server/docs/setup/NEOVIM.md
+
+	lspconfig[ruff.server].setup({
+		on_attach = function(client, _)
+			if client.name == "ruff" then
+				-- Disable hover in favor of Pyright
+				client.server_capabilities.hoverProvider = false
+			end
+		end,
+	})
 
 	lspconfig[pyright.server].setup({
 		capabilities = capabilities,
-		on_attach = on_attach,
+		on_attach = lsp_utils.on_attach,
+		settings = {
+			pyright = {
+				-- Using Ruff's import organizer
+				disableOrganizeImports = true,
+			},
+			python = {
+				analysis = {
+					-- Ignore all files for analysis to exclusively use Ruff for linting
+					ignore = { "*" },
+				},
+			},
+		},
 	})
-
-	lspconfig[ruff.server].setup({})
 
 	local has_dappython, dappython = pcall(require, "dap-python")
 	if not has_dappython then
