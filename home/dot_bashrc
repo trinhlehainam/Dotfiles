@@ -167,6 +167,7 @@ eval "$(fzf --bash)"
 
 eval "$(starship init bash)"
 eval "$(zoxide init bash)"
+eval "$(fnm env)"
 
 source "$HOME"/bash-wakatime/bash-wakatime.sh
 # #endregion Tools

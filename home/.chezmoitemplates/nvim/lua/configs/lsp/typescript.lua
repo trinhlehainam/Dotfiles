@@ -12,21 +12,20 @@ M.treesitter.filetypes = {
 
 M.formatterconfig.servers = { "prettierd" }
 M.formatterconfig.formatters_by_ft = {
-	javascript = { "prettierd" },
-	typescript = { "prettierd" },
-	javascriptreact = { "rustywind", "prettierd" },
-	typescriptreact = { "rustywind", "prettierd" },
+	javascriptreact = { "rustywind" },
+	typescriptreact = { "rustywind" },
 	vue = { "rustywind", "prettierd" },
 }
 
 M.linterconfig.servers = { "eslint_d", "markuplint" }
 M.linterconfig.linters_by_ft = {
-	javascript = { "eslint_d" },
-	typescript = { "eslint_d" },
-	javascriptreact = { "eslint_d", "markuplint" },
-	typescriptreact = { "eslint_d", "markuplint" },
+	javascriptreact = { "markuplint" },
+	typescriptreact = { "markuplint" },
 	vue = { "eslint_d", "markuplint" },
 }
+
+local volar = LspConfig:new("volar")
+volar.use_masonlsp_setup = false
 
 local vtsls = LspConfig:new("vtsls")
 vtsls.setup = function(capabilities, on_attach)
@@ -51,12 +50,27 @@ vtsls.setup = function(capabilities, on_attach)
 		return
 	end
 
-	--Ref:
+	-- INFO:
 	--	- https://github.com/vuejs/language-tools?tab=readme-ov-file#community-integration
 	--	- https://vuejs.org/guide/typescript/overview.html#volar-takeover-mode
 	--	- https://github.com/mason-org/mason-registry/issues/5064
 	--	- https://stackoverflow.com/a/59788563
 	local vue_language_server_path = volar_pkg:get_install_path() .. "/node_modules/@vue/language-server"
+
+	-- vtsls configuration scheme
+	-- INFO: https://github.com/yioneko/vtsls/blob/main/packages/service/configuration.schema.json
+	local configuration = {
+		inlayHints = {
+			parameterNames = { enabled = "literals" },
+			parameterTypes = { enabled = true },
+			variableTypes = { enabled = true },
+			propertyDeclarationTypes = { enabled = true },
+			functionLikeReturnTypes = { enabled = true },
+			enumMemberValues = { enabled = true },
+		},
+		-- NOTE: use Biome for formatting
+		format = { enable = false },
+	}
 
 	lspconfig.vtsls.setup({
 		filetypes = { "typescript", "javascript", "javascriptreact", "typescriptreact", "vue" },
@@ -64,27 +78,9 @@ vtsls.setup = function(capabilities, on_attach)
 		on_attach = on_attach,
 		settings = {
 			-- Inlay hints config
-			-- Ref: https://github.com/yioneko/nvim-vtsls?tab=readme-ov-file#other-useful-snippets
-			typescript = {
-				inlayHints = {
-					parameterNames = { enabled = "literals" },
-					parameterTypes = { enabled = true },
-					variableTypes = { enabled = true },
-					propertyDeclarationTypes = { enabled = true },
-					functionLikeReturnTypes = { enabled = true },
-					enumMemberValues = { enabled = true },
-				},
-			},
-			javascript = {
-				inlayHints = {
-					parameterNames = { enabled = "literals" },
-					parameterTypes = { enabled = true },
-					variableTypes = { enabled = true },
-					propertyDeclarationTypes = { enabled = true },
-					functionLikeReturnTypes = { enabled = true },
-					enumMemberValues = { enabled = true },
-				},
-			},
+			-- INFO: https://github.com/yioneko/nvim-vtsls?tab=readme-ov-file#other-useful-snippets
+			typescript = configuration,
+			javascript = configuration,
 			vtsls = {
 				tsserver = {
 					globalPlugins = {
@@ -101,6 +97,31 @@ vtsls.setup = function(capabilities, on_attach)
 		},
 	})
 end
-M.lspconfigs = { vtsls }
+
+-- Formatter and Linter server
+local biome = LspConfig:new("biome")
+biome.setup = function(_, _)
+	-- TODO:
+	require("lspconfig").biome.setup({
+		filetypes = {
+			"javascript",
+			"javascriptreact",
+			-- NOTE: use jq for formatting
+			-- "json",
+			"jsonc",
+			"typescript",
+			"typescript.tsx",
+			"typescriptreact",
+			-- NOTE: Below languages are not completely supported
+			-- INFO: https://biomejs.dev/internals/language-support/
+			-- "astro",
+			-- "svelte",
+			-- "vue",
+			-- "css",
+		},
+	})
+end
+
+M.lspconfigs = { volar, vtsls, biome }
 
 return M
