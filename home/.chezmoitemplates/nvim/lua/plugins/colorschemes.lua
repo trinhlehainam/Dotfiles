@@ -3,6 +3,7 @@ return {
 	"folke/tokyonight.nvim",
 	"navarasu/onedark.nvim",
 	"ellisonleao/gruvbox.nvim",
+	"catppuccin/nvim",
 	{
 		"sainnhe/gruvbox-material",
 		config = function()
