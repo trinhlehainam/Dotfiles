@@ -62,15 +62,14 @@ cmp.setup({
 			end
 		end, { "i", "s" }),
 	}),
-	sources = cmp.config.sources({
+	sources = {
+		{ name = "git" },
 		{ name = "nvim_lsp" },
 		{ name = "luasnip" }, -- For luasnip users.
-	}, {
 		{ name = "buffer" },
 		{ name = "path" },
-	}, {
 		{ name = "crates" },
-	}),
+	},
 	formatting = {
 		format = lspkind.cmp_format({
 			before = function(entry, vim_item)
@@ -85,6 +84,9 @@ cmp.setup({
 		}),
 	},
 })
+
+require("cmp_git").setup()
+--
 
 -- Use buffer source for `/` and `?` (if you enabled `native_menu`, this won't work anymore).
 cmp.setup.cmdline({ "/", "?" }, {
