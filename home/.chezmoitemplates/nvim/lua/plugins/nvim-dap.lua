@@ -19,12 +19,8 @@ return {
 
 		"theHamsta/nvim-dap-virtual-text",
 		-- Installs the debug adapters for you
-		{
-			"jay-babu/mason-nvim-dap.nvim",
-			dependencies = {
-				"williamboman/mason.nvim",
-			},
-		},
+		"williamboman/mason.nvim",
+		"jay-babu/mason-nvim-dap.nvim",
 
 		-- Add your own debuggers here
 		"mfussenegger/nvim-dap-python",

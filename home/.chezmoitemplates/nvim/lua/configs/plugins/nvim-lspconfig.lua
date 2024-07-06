@@ -101,11 +101,6 @@ end
 
 local capabilities = require("utils.lsp").get_cmp_capabilities()
 
--- Setup mason so it can manage external tooling
-require('mason').setup({
-	inlay_hints = { enalbed = true },
-})
-
 -- Ensure the servers above are installed
 local mason_lspconfig = require('mason-lspconfig')
 mason_lspconfig.setup {
