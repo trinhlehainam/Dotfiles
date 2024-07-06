@@ -8,33 +8,33 @@ return {
 		event = "VeryLazy",
 		config = function()
 			if vim.fn.has("win32") == 1 then
-				if vim.fn.executable("nu") == 1 then
-					-- Ref: https://github.com/neovim/neovim/issues/19648#issuecomment-1212295560
-					local nushell_options = {
-						shell = "nu",
-						shellcmdflag = "-c",
-						shellquote = "",
-						shellxquote = "",
-					}
+				-- NOTE: because scoop doesn't update nushell frequently, use powershell instead
+				-- if vim.fn.executable("nu") == 1 then
+				-- 	-- Ref: https://github.com/neovim/neovim/issues/19648#issuecomment-1212295560
+				-- 	local nushell_options = {
+				-- 		shell = "nu",
+				-- 		shellcmdflag = "-c",
+				-- 		shellquote = "",
+				-- 		shellxquote = "",
+				-- 	}
+				--
+				-- 	for option, value in pairs(nushell_options) do
+				-- 		vim.opt[option] = value
+				-- 	end
+				-- else
+				-- Change default shell to powershell on Windows
+				-- Ref: https://github.com/akinsho/toggleterm.nvim/wiki/Tips-and-Tricks#using-toggleterm-with-powershell
+				local powershell_options = {
+					shell = vim.fn.executable("pwsh") == 1 and "pwsh" or "powershell",
+					shellcmdflag = "-NoLogo -NoProfile -ExecutionPolicy RemoteSigned -Command [Console]::InputEncoding=[Console]::OutputEncoding=[System.Text.Encoding]::UTF8;",
+					shellredir = "-RedirectStandardOutput %s -NoNewWindow -Wait",
+					shellpipe = "2>&1 | Out-File -Encoding UTF8 %s; exit $LastExitCode",
+					shellquote = "",
+					shellxquote = "",
+				}
 
-					for option, value in pairs(nushell_options) do
-						vim.opt[option] = value
-					end
-				else
-					-- Change default shell to powershell on Windows
-					-- Ref: https://github.com/akinsho/toggleterm.nvim/wiki/Tips-and-Tricks#using-toggleterm-with-powershell
-					local powershell_options = {
-						shell = vim.fn.executable("pwsh") == 1 and "pwsh" or "powershell",
-						shellcmdflag = "-NoLogo -NoProfile -ExecutionPolicy RemoteSigned -Command [Console]::InputEncoding=[Console]::OutputEncoding=[System.Text.Encoding]::UTF8;",
-						shellredir = "-RedirectStandardOutput %s -NoNewWindow -Wait",
-						shellpipe = "2>&1 | Out-File -Encoding UTF8 %s; exit $LastExitCode",
-						shellquote = "",
-						shellxquote = "",
-					}
-
-					for option, value in pairs(powershell_options) do
-						vim.opt[option] = value
-					end
+				for option, value in pairs(powershell_options) do
+					vim.opt[option] = value
 				end
 			end
 
