@@ -84,7 +84,7 @@ end
 
 for _, lspconfig in pairs(lspconfigs) do
 	local server_name = lspconfig.server
-	if server_name == nil or server_name == "" then
+	if type(server_name) ~= "string" or server_name == "" then
 		goto continue
 	end
 	servers[server_name] = lspconfig.settings

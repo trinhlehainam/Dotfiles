@@ -42,23 +42,55 @@ local dapconfigs = require('configs.lsp').dapconfigs
 --- @type string[]
 local daptypes = {}
 
-for language, dapconfig in pairs(dapconfigs) do
+--- @type table<function>
+local setup_handlers = {}
+
+for _, dapconfig in pairs(dapconfigs) do
 	local daptype = dapconfig.type
 	if type(daptype) ~= "string" or daptype == "" then
 		goto continue
 	end
 	table.insert(daptypes, daptype)
 
-	local configs = dapconfig.configs
-	if configs == nil then
-		goto continue
+	--- INFO: https://github.com/jay-babu/mason-nvim-dap.nvim?tab=readme-ov-file#handlers-usage-automatic-setup 
+	---@class custom.HandlerConfig
+	---@field name boolean -- adapter name
+	---
+	---	-- All the items below are looked up by the adapter name.
+	---@field adapters table -- https://github.com/jay-babu/mason-nvim-dap.nvim/blob/main/lua/mason-nvim-dap/mappings/adapters
+	---@field configurations table -- https://github.com/jay-babu/mason-nvim-dap.nvim/blob/main/lua/mason-nvim-dap/mappings/configurations.lua
+	---@field filetype string -- https://github.com/jay-babu/mason-nvim-dap.nvim/blob/main/lua/mason-nvim-dap/mappings/filetypes.lua
+
+	---@param config custom.HandlerConfig
+	setup_handlers[dapconfig.type] = function (config)
+		if type(dapconfig.setup) == "function" then
+			dapconfig.setup()
+		end
+
+		if dapconfig.use_masondap_default_setup then
+			require('mason-nvim-dap').default_setup(config)
+		end
 	end
-	dap.configurations[language] = configs
 
 	::continue::
 end
 
+
 require('mason-nvim-dap').setup {
-	automatic_installation = true,
+	-- A list of adapters to install if they're not already installed.
+	-- This setting has no relation with the `automatic_installation` setting.
 	ensure_installed = daptypes,
+
+	-- NOTE: this is left here for future porting in case needed
+	-- Whether adapters that are set up (via dap) should be automatically installed if they're not already installed.
+	-- This setting has no relation with the `ensure_installed` setting.
+	-- Can either be:
+	--   - false: Daps are not automatically installed.
+	--   - true: All adapters set up via dap are automatically installed.
+	--   - { exclude: string[] }: All adapters set up via mason-nvim-dap, except the ones provided in the list, are automatically installed.
+	--       Example: automatic_installation = { exclude = { "python", "delve" } }
+	automatic_installation = false,
+
+	-- INFO: https://github.com/jay-babu/mason-nvim-dap.nvim?tab=readme-ov-file#handlers-usage-automatic-setup
+	handlers = setup_handlers
 }

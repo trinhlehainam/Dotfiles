@@ -20,7 +20,10 @@
 -- Reference available DAP that can be installed by `mason-nvim-dap` here:
 -- https://github.com/jay-babu/mason-nvim-dap.nvim/blob/main/lua/mason-nvim-dap/mappings/source.lua
 ---@field type? string
----@field configs? Configuration[]
+--- Use `mason-nvim-dap` handlers to configure DAP
+--- https://github.com/jay-babu/mason-nvim-dap.nvim?tab=readme-ov-file#advanced-customization
+---@field setup? function
+---@field use_masondap_default_setup boolean
 
 -- Use `conform.nvim` to automatically configure Formatter commands
 -- Reference available Formatter that can be configured by `conform.nvim` here:

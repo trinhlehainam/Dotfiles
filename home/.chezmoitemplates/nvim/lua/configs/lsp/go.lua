@@ -32,19 +32,12 @@ M.lspconfigs = { gopls, golangci_lint_ls }
 
 M.dapconfig.type = "delve"
 
-M.after_masonlsp_setup = function()
+M.dapconfig.setup = function()
 	local log = require("utils.log")
 
-	local hasmason, registry = pcall(require, "mason-registry")
-
-	if not hasmason then
-		log.error("mason.nvim is not installed")
-		return
-	end
-
-	local delve_pkg = registry.get_package("delve")
-	if not delve_pkg:is_installed() then
-		log.error("delve is not installed")
+	local delve_path = require("utils.mason").get_mason_package_path(M.dapconfig.type)
+	if type(delve_path) ~= "string" or delve_path == "" then
+		log.error("nvim-dap-python is not installed")
 		return
 	end
 
@@ -56,9 +49,9 @@ M.after_masonlsp_setup = function()
 
 	local function get_executable_path()
 		if require("utils.common").IS_WINDOWS then
-			return delve_pkg:get_install_path() .. "/dlv.exe"
+			return delve_path .. "/dlv.exe"
 		end
-		return delve_pkg:get_install_path() .. "/dlv"
+		return delve_path .. "/dlv"
 	end
 	-- INFO: https://github.com/leoluz/nvim-dap-go?tab=readme-ov-file#configuring
 	dapgo.setup({

@@ -52,18 +52,12 @@ M.lspconfigs = { pyright, ruff }
 
 M.dapconfig.type = "python"
 
-M.after_masonlsp_setup = function()
+M.dapconfig.setup = function()
 	local log = require("utils.log")
 
-	local hasmason, registry = pcall(require, "mason-registry")
+	local debugpy_path = require("utils.mason").get_mason_package_path("debugpy")
 
-	if not hasmason then
-		log.error("mason.nvim is not installed")
-		return
-	end
-
-	local debugpy_pkg = registry.get_package("debugpy")
-	if not debugpy_pkg:is_installed() then
+	if type(debugpy_path) ~= "string" or debugpy_path == "" then
 		log.error("debugpy is not installed")
 		return
 	end
@@ -75,7 +69,6 @@ M.after_masonlsp_setup = function()
 	end
 
 	local function get_debugpy_path()
-		local debugpy_path = debugpy_pkg:get_install_path()
 		if vim.fn.has("win32") == 1 then
 			return debugpy_path .. "/venv/Scripts/python.exe"
 		else
