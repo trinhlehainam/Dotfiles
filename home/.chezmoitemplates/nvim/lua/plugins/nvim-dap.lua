@@ -24,6 +24,7 @@ return {
 
 		-- Add your own debuggers here
 		"mfussenegger/nvim-dap-python",
+		"leoluz/nvim-dap-go",
 	},
 	config = function()
 		require("configs.plugins.nvim-dap")
