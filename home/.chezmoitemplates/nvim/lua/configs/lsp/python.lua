@@ -74,8 +74,15 @@ M.after_masonlsp_setup = function()
 		return
 	end
 
-	local debugpy_path = debugpy_pkg:get_install_path() .. "/venv/bin/python"
-	dappython.setup(debugpy_path)
+	local function get_debugpy_path()
+		local debugpy_path = debugpy_pkg:get_install_path()
+		if vim.fn.has("win32") == 1 then
+			return debugpy_path .. "/venv/Scripts/python.exe"
+		else
+			return debugpy_path .. "/venv/bin/python"
+		end
+	end
+	dappython.setup(get_debugpy_path())
 end
 
 return M

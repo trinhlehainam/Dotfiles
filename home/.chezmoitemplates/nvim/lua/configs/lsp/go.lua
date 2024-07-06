@@ -54,11 +54,16 @@ M.after_masonlsp_setup = function()
 		return
 	end
 
-	local delve_path = delve_pkg:get_install_path() .. "/dlv"
+	local function get_executable_path()
+		if require("utils.common").IS_WINDOWS then
+			return delve_pkg:get_install_path() .. "/dlv.exe"
+		end
+		return delve_pkg:get_install_path() .. "/dlv"
+	end
 	-- INFO: https://github.com/leoluz/nvim-dap-go?tab=readme-ov-file#configuring
 	dapgo.setup({
 		delve = {
-			path = delve_path,
+			path = get_executable_path(),
 		},
 	})
 end
