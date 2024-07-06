@@ -1,3 +1,9 @@
+-- NOTE: Tutorial:
+-- https://www.youtube.com/watch?v=ALGBuFLzDSA
+
+-- NOTE: Connection over ssh:
+-- https://github.com/tpope/vim-dadbod/issues/9
+
 return {
 	"kristijanhusak/vim-dadbod-ui",
 	dependencies = {

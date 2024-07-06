@@ -14,8 +14,10 @@ local ensure_installed = {
 	"sql",
 }
 
-local noice_parsers = { "vim", "regex", "lua", "bash", "markdown", "markdown_inline" }
-ensure_installed = vim.list_extend(ensure_installed, noice_parsers)
+local has_noiceconfig, noiceconfig = pcall(require, "configs.plugins.noice")
+if has_noiceconfig and vim.islist(noiceconfig.parsers) then
+	ensure_installed = vim.list_extend(ensure_installed, require("configs.plugins.noice").parsers)
+end
 
 local treesitters = require("configs.lsp").treesitters
 
