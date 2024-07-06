@@ -18,9 +18,9 @@ local function get_cmp_capabilities()
 end
 
 ---This function gets run when an LSP connects to a particular buffer.
----@param _ lsp.Client
+---@param client lsp.Client
 ---@param bufnr number
-local function on_attach(_, bufnr)
+local function on_attach(client, bufnr)
 	-- NOTE: Remember that lua is a real programming language, and as such it is possible
 	-- to define small helper and utility functions so you don't have to repeat yourself
 	-- many times.
@@ -69,6 +69,16 @@ local function on_attach(_, bufnr)
 			lint.try_lint()
 		end
 	end, { desc = "Lint current buffer with LSP" })
+
+	local hasnavic, navic = pcall(require, "nvim-navic")
+	if not hasnavic then
+		return
+	end
+
+	-- INFO: https://github.com/SmiteshP/nvim-navic?tab=readme-ov-file#%EF%B8%8F-setup
+	if client.server_capabilities.documentSymbolProvider then
+		navic.attach(client, bufnr)
+	end
 end
 
 M.on_attach = on_attach

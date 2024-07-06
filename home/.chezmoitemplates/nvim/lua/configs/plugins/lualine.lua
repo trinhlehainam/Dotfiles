@@ -21,6 +21,23 @@ local function get_vim_visual_multi()
 		.. ratio
 end
 
+-- INFO: https://github.com/SmiteshP/nvim-navic?tab=readme-ov-file#lualine
+local function get_navic_status()
+	local hasnavic, navic = pcall(require, "nvim-navic")
+	if not hasnavic then
+		return ""
+	end
+	return navic.get_location()
+end
+
+local function is_navic_available()
+	local hasnavic, navic = pcall(require, "nvim-navic")
+	if not hasnavic then
+		return false
+	end
+	return navic.is_available()
+end
+
 require("lualine").setup({
 	options = {
 		icons_enabled = true,
@@ -50,6 +67,19 @@ require("lualine").setup({
 			"filetype",
 			-- https://github.com/Exafunction/codeium.vim/issues/100
 			{ get_codeium_status },
+		},
+	},
+	-- OR in winbar
+	winbar = {
+		lualine_c = {
+			{
+				function()
+					return get_navic_status()
+				end,
+				cond = function()
+					return is_navic_available()
+				end,
+			},
 		},
 	},
 })
