@@ -33,6 +33,7 @@ vim.keymap.set("n", "<C-l>", "<C-w>l", opts.nore)
 vim.keymap.set("n", "<C-k>", "<C-w>k", opts.nore)
 vim.keymap.set("n", "<C-j>", "<C-w>j", opts.nore)
 vim.keymap.set("n", "<C-h>", "<C-w>h", opts.nore)
+vim.keymap.set("n", "<C-x>", "<C-w>c", opts.nore)
 
 -- These mappings control the size of splits (height/width)
 vim.keymap.set("n", "<A-,>", "<c-w>5<", opts.nore)
@@ -46,6 +47,14 @@ vim.keymap.set("n", "bl", ":blast<CR>", opts.nore)
 vim.keymap.set("n", "bj", ":bprevious<CR>", opts.nore)
 vim.keymap.set("n", "bk", ":bnext<CR>", opts.nore)
 vim.keymap.set("n", "bc", ":bd<CR>", opts.nore)
+
+--Tab Navigation
+vim.keymap.set("n", "tn", ":tabnew<CR>", opts.nore)
+vim.keymap.set("n", "tk", ":tabnext<CR>", opts.nore)
+vim.keymap.set("n", "tj", ":tabprevious<CR>", opts.nore)
+vim.keymap.set("n", "tc", ":tabclose<CR>", opts.nore)
+vim.keymap.set("n", "th", ":tabfirst<CR>", opts.nore)
+vim.keymap.set("n", "tl", ":tablast<CR>", opts.nore)
 
 --Move to begin/end word of line
 vim.keymap.set("", "gl", "g_", opts.nore)
