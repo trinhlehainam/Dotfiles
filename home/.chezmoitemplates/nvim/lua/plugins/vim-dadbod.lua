@@ -4,6 +4,14 @@
 -- NOTE: Connection over ssh:
 -- https://github.com/tpope/vim-dadbod/issues/9
 
+-- NOTE: Connection with URLS
+-- :help dabbod-url
+-- params use in url (username, password, etc): must be an URL escaped string
+
+-- NOTE: Genreate urlenconded string in shell
+-- https://stackoverflow.com/a/34407620
+-- use `printf %s "$string" | jq -sRr @uri` command to convert a normal string to URL escaped string
+
 return {
 	"kristijanhusak/vim-dadbod-ui",
 	dependencies = {
