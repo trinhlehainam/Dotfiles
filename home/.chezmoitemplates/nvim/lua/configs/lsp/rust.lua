@@ -8,6 +8,15 @@ local common = require("utils.common")
 local log = require("utils.log")
 local mason_utils = require("utils.mason")
 
+local function has_rustceanvim()
+	local hasrustaceanvim, _ = pcall(require, "rustaceanvim")
+	if not hasrustaceanvim then
+		log.error("rustaceanvim is not installed")
+		return false
+	end
+	return true
+end
+
 ---@param mason_path string
 ---@return string
 local function rust_analyzer_exec(mason_path)
@@ -20,7 +29,7 @@ end
 
 local rust_analyzer = LspConfig:new("rust_analyzer")
 ---@type RustaceanOpts
-local rustaceanvim_config = {
+local rustaceanvim_opts = {
 	---@type RustaceanToolsOpts
 	tools = {},
 	---@type RustaceanLspClientOpts
@@ -29,11 +38,8 @@ local rustaceanvim_config = {
 	dap = {},
 }
 
-rust_analyzer.setup = function(_, on_attach)
-	local hasrustaceanvim, _ = pcall(require, "rustaceanvim")
-
-	if not hasrustaceanvim then
-		log.error("rustaceanvim is not installed")
+rust_analyzer.setup = function(capabilities, on_attach)
+	if not has_rustceanvim() then
 		return
 	end
 
@@ -45,9 +51,10 @@ rust_analyzer.setup = function(_, on_attach)
 	end
 
 	local mason_path = mason_utils.get_mason_path()
-	rustaceanvim_config.server = {
+	rustaceanvim_opts.server = {
 		cmd = { rust_analyzer_exec(mason_path) },
-		settings = {
+		capabilities = capabilities,
+		default_settings = {
 			["rust-analyzer"] = {
 				checkOnSave = {
 					command = "clippy",
@@ -102,10 +109,7 @@ end
 
 M.dapconfig.type = "codelldb"
 M.dapconfig.setup = function()
-	local hasrustaceanvim, _ = pcall(require, "rustaceanvim")
-
-	if not hasrustaceanvim then
-		log.error("rustaceanvim is not installed")
+	if not has_rustceanvim() then
 		return
 	end
 
@@ -117,7 +121,7 @@ M.dapconfig.setup = function()
 		return
 	end
 
-	rustaceanvim_config.dap = {
+	rustaceanvim_opts.dap = {
 		adapter = {
 			type = "server",
 			port = "${port}",
@@ -131,14 +135,11 @@ M.dapconfig.setup = function()
 end
 
 M.after_masonlsp_setup = function()
-	local hasrustaceanvim, _ = pcall(require, "rustaceanvim")
-
-	if not hasrustaceanvim then
-		log.error("rustaceanvim is not installed")
+	if not has_rustceanvim() then
 		return
 	end
 
-	vim.g.rustaceanvim = rustaceanvim_config
+	vim.g.rustaceanvim = rustaceanvim_opts
 
 	local hasneotest, neotest = pcall(require, "neotest")
 
