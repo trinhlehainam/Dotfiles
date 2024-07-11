@@ -3,6 +3,17 @@ return {
 	dependencies = { "MunifTanjim/nui.nvim", "nvim-lua/plenary.nvim" },
 	opts = {
 		-- Add "oil" to the disabled_filetypes
-		disabled_filetypes = { "qf", "netrw", "NvimTree", "neo-tree", "lazy", "mason", "oil", "trouble", "dbui" },
+		disabled_filetypes = {
+			"qf",
+			"netrw",
+			"NvimTree",
+			"neo-tree",
+			"lazy",
+			"mason",
+			"oil",
+			"trouble",
+			"dbui",
+			"dbout",
+		},
 	},
 }

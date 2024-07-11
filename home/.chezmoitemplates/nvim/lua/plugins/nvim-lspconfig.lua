@@ -17,7 +17,10 @@ return {
 		"SmiteshP/nvim-navic",
 	},
 	config = function()
-		require("nvim-navic").setup()
+		-- INFO: https://github.com/SmiteshP/nvim-navic?tab=readme-ov-file#-customise
+		require("nvim-navic").setup({
+			highlight = true,
+		})
 		require("configs.plugins.nvim-lspconfig")
 	end,
 }

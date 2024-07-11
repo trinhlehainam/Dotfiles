@@ -105,8 +105,12 @@ fi
 
 # #region Keybindings
 # Ctrl-l clears the screen in vi mode
-# https://unix.stackexchange.com/a/104101
+# INFO: https://unix.stackexchange.com/a/104101
 set -o vi
+
+# INFO: https://stackoverflow.com/a/33338607
+bind 'set show-mode-in-prompt on'
+
 bind -m vi-command 'Control-l: clear-screen'
 bind -m vi-insert 'Control-l: clear-screen'
 bind -m vi-insert '"jk": vi-movement-mode'
@@ -118,7 +122,7 @@ bind -m vi-command '"gh": beginning-of-line'
 export HOMEBREW_FORCE_BREWED_CURL=1
 eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 
-# NOTE:Need to set up Homebrew environment first for commands installed by Homebrew added to $PATH
+# NOTE: Need to set up Homebrew environment first for commands installed by Homebrew added to $PATH
 #
 # Alias definitions.
 # You may want to put all your additions into a separate file like
@@ -128,7 +132,7 @@ if [ -f "$HOME"/.bash_aliases ]; then
 	. "$HOME"/.bash_aliases
 fi
 
-if command -v nvim &>/dev/null; then
+if type nvim &>/dev/null; then
 	export EDITOR=nvim
 fi
 
@@ -154,7 +158,7 @@ fi
 # INFO: https://vitormv.github.io/fzf-themes/
 
 # INFO: https://github.com/junegunn/fzf?tab=readme-ov-file#tips
-if command -v fzf &>/dev/null && command -v fd &>/dev/null; then
+if type fzf &>/dev/null && type fd &>/dev/null; then
 	# Use the CLI fd to respect ignore files (like '.gitignore'),
 	# display hidden files, and exclude the '.git' directory.
 	export FZF_DEFAULT_COMMAND="fd . --hidden --exclude .git"
@@ -168,6 +172,7 @@ eval "$(fzf --bash)"
 eval "$(starship init bash)"
 eval "$(zoxide init bash)"
 eval "$(fnm env)"
+eval "$(atuin init bash)"
 
 source "$HOME"/bash-wakatime/bash-wakatime.sh
 # #endregion Tools

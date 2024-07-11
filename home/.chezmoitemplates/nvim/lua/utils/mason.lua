@@ -54,10 +54,15 @@ M.install = function(ensure_installed)
 	if not hasregistry then
 		return
 	end
+	local install_callback = install(ensure_installed)
+	if type(install_callback) ~= "function" then
+		return
+	end
+
 	if registry.refresh then
-		registry.refresh(vim.schedule_wrap(install(ensure_installed)))
+		registry.refresh(vim.schedule_wrap(install_callback))
 	else
-		install(ensure_installed)
+		install_callback()
 	end
 end
 
