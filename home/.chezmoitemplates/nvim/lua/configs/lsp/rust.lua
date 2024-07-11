@@ -12,13 +12,23 @@ local mason_utils = require("utils.mason")
 ---@return string
 local function rust_analyzer_exec(mason_path)
 	if common.IS_WINDOWS then
-		return mason_path .. "bin/rust-analyzer.cmd"
+		return mason_path .. "/bin/rust-analyzer.cmd"
 	else
-		return mason_path .. "bin/rust-analyzer"
+		return mason_path .. "/bin/rust-analyzer"
 	end
 end
 
 local rust_analyzer = LspConfig:new("rust_analyzer")
+---@type RustaceanOpts
+local rustaceanvim_config = {
+	---@type RustaceanToolsOpts
+	tools = {},
+	---@type RustaceanLspClientOpts
+	server = {},
+	---@type RustaceanDapOpts
+	dap = {},
+}
+
 rust_analyzer.setup = function(_, on_attach)
 	local hasrustaceanvim, _ = pcall(require, "rustaceanvim")
 
@@ -34,12 +44,9 @@ rust_analyzer.setup = function(_, on_attach)
 		return
 	end
 
-	if vim.g.rustaceanvim == nil then
-		vim.g.rustaceanvim = {}
-	end
-
-	vim.g.rustaceanvim.server = {
-		cmd = { rust_analyzer_exec(rust_analyzer_path) },
+	local mason_path = mason_utils.get_mason_path()
+	rustaceanvim_config.server = {
+		cmd = { rust_analyzer_exec(mason_path) },
 		settings = {
 			["rust-analyzer"] = {
 				checkOnSave = {
@@ -67,9 +74,9 @@ M.lspconfigs = { rust_analyzer }
 ---@return string
 local function codelldb_exec(mason_path)
 	if common.IS_WINDOWS then
-		return mason_path .. "bin/" .. "codelldb.cmd"
+		return mason_path .. "/bin/" .. "codelldb.cmd"
 	else
-		return mason_path .. "bin/" .. "codelldb"
+		return mason_path .. "/bin/" .. "codelldb"
 	end
 end
 
@@ -79,7 +86,7 @@ local function liblldb_path(codelldb_pkg_path)
 	if common.IS_WINDOWS then
 		return ""
 	else
-		return codelldb_pkg_path .. "extension/lldb/lib/liblldb.so"
+		return codelldb_pkg_path .. "/extension/lldb/lib/liblldb.so"
 	end
 end
 
@@ -110,11 +117,7 @@ M.dapconfig.setup = function()
 		return
 	end
 
-	if vim.g.rustaceanvim == nil then
-		vim.g.rustaceanvim = {}
-	end
-
-	vim.g.rustaceanvim.dap = {
+	rustaceanvim_config.dap = {
 		adapter = {
 			type = "server",
 			port = "${port}",
@@ -128,6 +131,15 @@ M.dapconfig.setup = function()
 end
 
 M.after_masonlsp_setup = function()
+	local hasrustaceanvim, _ = pcall(require, "rustaceanvim")
+
+	if not hasrustaceanvim then
+		log.error("rustaceanvim is not installed")
+		return
+	end
+
+	vim.g.rustaceanvim = rustaceanvim_config
+
 	local hasneotest, neotest = pcall(require, "neotest")
 
 	-- NOTE: may need a standalone lsp config for neotest

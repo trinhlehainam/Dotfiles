@@ -51,7 +51,6 @@ end
 M.lspconfigs = { pyright, ruff }
 
 M.dapconfig.type = "python"
-
 M.dapconfig.setup = function()
 	local log = require("utils.log")
 
