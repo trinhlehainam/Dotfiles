@@ -71,7 +71,20 @@ return {
 			"nvim-tree/nvim-web-devicons",
 		},
 		config = function()
-			require("octo").setup()
+			-- INFO: https://github.com/pwntester/octo.nvim?tab=readme-ov-file#-configuration
+			require("octo").setup({
+				enable_builtin = true,
+				mappings = {
+					submit_win = {
+						-- NOTE: Octo default keymap '<C-a>' is conflicted with tmux prefix key
+						approve_review = { lhs = "<C-e>", desc = "approve review" },
+					},
+				},
+			})
+
+			vim.keymap.set("n", "<leader>o", "<cmd>Octo<cr>", { desc = "[O]cto", silent = true, noremap = true })
+
+			vim.treesitter.language.register("markdown", "octo")
 		end,
 	},
 }
