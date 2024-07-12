@@ -46,7 +46,9 @@ defaults:
         width: 20
         hidden: true
   refetchIntervalMinutes: 30
-repoPaths: {}
+repoPaths: {
+  tomochaka/* : ~/Projects/*
+}
 keybindings:
   issues: []
   prs:
@@ -54,7 +56,7 @@ keybindings:
       command: >
         tmux new-window -c {{.RepoPath}} '
           gh pr checkout {{.PrNumber}} &&
-          nvim -c ":DiffviewOpen master...{{.HeadRefName}}"
+          nvim -c ":DiffviewOpen main...{{.HeadRefName}}"
         '
 theme:
   ui:
