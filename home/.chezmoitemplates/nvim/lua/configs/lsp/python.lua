@@ -82,7 +82,10 @@ M.neotest_adapter_setup = function()
 	if not has_pytest then
 		return {}
 	end
-	-- INFO: https://github.com/nvim-neotest/neotest-python?tab=readme-ov-file#neotest-python
+	-- NOTE: When encounter no tests found, just add any Python config file in the root directory
+	-- INFO: https://github.com/nvim-neotest/neotest-python/issues/40#issuecomment-1336947205
+	-- INFO: https://github.com/nvim-neotest/neotest-python/issues/75#issuecomment-2188820822
+	-- INFO: https://github.com/rcasia/neotest-bash/issues/17#issuecomment-2183972514
 	return require("neotest-python")
 end
 
