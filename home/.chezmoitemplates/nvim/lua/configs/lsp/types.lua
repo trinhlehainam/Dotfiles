@@ -55,7 +55,7 @@
 --- https://github.com/nvim-neotest/neotest?tab=readme-ov-file#supported-runners
 ---@field neotest_adapter_setup? custom.NeotestAdapterSetup
 --- rustaceanvim requires vim.g.rustaceanvim to override default configurations at plugin initialization
----@field plugin_setup? fun()
+---@field plugin_setups? table<string, fun()>
 
 --- @class custom.Lsp
 --- @field treesitters custom.TreeSitter[]

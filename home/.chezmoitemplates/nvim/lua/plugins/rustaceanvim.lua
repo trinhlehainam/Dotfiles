@@ -8,7 +8,7 @@ return {
 	lazy = false, -- This plugin is already lazy
 	config = function()
 		---@type fun() | nil
-		local rustaceanvim_setup = vim.tbl_get(require("configs.lsp").plugin_setups, "rust")
+		local rustaceanvim_setup = vim.tbl_get(require("configs.lsp").plugin_setups, "rustaceanvim")
 
 		if rustaceanvim_setup then
 			rustaceanvim_setup()

@@ -27,8 +27,8 @@ for lang, settings in pairs(language_settings) do
 	if settings.neotest_adapter_setup then
 		table.insert(neotest_adapter_setup, settings.neotest_adapter_setup)
 	end
-	if settings.plugin_setup then
-		M.plugin_setups[lang] = settings.plugin_setup
+	if settings.plugin_setups then
+		M.plugin_setups = vim.tbl_extend("error", M.plugin_setups, settings.plugin_setups)
 	end
 end
 

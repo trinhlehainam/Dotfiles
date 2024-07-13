@@ -134,7 +134,8 @@ M.neotest_adapter_setup = function()
 	return require("rustaceanvim.neotest")
 end
 
-M.plugin_setup = function()
+M.plugin_setups = {}
+M.plugin_setups["rustaceanvim"] = function()
 	if not has_rustceanvim() then
 		return
 	end
