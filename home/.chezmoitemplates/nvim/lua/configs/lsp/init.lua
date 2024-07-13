@@ -13,6 +13,9 @@ local ignore_mods = { "types", "base", "init", "lspconfig" }
 --- @type table<string, custom.LanguageSetting>
 local language_settings = require("utils.common").load_mods("configs.lsp", ignore_mods)
 
+---@type custom.NeotestAdapterSetup[]
+local neotest_adapter_setup = {}
+
 for lang, settings in pairs(language_settings) do
 	table.insert(M.treesitters, settings.treesitter)
 	M.dapconfigs[lang] = settings.dapconfig
@@ -20,6 +23,19 @@ for lang, settings in pairs(language_settings) do
 	table.insert(M.formatters, settings.formatterconfig)
 	table.insert(M.linters, settings.linterconfig)
 	table.insert(M.after_masonlsp_setups, settings.after_masonlsp_setup)
+	if settings.neotest_adapter_setup then
+		table.insert(neotest_adapter_setup, settings.neotest_adapter_setup)
+	end
+end
+
+M.get_neotest_adapters = function()
+	---@type neotest.Adapter[]
+	local neotest_adapters = {}
+
+	for _, setup in ipairs(neotest_adapter_setup) do
+		table.insert(neotest_adapters, setup())
+	end
+	return neotest_adapters
 end
 
 return M

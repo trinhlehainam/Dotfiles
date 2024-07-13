@@ -77,4 +77,13 @@ M.dapconfig.setup = function()
 	dappython.setup(get_debugpy_path())
 end
 
+M.neotest_adapter_setup = function()
+	local has_pytest, _ = pcall(require, "neotest-python")
+	if not has_pytest then
+		return {}
+	end
+	-- INFO: https://github.com/nvim-neotest/neotest-python?tab=readme-ov-file#neotest-python
+	return require("neotest-python")
+end
+
 return M

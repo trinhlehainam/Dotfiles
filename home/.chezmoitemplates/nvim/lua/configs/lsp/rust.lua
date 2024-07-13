@@ -134,6 +134,14 @@ M.dapconfig.setup = function()
 	}
 end
 
+M.neotest_adapter_setup = function()
+	if not has_rustceanvim() then
+		return {}
+	end
+
+	return require("rustaceanvim.neotest")
+end
+
 M.after_masonlsp_setup = function()
 	if not has_rustceanvim() then
 		return

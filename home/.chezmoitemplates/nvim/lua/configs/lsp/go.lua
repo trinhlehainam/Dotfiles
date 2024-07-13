@@ -61,4 +61,12 @@ M.dapconfig.setup = function()
 	})
 end
 
+M.neotest_adapter_setup = function()
+	local has_gotest, _ = pcall(require, "neotest-golang")
+	if not has_gotest then
+		return {}
+	end
+	return require("neotest-golang")
+end
+
 return M

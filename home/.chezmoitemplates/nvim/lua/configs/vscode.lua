@@ -5,6 +5,8 @@ local opts = {}
 
 opts.nore = { noremap = true, silent = true }
 
+vim.keymap.set("n", "jk", "<C-c>", opts.nore)
+
 vim.keymap.set("n", "gcc", "<Plug>VSCodeCommentaryLine", opts.nore)
 vim.keymap.set({ "x", "v" }, "gc", "<Plug>VSCodeCommentary", opts.nore)
 vim.keymap.set("n", "<leader>", "<Cmd>call VSCodeNotify('whichkey.show')<CR>", opts.nore)

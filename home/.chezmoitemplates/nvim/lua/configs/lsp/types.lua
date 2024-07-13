@@ -1,4 +1,8 @@
+---LuaLS Anotations
+--- INFO: https://github.com/LuaLS/lua-language-server/wiki/Annotations
+
 ---@alias custom.LspConfig.Setup fun(capabilities: lsp.ClientCapabilities, on_attach: fun(client: lsp.Client, bufnr: integer))
+---@alias custom.NeotestAdapterSetup fun(): neotest.Adapter
 
 ---@class custom.TreeSitter
 ---@field filetypes? string[]
@@ -22,7 +26,7 @@
 ---@field type? string
 --- Use `mason-nvim-dap` handlers to configure DAP
 --- https://github.com/jay-babu/mason-nvim-dap.nvim?tab=readme-ov-file#advanced-customization
----@field setup? function
+---@field setup? fun()
 ---@field use_masondap_default_setup boolean
 
 -- Use `conform.nvim` to automatically configure Formatter commands
@@ -47,7 +51,9 @@
 ---@field dapconfig custom.DapConfig
 ---@field formatterconfig custom.FormatterConfig
 ---@field linterconfig custom.LinterConfig
----@field after_masonlsp_setup? function
+---@field after_masonlsp_setup? fun()
+--- https://github.com/nvim-neotest/neotest?tab=readme-ov-file#supported-runners
+---@field neotest_adapter_setup? custom.NeotestAdapterSetup
 
 --- @class custom.Lsp
 --- @field treesitters custom.TreeSitter[]
@@ -55,4 +61,5 @@
 --- @field dapconfigs table<string, custom.DapConfig>
 --- @field formatters custom.FormatterConfig[]
 --- @field linters custom.LinterConfig[]
---- @field after_masonlsp_setups function[]
+--- @field after_masonlsp_setups fun()[]
+--- @field get_neotest_adapters fun(): custom.NeotestAdapterSetup[]

@@ -6,11 +6,11 @@ fi
 
 # Use eza to list files
 if type eza &>/dev/null; then
-	alias ls='eza'
-	alias ll='eza -alF'
-	alias la='eza -aF'
-	alias l='eza -F'
-	alias lt='eza -alF --tree --level=2 --git'
+	alias ls='eza --icons'
+	alias ll='eza -alF --icons'
+	alias la='eza -aF --icons'
+	alias l='eza -F --icons'
+	alias lt='eza -alF --tree --level=2 --git --icons'
 fi
 
 if type bat &>/dev/null; then
