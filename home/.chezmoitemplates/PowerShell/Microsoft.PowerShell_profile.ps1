@@ -45,23 +45,27 @@ if (Test-Command pnpm)
 
 if (Test-Command eza)
 {
+  function Invoke-Eza
+  {
+    eza --icons
+  }
   function Invoke-Eza-alF
   {
-    eza -alF
+    eza -alF --icons
   }
   function Invoke-Eza-aF
   {
-    eza -aF
+    eza -aF --icons
   }
   function Invoke-Eza-F
   {
-    eza -F
+    eza -F --icons
   }
   function Invoke-Eza-tree
   {
-    eza -alF --tree --level=2 --git
+    eza -alF --tree --level=2 --git --icons
   }
-  Set-Alias ls eza
+  Set-Alias ls Invoke-Eza
   Set-Alias ll Invoke-Eza-alF
   Set-Alias la Invoke-Eza-aF
   Set-Alias l Invoke-Eza-F
