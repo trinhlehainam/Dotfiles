@@ -5,6 +5,22 @@ luasnip.config.setup()
 
 local lspkind = require("lspkind")
 
+local sources = {
+	{ name = "git" },
+	{ name = "nvim_lsp" },
+	{ name = "luasnip" }, -- For luasnip users.
+	{ name = "buffer" },
+	{ name = "path" },
+	{ name = "crates" },
+}
+
+if vim.version.range(">=0.10.0"):has(vim.version()) then
+	table.insert(sources, {
+		name = "lazydev",
+		group_index = 0, -- set group index to 0 to skip loading LuaLS completions
+	})
+end
+
 cmp.setup({
 	snippet = {
 		expand = function(args)

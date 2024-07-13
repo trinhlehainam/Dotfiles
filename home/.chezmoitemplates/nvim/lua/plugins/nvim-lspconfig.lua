@@ -1,3 +1,26 @@
+local function set_lualsconfig_plugin()
+	if vim.version.range("<0.10.0"):has(vim.version()) then
+		-- `neodev` configures Lua LSP for your Neovim config, runtime and plugins
+		-- used for completion, annotations and signatures of Neovim apis
+		return "folke/neodev.nvim"
+	else
+		return {
+			{
+				"folke/lazydev.nvim",
+				ft = "lua", -- only load on lua files
+				opts = {
+					library = {
+						-- See the configuration section for more details
+						-- Load luvit types when the `vim.uv` word is found
+						{ path = "luvit-meta/library", words = { "vim%.uv" } },
+					},
+				},
+			},
+			{ "Bilal2453/luvit-meta", lazy = true }, -- optional `vim.uv` typings
+		}
+	end
+end
+
 return {
 	"neovim/nvim-lspconfig",
 	dependencies = {
@@ -10,9 +33,7 @@ return {
 		-- NOTE: `opts = {}` is the same as calling `require('fidget').setup({})`
 		{ "j-hui/fidget.nvim", opts = {} },
 
-		-- `neodev` configures Lua LSP for your Neovim config, runtime and plugins
-		-- used for completion, annotations and signatures of Neovim apis
-		"folke/neodev.nvim",
+		set_lualsconfig_plugin(),
 
 		"SmiteshP/nvim-navic",
 	},

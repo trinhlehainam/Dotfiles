@@ -1,6 +1,8 @@
--- INFO: make sure to setup neodev BEFORE lspconfig
-local neodev = require("neodev")
-neodev.setup({})
+if vim.version.range("<0.10.0"):has(vim.version()) then
+	-- INFO: make sure to setup neodev BEFORE lspconfig
+	local neodev = require("neodev")
+	neodev.setup({})
+end
 
 -- Diagnostic keymaps
 vim.keymap.set('n', '[d', vim.diagnostic.goto_prev, { desc = "Go to previous diagnostic message" })
