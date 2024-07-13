@@ -1,5 +1,4 @@
 local mason_utils = require("utils.mason")
-local conform = require("conform")
 
 local formatters = require("configs.lsp").formatters
 local ensure_installed_formatters = { "stylua" }
@@ -20,7 +19,7 @@ end
 
 mason_utils.install(ensure_installed_formatters)
 
-conform.setup({
+require("conform").setup({
 	notify_on_error = false,
 	format_on_save = function(bufnr)
 		-- Disable "format_on_save lsp_fallback" for languages that don't

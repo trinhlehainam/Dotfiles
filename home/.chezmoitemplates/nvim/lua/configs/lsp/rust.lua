@@ -140,20 +140,6 @@ M.after_masonlsp_setup = function()
 	end
 
 	vim.g.rustaceanvim = rustaceanvim_opts
-
-	local hasneotest, neotest = pcall(require, "neotest")
-
-	-- NOTE: may need a standalone lsp config for neotest
-	if not hasneotest then
-		log.error("neotest is not installed")
-		return
-	end
-
-	neotest.setup({
-		adapters = {
-			require("rustaceanvim.neotest"),
-		},
-	})
 end
 
 return M

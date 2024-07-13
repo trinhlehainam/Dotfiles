@@ -1,6 +1,6 @@
 local M = {}
 
-M.config = function()
+M.setup = function()
 	require("notify").setup({
 		background_colour = "#000000",
 	})
@@ -28,6 +28,14 @@ M.config = function()
 	vim.keymap.set("n", "<leader>nt", function()
 		noice.cmd("telescope")
 	end, { desc = "[N]oice [T]elescope" })
+
+	vim.keymap.set("n", "<leader>nh", function()
+		noice.cmd("history")
+	end, { desc = "[N]oice [H]istory" })
+
+	vim.keymap.set("n", "<leader>nd", function()
+		noice.cmd("dismiss")
+	end, { desc = "[N]oice [D]ismiss" })
 end
 
 M.parsers = { "vim", "regex", "lua", "bash", "markdown", "markdown_inline" }

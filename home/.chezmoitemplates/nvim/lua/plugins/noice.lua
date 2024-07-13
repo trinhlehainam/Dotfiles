@@ -11,6 +11,6 @@ return {
 		"nvim-telescope/telescope.nvim",
 	},
 	config = function()
-		require("configs.plugins.noice").config()
+		require("configs.plugins.noice").setup()
 	end,
 }
