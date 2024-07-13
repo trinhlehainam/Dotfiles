@@ -39,10 +39,6 @@ local rustaceanvim_opts = {
 }
 
 rust_analyzer.setup = function(capabilities, on_attach)
-	if not has_rustceanvim() then
-		return
-	end
-
 	local rust_analyzer_path = mason_utils.get_mason_package_path("rust-analyzer")
 
 	if not rust_analyzer_path then
@@ -109,10 +105,6 @@ end
 
 M.dapconfig.type = "codelldb"
 M.dapconfig.setup = function()
-	if not has_rustceanvim() then
-		return
-	end
-
 	local mason_path = mason_utils.get_mason_path()
 	local codelldb_path = mason_utils.get_mason_package_path("codelldb")
 
@@ -142,7 +134,7 @@ M.neotest_adapter_setup = function()
 	return require("rustaceanvim.neotest")
 end
 
-M.after_masonlsp_setup = function()
+M.plugin_setup = function()
 	if not has_rustceanvim() then
 		return
 	end

@@ -54,6 +54,8 @@
 ---@field after_masonlsp_setup? fun()
 --- https://github.com/nvim-neotest/neotest?tab=readme-ov-file#supported-runners
 ---@field neotest_adapter_setup? custom.NeotestAdapterSetup
+--- rustaceanvim requires vim.g.rustaceanvim to override default configurations at plugin initialization
+---@field plugin_setup? fun()
 
 --- @class custom.Lsp
 --- @field treesitters custom.TreeSitter[]
@@ -63,3 +65,4 @@
 --- @field linters custom.LinterConfig[]
 --- @field after_masonlsp_setups fun()[]
 --- @field get_neotest_adapters fun(): custom.NeotestAdapterSetup[]
+--- @field plugin_setups table<string, fun()>

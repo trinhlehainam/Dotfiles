@@ -6,6 +6,7 @@ local M = {
 	formatters = {},
 	linters = {},
 	after_masonlsp_setups = {},
+	plugin_setups = {},
 }
 
 local ignore_mods = { "types", "base", "init", "lspconfig" }
@@ -25,6 +26,9 @@ for lang, settings in pairs(language_settings) do
 	table.insert(M.after_masonlsp_setups, settings.after_masonlsp_setup)
 	if settings.neotest_adapter_setup then
 		table.insert(neotest_adapter_setup, settings.neotest_adapter_setup)
+	end
+	if settings.plugin_setup then
+		M.plugin_setups[lang] = settings.plugin_setup
 	end
 end
 
