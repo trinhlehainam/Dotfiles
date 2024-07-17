@@ -40,7 +40,7 @@ local function on_attach(client, bufnr)
 	nmap("<leader>ws", require("telescope.builtin").lsp_dynamic_workspace_symbols, "[W]orkspace [S]ymbols")
 
 	-- See `:help K` for why this keymap
-	if vim.version.range("<0.10.0"):has(vim.version()) then
+	if vim.fn.has("nvim-0.10.0") == 0 then
 		nmap("K", vim.lsp.buf.hover, "Hover Documentation")
 	end
 

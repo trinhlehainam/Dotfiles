@@ -10,7 +10,7 @@ return {
 		---@type fun() | nil
 		local rustaceanvim_setup = vim.tbl_get(require("configs.lsp").plugin_setups, "rustaceanvim")
 
-		if rustaceanvim_setup then
+		if type(rustaceanvim_setup) == "function" then
 			rustaceanvim_setup()
 		end
 	end,

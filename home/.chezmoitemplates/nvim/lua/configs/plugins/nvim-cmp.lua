@@ -14,7 +14,7 @@ local sources = {
 	{ name = "crates" },
 }
 
-if vim.version.range(">=0.10.0"):has(vim.version()) then
+if vim.fn.has("nvim-0.10.0") == 1 then
 	table.insert(sources, {
 		name = "lazydev",
 		group_index = 0, -- set group index to 0 to skip loading LuaLS completions

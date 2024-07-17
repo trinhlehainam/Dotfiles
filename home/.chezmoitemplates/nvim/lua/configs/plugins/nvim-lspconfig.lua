@@ -1,4 +1,4 @@
-if vim.version.range("<0.10.0"):has(vim.version()) then
+if vim.fn.has("nvim-0.10.0") == 0 then
 	-- INFO: make sure to setup neodev BEFORE lspconfig
 	local neodev = require("neodev")
 	neodev.setup({})
@@ -30,7 +30,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
 	callback = function(args)
 		local log = require("utils.log")
 
-		if vim.version.range("<0.10.0"):has(vim.version()) then
+		if vim.fn.has("nvim-0.10.0") == 0 then
 			log.info("Current Neovim version: " .. vim.inspect(vim.version()))
 			log.warn("Inlay hints require Neovim >=0.10")
 			return

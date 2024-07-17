@@ -1,5 +1,5 @@
 local function set_lualsconfig_plugin()
-	if vim.version.range("<0.10.0"):has(vim.version()) then
+	if vim.fn.has("nvim-0.10.0") == 0 then
 		-- `neodev` configures Lua LSP for your Neovim config, runtime and plugins
 		-- used for completion, annotations and signatures of Neovim apis
 		return "folke/neodev.nvim"
