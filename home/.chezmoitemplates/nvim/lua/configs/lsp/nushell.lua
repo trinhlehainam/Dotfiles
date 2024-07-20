@@ -8,7 +8,7 @@ M.treesitter.filetypes = { "nu" }
 M.after_masonlsp_setup = function()
 	-- Check nu command is excutable
 	if vim.fn.executable("nu") == 0 then
-		require("utils.log").error("Nushell is not installed")
+		require("utils.log").log("Nushell is not installed")
 		return
 	end
 
