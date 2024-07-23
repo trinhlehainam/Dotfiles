@@ -34,14 +34,8 @@ return {
 		{ "j-hui/fidget.nvim", opts = {} },
 
 		set_lualsconfig_plugin(),
-
-		"SmiteshP/nvim-navic",
 	},
 	config = function()
-		-- INFO: https://github.com/SmiteshP/nvim-navic?tab=readme-ov-file#-customise
-		require("nvim-navic").setup({
-			highlight = true,
-		})
 		require("configs.plugins.nvim-lspconfig")
 	end,
 }

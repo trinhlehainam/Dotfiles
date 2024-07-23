@@ -69,16 +69,6 @@ local function on_attach(client, bufnr)
 			lint.try_lint()
 		end
 	end, { desc = "Lint current buffer with LSP" })
-
-	local hasnavic, navic = pcall(require, "nvim-navic")
-	if not hasnavic then
-		return
-	end
-
-	-- INFO: https://github.com/SmiteshP/nvim-navic?tab=readme-ov-file#%EF%B8%8F-setup
-	if client.server_capabilities.documentSymbolProvider then
-		navic.attach(client, bufnr)
-	end
 end
 
 M.on_attach = on_attach

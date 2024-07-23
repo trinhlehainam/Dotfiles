@@ -11,6 +11,11 @@ if type eza &>/dev/null; then
 	alias la='eza -aF --icons'
 	alias l='eza -F --icons'
 	alias lt='eza -alF --tree --level=2 --git --icons'
+else
+	alias ls='ls --color=auto'
+	alias ll='ls -alF --color=auto'
+	alias la='ls -aF --color=auto'
+	alias l='ls -F --color=auto'
 fi
 
 if type bat &>/dev/null; then
