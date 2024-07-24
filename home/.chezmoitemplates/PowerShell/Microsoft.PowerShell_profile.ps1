@@ -6,8 +6,6 @@
 # NOTE: install chocolatey as non-admistrative user
 # https://docs.chocolatey.org/en-us/choco/setup#non-administrative-install
 
-oh-my-posh init pwsh --config "$env:POSH_THEMES_PATH/gruvbox.omp.json" | Invoke-Expression
-
 # Import the Chocolatey Profile that contains the necessary code to enable
 # tab-completions to function for `choco`.
 # Be aware that if you are missing these lines from your profile, tab completion
@@ -17,6 +15,22 @@ $ChocolateyProfile = "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
 if (Test-Path($ChocolateyProfile))
 {
   Import-Module "$ChocolateyProfile"
+}
+
+# Check if module exists
+# INFO: https://stackoverflow.com/questions/28740320/how-do-i-check-if-a-powershell-module-is-installed
+# INFO: https://github.com/kelleyma49/PSFzf
+if (Get-Module -ListAvailable -Name PSFzf)
+{
+  $env:FZF_DEFAULT_COMMAND="fd . --hidden --exclude .git"
+  $env:FZF_CTRL_T_COMMAND="$env:FZF_DEFAULT_COMMAND"
+
+  Import-Module PSFzf
+  # replace 'Ctrl+t' and 'Ctrl+r' with your preferred bindings:
+  Set-PsFzfOption -PSReadlineChordProvider 'Ctrl+t' -PSReadlineChordReverseHistory 'Ctrl+r'
+} else
+{
+  Write-Host "PSFzf module does not exist"
 }
 
 # Add ~/bin to user path
@@ -73,3 +87,4 @@ if (Test-Command eza)
 }
 
 Invoke-Expression (& { (zoxide init powershell | Out-String) })
+Invoke-Expression (&starship init powershell)
