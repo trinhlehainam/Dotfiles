@@ -70,6 +70,6 @@ if (Test-Command eza)
   Set-Alias lt Invoke-Eza-tree
 }
 
-Invoke-Expression (& { (zoxide init powershell | Out-String) })
 Invoke-Expression (&starship init powershell)
 fnm env --use-on-cd | Out-String | Invoke-Expression
+Invoke-Expression (& { (zoxide init powershell | Out-String) })
