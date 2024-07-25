@@ -1,21 +1,5 @@
-# NOTE: need to add below block code to $PROFILE if $PROFILE is not located in ~/Documents/WindowsPowerShell
-# if (Test-Path "$HOME\Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1") {
-#     . "$HOME\Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1"
-# }
-
-# NOTE: install chocolatey as non-admistrative user
-# https://docs.chocolatey.org/en-us/choco/setup#non-administrative-install
-
-# Import the Chocolatey Profile that contains the necessary code to enable
-# tab-completions to function for `choco`.
-# Be aware that if you are missing these lines from your profile, tab completion
-# for `choco` will not function.
-# See https://ch0.co/tab-completion for details.
-$ChocolateyProfile = "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
-if (Test-Path($ChocolateyProfile))
-{
-  Import-Module "$ChocolateyProfile"
-}
+# NOTE: Change Powershell default profile location
+# https://stackoverflow.com/questions/61192049/powershell-profile-variable-pointing-to-wrong-location-where-is-profile-varia
 
 # Check if module exists
 # INFO: https://stackoverflow.com/questions/28740320/how-do-i-check-if-a-powershell-module-is-installed
@@ -88,3 +72,4 @@ if (Test-Command eza)
 
 Invoke-Expression (& { (zoxide init powershell | Out-String) })
 Invoke-Expression (&starship init powershell)
+fnm env --use-on-cd | Out-String | Invoke-Expression
