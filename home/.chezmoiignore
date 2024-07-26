@@ -1,4 +1,5 @@
 {{- /* https://github.com/adrg/xdg/blob/master/README.md */ -}}
+winutil.json
 
 {{ if ne .chezmoi.os "darwin"}}
 Library/Application Support/nushell
