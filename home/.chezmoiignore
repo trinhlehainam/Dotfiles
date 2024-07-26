@@ -11,6 +11,7 @@ Library/Application Support/nushell
 {{ if ne .chezmoi.os "windows" }}
 AppData
 Documents/WindowsPowerShell
+Documents/PowerShell
 .chezmoiscripts/windows
 {{ else }}
 .chezmoiscripts/unix
