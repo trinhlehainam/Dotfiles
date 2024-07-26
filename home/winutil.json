@@ -1,78 +1,12 @@
 {
-  "WPFInstall": [
-    "WPFInstallnushell",
-    "WPFInstallneovim",
-    "WPFInstallfnm",
-    "WPFInstallobsidian",
-    "WPFInstallterminal",
-    "WPFInstallthunderbird",
-    "WPFInstallgpuz",
-    "WPFInstallqbittorrent",
-    "WPFInstallcmake",
-    "WPFInstallpowershell",
-    "WPFInstallventoy",
-    "WPFInstallslack",
-    "WPFInstallbrave",
-    "WPFInstalldiscord",
-    "WPFInstallrustlang",
-    "WPFInstallgolang",
-    "WPFInstallvisualstudio",
-    "WPFInstallvscode",
-    "WPFInstallepicgames",
-    "WPFInstallunity",
-    "WPFInstallsteam",
-    "WPFInstallcpuz",
-    "WPFInstallfastfetch",
-    "WPFInstallgit"
-  ],
   "Install": [
     {
-      "winget": "Nushell.Nushell",
-      "choco": "nushell"
+      "winget": "Rustlang.Rust.MSVC",
+      "choco": "rust"
     },
     {
-      "winget": "Neovim.Neovim",
-      "choco": "neovim"
-    },
-    {
-      "winget": "Schniz.fnm",
-      "choco": "fnm"
-    },
-    {
-      "winget": "Obsidian.Obsidian",
-      "choco": "obsidian"
-    },
-    {
-      "winget": "Microsoft.WindowsTerminal",
-      "choco": "microsoft-windows-terminal"
-    },
-    {
-      "winget": "Mozilla.Thunderbird",
-      "choco": "thunderbird"
-    },
-    {
-      "winget": "TechPowerUp.GPU-Z",
-      "choco": "gpu-z"
-    },
-    {
-      "winget": "qBittorrent.qBittorrent",
-      "choco": "qbittorrent"
-    },
-    {
-      "winget": "Kitware.CMake",
-      "choco": "cmake"
-    },
-    {
-      "winget": "Microsoft.PowerShell",
-      "choco": "powershell-core"
-    },
-    {
-      "winget": "Ventoy.Ventoy",
-      "choco": "ventoy"
-    },
-    {
-      "winget": "SlackTechnologies.Slack",
-      "choco": "slack"
+      "winget": "Microsoft.VisualStudio.2022.Community",
+      "choco": "visualstudio2022community"
     },
     {
       "winget": "Brave.Brave",
@@ -83,63 +17,111 @@
       "choco": "discord"
     },
     {
-      "winget": "Rustlang.Rust.MSVC",
-      "choco": "rust"
-    },
-    {
       "winget": "GoLang.Go",
       "choco": "golang"
     },
     {
-      "winget": "Microsoft.VisualStudio.2022.Community",
-      "choco": "visualstudio2022community"
+      "winget": "Schniz.fnm",
+      "choco": "fnm"
     },
     {
-      "winget": "Microsoft.VisualStudioCode",
-      "choco": "vscode"
+      "winget": "TechPowerUp.GPU-Z",
+      "choco": "gpu-z"
     },
     {
-      "winget": "EpicGames.EpicGamesLauncher",
-      "choco": "epicgameslauncher"
+      "winget": "na",
+      "choco": "pyenv-win"
     },
     {
-      "winget": "Unity.UnityHub",
-      "choco": "unityhub"
+      "winget": "Microsoft.PowerShell",
+      "choco": "powershell-core"
     },
     {
-      "winget": "Valve.Steam",
-      "choco": "steam-client"
-    },
-    {
-      "winget": "CPUID.CPU-Z",
-      "choco": "cpu-z"
+      "winget": "Microsoft.WindowsTerminal",
+      "choco": "microsoft-windows-terminal"
     },
     {
       "winget": "Fastfetch-cli.Fastfetch",
       "choco": "na"
     },
     {
+      "winget": "Ventoy.Ventoy",
+      "choco": "ventoy"
+    },
+    {
+      "winget": "qBittorrent.qBittorrent",
+      "choco": "qbittorrent"
+    },
+    {
+      "winget": "Microsoft.VisualStudioCode",
+      "choco": "vscode"
+    },
+    {
       "winget": "Git.Git",
       "choco": "git"
+    },
+    {
+      "winget": "CPUID.CPU-Z",
+      "choco": "cpu-z"
+    },
+    {
+      "winget": "Valve.Steam",
+      "choco": "steam-client"
+    },
+    {
+      "winget": "Kitware.CMake",
+      "choco": "cmake"
+    },
+    {
+      "winget": "Obsidian.Obsidian",
+      "choco": "obsidian"
+    },
+    {
+      "winget": "Neovim.Neovim",
+      "choco": "neovim"
     }
   ],
-  "WPFFeature": [],
   "WPFTweaks": [
     "WPFTweaksRestorePoint",
-    "WPFTweaksPowershell7Tele",
-    "WPFTweaksTele",
-    "WPFTweaksDeleteTempFiles",
-    "WPFTweaksHiber",
-    "WPFTweaksLoc",
+    "WPFTweaksRemoveCopilot",
+    "WPFTweaksServices",
     "WPFTweaksWifi",
     "WPFTweaksDVR",
     "WPFTweaksAH",
-    "WPFTweaksDiskCleanup",
     "WPFTweaksHome",
-    "WPFTweaksTeredo",
+    "WPFTweaksPowershell7Tele",
+    "WPFTweaksDeleteTempFiles",
+    "WPFTweaksHiber",
+    "WPFTweaksDiskCleanup",
+    "WPFTweaksEndTaskOnTaskbar",
+    "WPFTweaksTele",
+    "WPFTweaksRemoveOnedrive",
     "WPFTweaksStorage",
     "WPFTweaksConsumerFeatures",
-    "WPFTweaksServices",
-    "WPFTweaksEndTaskOnTaskbar"
-  ]
+    "WPFTweaksTeredo",
+    "WPFTweaksLoc"
+  ],
+  "WPFInstall": [
+    "WPFInstallrustlang",
+    "WPFInstallvisualstudio",
+    "WPFInstallbrave",
+    "WPFInstalldiscord",
+    "WPFInstallgolang",
+    "WPFInstallfnm",
+    "WPFInstallgpuz",
+    "WPFInstallpyenvwin",
+    "WPFInstallpowershell",
+    "WPFInstallterminal",
+    "WPFInstallfastfetch",
+    "WPFInstallventoy",
+    "WPFInstallqbittorrent",
+    "WPFInstallvscode",
+    "WPFInstallgit",
+    "WPFInstallcpuz",
+    "WPFInstallsteam",
+    "WPFInstallcmake",
+    "WPFInstallobsidian",
+    "WPFInstallneovim"
+  ],
+  "WPFFeature": []
 }
