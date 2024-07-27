@@ -1,11 +1,11 @@
 #!/bin/bash
 
-if type nvim &>/dev/null; then
+if command -v nvim &>/dev/null; then
 	alias v='nvim'
 fi
 
 # Use eza to list files
-if type eza &>/dev/null; then
+if command -v eza &>/dev/null; then
 	alias ls='eza --icons'
 	alias ll='eza -alF --icons'
 	alias la='eza -aF --icons'
@@ -18,6 +18,6 @@ else
 	alias l='ls -F --color=auto'
 fi
 
-if type bat &>/dev/null; then
+if command -v bat &>/dev/null; then
 	alias cat='bat'
 fi

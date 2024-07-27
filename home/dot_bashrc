@@ -141,14 +141,14 @@ if [ -f "$HOME"/.bash_aliases ]; then
 	. "$HOME"/.bash_aliases
 fi
 
-if type nvim &>/dev/null; then
+if command -v nvim &>/dev/null; then
 	export EDITOR=nvim
 fi
 
 # NOTE: Configure bash-completion before configuring another tools to avoid overwriting their completions
 # Homebrew Bash Shell completion
 # https://docs.brew.sh/Shell-Completion
-if type brew &>/dev/null; then
+if command -v brew &>/dev/null; then
 	HOMEBREW_PREFIX="$(brew --prefix)"
 	if [[ -r "${HOMEBREW_PREFIX}/etc/profile.d/bash_completion.sh" ]]; then
 		source "${HOMEBREW_PREFIX}/etc/profile.d/bash_completion.sh"
@@ -161,6 +161,11 @@ fi
 # #endregion Homebrew
 
 # #region Tools
+
+if command -v pyenv 1>/dev/null 2>&1; then
+	export PYENV_ROOT="$(pyenv root)"
+	eval "$(pyenv init -)"
+fi
 
 # enable color support for grep
 export CLICOLOR=1
@@ -181,7 +186,7 @@ unset GREP_OPTIONS
 # INFO: https://vitormv.github.io/fzf-themes/
 
 # INFO: https://github.com/junegunn/fzf?tab=readme-ov-file#tips
-if type fzf &>/dev/null && type fd &>/dev/null; then
+if command -v fzf &>/dev/null && command -v fd &>/dev/null; then
 	# Use the CLI fd to respect ignore files (like '.gitignore'),
 	# display hidden files, and exclude the '.git' directory.
 	export FZF_DEFAULT_COMMAND="fd . --hidden --exclude .git"
@@ -197,7 +202,7 @@ eval "$(zoxide init bash)"
 eval "$(fnm env)"
 eval "$(atuin init bash)"
 
-if type delta &>/dev/null; then
+if command -v delta &>/dev/null; then
 	export DELTA_FEATURES=+side-by-side
 fi
 
