@@ -1,3 +1,5 @@
+-- https://medium.com/@nikmas_dev/vscode-neovim-setup-keyboard-centric-powerful-reliable-clean-and-aesthetic-development-582d34297985
+
 vim.opt.spelllang = "en_us"
 vim.opt.spell = false
 
@@ -22,7 +24,7 @@ vim.keymap.set("n", "tt", "<Cmd>call VSCodeNotify('workbench.view.explorer')<CR>
 vim.keymap.set("n", "<leader>/", "<Cmd>call VSCodeNotify('actions.find')<CR>", opts.nore)
 
 -- Telescope
-vim.keymap.set("n", "<leader><leader>", "<Cmd>call VSCodeNotify('workbench.action.quickOpen')<CR>", opts.nore)
+vim.keymap.set("n", "<leader>ff", "<Cmd>call VSCodeNotify('workbench.action.quickOpen')<CR>", opts.nore)
 vim.keymap.set("n", "<leader>fg", "<Cmd>call VSCodeNotify('workbench.action.findInFiles')<CR>", opts.nore)
 
 -- LSP
