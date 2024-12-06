@@ -116,5 +116,17 @@ require("lazy").setup({
 	--    up-to-date with whatever is in the kickstart repo.
 	--
 	--    For additional information see: https://github.com/folke/lazy.nvim#-structuring-your-plugins
-	{ import = "plugins" },
+	--    # https://github.com/vscode-neovim/vscode-neovim/wiki/Plugins#lazy-plugin-management
+	{
+		import = "plugins",
+		cond = function()
+			return not vim.g.vscode
+		end,
+	},
+	{
+		import = "plugins_vscode",
+		cond = function()
+			return vim.g.vscode
+		end,
+	},
 }, {})

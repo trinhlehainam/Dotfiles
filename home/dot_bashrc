@@ -206,7 +206,9 @@ if command -v delta &>/dev/null; then
 	export DELTA_FEATURES=+side-by-side
 fi
 
-source "$HOME"/bash-wakatime/bash-wakatime.sh
+if [ -f "$HOME"/bash-wakatime/bash-wakatime.sh ]; then
+	source "$HOME"/bash-wakatime/bash-wakatime.sh
+fi
 
 # NOTE: atuin require bash-preexec
 [ -f /home/linuxbrew/.linuxbrew/etc/profile.d/bash-preexec.sh ] && . /home/linuxbrew/.linuxbrew/etc/profile.d/bash-preexec.sh

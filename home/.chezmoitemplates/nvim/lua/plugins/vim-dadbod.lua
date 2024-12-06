@@ -5,7 +5,7 @@
 -- https://github.com/tpope/vim-dadbod/issues/9
 
 -- NOTE: Connection with URLS
--- :help dabbod-url
+-- :help dadbod-urls
 -- params use in url (username, password, etc): must be an URL escaped string
 
 -- NOTE: Genreate urlenconded string in shell
