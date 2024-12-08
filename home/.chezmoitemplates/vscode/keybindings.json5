@@ -1,14 +1,26 @@
 [
     {
         "command": "vscode-neovim.send",
+        "key": "alt+j",
+        "when": "editorTextFocus && neovim.mode != cmdline",
+        "args": "<A-j>"
+    },
+    {
+        "command": "vscode-neovim.send",
         "key": "alt+k",
         "when": "editorTextFocus && neovim.mode != cmdline",
         "args": "<A-k>"
     },
     {
         "command": "vscode-neovim.send",
+        "key": "alt+h",
+        "when": "editorTextFocus && neovim.mode == insert",
+        "args": "<A-h>"
+    },
+    {
+        "command": "vscode-neovim.send",
         "key": "alt+l",
-        "when": "editorTextFocus && neovim.mode != cmdline",
+        "when": "editorTextFocus && neovim.mode == insert",
         "args": "<A-l>"
     },
     {
@@ -23,23 +35,11 @@
         "when": "editorTextFocus && neovim.mode != cmdline",
         "args": "<C-p>"
     },
-    {
-        "command": "vscode-neovim.send",
-        "key": "alt+j",
-        "when": "editorTextFocus && neovim.mode == insert",
-        "args": "<A-j>"
-    },
-    {
-        "command": "vscode-neovim.send",
-        "key": "alt+oem_plus",
-        "when": "editorTextFocus && neovim.mode == insert",
-        "args": "<A-;>"
-    },
     // https://github.com/vscode-neovim/vscode-neovim/issues/52#issuecomment-1418491342
-    {
-        "command": "vscode-neovim.escape",
-        "key": "j k",
-        "when": "editorTextFocus && neovim.ctrlKeysInsert && neovim.init && neovim.mode == 'insert'",
-        "args": "jk"
-    }
+    // {
+    //     "command": "vscode-neovim.escape",
+    //     "key": "j k",
+    //     "when": "editorTextFocus && neovim.ctrlKeysInsert && neovim.init && neovim.mode == 'insert'",
+    //     "args": "jk"
+    // }
 ]

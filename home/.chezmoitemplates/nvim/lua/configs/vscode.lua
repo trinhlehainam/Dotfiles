@@ -1,4 +1,9 @@
 -- https://medium.com/@nikmas_dev/vscode-neovim-setup-keyboard-centric-powerful-reliable-clean-and-aesthetic-development-582d34297985
+-- NOTE: vscode extensions and configurations
+-- https://github.com/vscode-neovim/vscode-neovim
+-- https://github.com/VSpaceCode/vscode-which-key
+-- https://stackoverflow.com/a/64786469
+-- https://code.visualstudio.com/docs/getstarted/keybindings
 
 vim.opt.spelllang = "en_us"
 vim.opt.spell = false
@@ -6,8 +11,6 @@ vim.opt.spell = false
 local opts = {}
 
 opts.nore = { noremap = true, silent = true }
-
-vim.keymap.set("n", "jk", "<C-c>", opts.nore)
 
 vim.keymap.set("n", "gcc", "<Plug>VSCodeCommentaryLine", opts.nore)
 vim.keymap.set({ "x", "v" }, "gc", "<Plug>VSCodeCommentary", opts.nore)
@@ -30,6 +33,8 @@ vim.keymap.set("n", "<leader>fg", "<Cmd>call VSCodeNotify('workbench.action.find
 -- LSP
 vim.keymap.set("n", "<leader>rn", "<Cmd>call VSCodeNotify('editor.action.rename')<CR>", opts.nore)
 vim.keymap.set("n", "<leader>ca", "<Cmd>call VSCodeNotify('editor.action.quickFix')<CR>", opts.nore)
+vim.keymap.set("n", "gd", "<Cmd>call VSCodeNotify('editor.action.revealDefinition')<CR>", opts.nore)
+vim.keymap.set("n", "gr", "<Cmd>call VSCodeNotify('editor.action.goToReferences')<CR>", opts.nore)
 vim.keymap.set("n", "[d", "<Cmd>call VSCodeNotify('editor.action.marker.nextInFiles')<CR>", opts.nore)
 vim.keymap.set("n", "]d", "<Cmd>call VSCodeNotify('editor.action.marker.prevInFiles')<CR>", opts.nore)
 
