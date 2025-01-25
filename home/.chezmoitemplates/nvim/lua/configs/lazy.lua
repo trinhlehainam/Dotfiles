@@ -123,10 +123,10 @@ require("lazy").setup({
 			return not vim.g.vscode
 		end,
 	},
-	{
-		import = "plugins_vscode",
-		cond = function()
-			return vim.g.vscode
-		end,
-	},
+	-- {
+	-- 	import = "plugins_vscode",
+	-- 	cond = function()
+	-- 		return vim.g.vscode
+	-- 	end,
+	-- },
 }, {})

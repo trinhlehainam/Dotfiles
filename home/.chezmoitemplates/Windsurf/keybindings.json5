@@ -1,0 +1,85 @@
+[
+    {
+        "command": "vscode-neovim.send",
+        "key": "alt+j",
+        "when": "editorTextFocus && neovim.mode != cmdline",
+        "args": "<A-j>"
+    },
+    {
+        "command": "vscode-neovim.send",
+        "key": "alt+k",
+        "when": "editorTextFocus && neovim.mode != cmdline",
+        "args": "<A-k>"
+    },
+    {
+        "command": "vscode-neovim.send",
+        "key": "alt+h",
+        "when": "editorTextFocus && neovim.mode == insert",
+        "args": "<A-h>"
+    },
+    {
+        "command": "vscode-neovim.send",
+        "key": "alt+l",
+        "when": "editorTextFocus && neovim.mode == insert",
+        "args": "<A-l>"
+    },
+    {
+        "command": "vscode-neovim.send",
+        "key": "ctrl+y",
+        "when": "editorTextFocus && neovim.mode != cmdline",
+        "args": "<C-y>"
+    },
+    {
+        "command": "vscode-neovim.send",
+        "key": "ctrl+p",
+        "when": "editorTextFocus && neovim.mode != cmdline",
+        "args": "<C-p>"
+    },
+    {
+        "key": "shift+alt+l",
+        "command": "windsurf.prioritized.cascadeFocusNextFile",
+        "when": "editorTextFocus && windsurf.cascadeBarVisible"
+    },
+    {
+        "key": "alt+l",
+        "command": "-windsurf.prioritized.cascadeFocusNextFile",
+        "when": "editorTextFocus && windsurf.cascadeBarVisible"
+    },
+    {
+        "key": "shift+alt+j",
+        "command": "windsurf.prioritized.cascadeFocusNextHunk",
+        "when": "editorTextFocus && windsurf.canAcceptOrRejectAllCascadeEditsInFile"
+    },
+    {
+        "key": "alt+j",
+        "command": "-windsurf.prioritized.cascadeFocusNextHunk",
+        "when": "editorTextFocus && windsurf.canAcceptOrRejectAllCascadeEditsInFile"
+    },
+    {
+        "key": "shift+alt+h",
+        "command": "windsurf.prioritized.cascadeFocusPreviousFile",
+        "when": "editorTextFocus && windsurf.cascadeBarVisible"
+    },
+    {
+        "key": "alt+h",
+        "command": "-windsurf.prioritized.cascadeFocusPreviousFile",
+        "when": "editorTextFocus && windsurf.cascadeBarVisible"
+    },
+    {
+        "key": "shift+alt+k",
+        "command": "windsurf.prioritized.cascadeFocusPreviousHunk",
+        "when": "editorTextFocus && windsurf.canAcceptOrRejectAllCascadeEditsInFile"
+    },
+    {
+        "key": "alt+k",
+        "command": "-windsurf.prioritized.cascadeFocusPreviousHunk",
+        "when": "editorTextFocus && windsurf.canAcceptOrRejectAllCascadeEditsInFile"
+    },
+    // https://github.com/vscode-neovim/vscode-neovim/issues/52#issuecomment-1418491342
+    // {
+    //     "command": "vscode-neovim.escape",
+    //     "key": "j k",
+    //     "when": "editorTextFocus && neovim.ctrlKeysInsert && neovim.init && neovim.mode == 'insert'",
+    //     "args": "jk"
+    // }
+]
