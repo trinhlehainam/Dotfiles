@@ -20,14 +20,40 @@ if (Get-Module -ListAvailable -Name PSFzf)
 # Add ~/bin to user path
 $env:PATH += ";$env:USERPROFILE\bin"
 
-function Test-Command
+function Get-CommandPath
 {
   param (
     [string]$Command
   )
     
   $commandPath = (Get-Command $Command -ErrorAction SilentlyContinue).Path
+  return $commandPath
+}
+
+function Test-Command
+{
+  param (
+    [string]$Command
+  )
+    
+  $commandPath = Get-CommandPath $Command
   return $null -ne $commandPath
+}
+
+# https://yazi-rs.github.io/docs/installation/#windows
+if (Test-Command yazi)
+{
+  $gitPath = Get-CommandPath "git"
+  if ($null -ne $gitPath)
+  {
+    if ($gitPath.Contains("$env:PROGRAMFILES"))
+    {
+      $env:YAZI_FILE_ONE="$env:PROGRAMFILES\Git\usr\bin\file.exe"
+    } elseif ($gitPath.Contains("$env:USERPROFILE\scoop"))
+    {
+      $env:YAZI_FILE_ONE="$env:USERPROFILE\scoop\apps\git\current\usr\bin\file.exe"
+    }
+  }
 }
 
 Set-Alias which Get-Command
