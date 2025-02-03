@@ -218,7 +218,7 @@ if command -v yazi &>/dev/null; then
 	y() {
 		local tmp="$(mktemp -t "yazi-cwd.XXXXXX")" cwd
 		yazi "$@" --cwd-file="$tmp"
-		if cwd="$(command cat -- "$tmp")" && [ -n "$cwd" ] && [ "$cwd" != "$PWD" ]; then
+		if cwd="$(command cat -- "$tmp")" && [ "$cwd" != "" ] && [ "$cwd" != "$PWD" ]; then
 			builtin cd -- "$cwd"
 		fi
 		rm -f -- "$tmp"
@@ -226,4 +226,9 @@ if command -v yazi &>/dev/null; then
 fi
 
 [ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env" 
+
+# NOTE: python install user tools in $HOME/.local/bin
+if [ -d "$HOME/.local/bin" ]; then
+	export PATH="$HOME/.local/bin:$PATH"
+fi
 # #endregion Tools

@@ -3,6 +3,19 @@ local LspConfig = require("configs.lsp.lspconfig")
 local M = LanguageSetting:new()
 
 local common = require("utils.common")
+local log = require("utils.log")
+
+if vim.fn.executable("ansible") == 0 then
+	-- NOTE: ansiblels require ansible to be installed
+	-- INFO: https://github.com/neovim/nvim-lspconfig/blob/master/lua/lspconfig/configs/ansiblels.lua#L12
+	-- NOTE: install ansible following instructions
+	-- INFO: https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html#installing-and-upgrading-ansible-with-pip
+	log.info("ansible is not installed")
+	log.info(
+		"install ansible following instructions: https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html"
+	)
+	return M
+end
 
 M.treesitter.filetypes = { "yaml" }
 
