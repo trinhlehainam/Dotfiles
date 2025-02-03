@@ -6,6 +6,9 @@ local M = {
 	formatters = {},
 	linters = {},
 	after_masonlsp_setups = {},
+	get_neotest_adapters = function()
+		return {}
+	end,
 	plugin_setups = {},
 }
 
