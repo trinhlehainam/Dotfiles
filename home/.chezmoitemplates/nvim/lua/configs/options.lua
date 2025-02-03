@@ -15,29 +15,6 @@ vim.o.mouse = "a"
 --  See `:help 'clipboard'`
 vim.o.clipboard = "unnamedplus"
 
-if vim.fn.has("wsl") == 1 then
-	if vim.fn.executable("wl-copy") == 0 then
-		print("wl-clipboard not found, clipboard integration won't work")
-	else
-		vim.g.clipboard = {
-			name = "wl-clipboard (wsl)",
-			copy = {
-				["+"] = "wl-copy --foreground --type text/plain",
-				["*"] = "wl-copy --foreground --primary --type text/plain",
-			},
-			paste = {
-				["+"] = function()
-					return vim.fn.systemlist('wl-paste --no-newline|sed -e "s/\r$//"', { "" }, 1) -- '1' keeps empty lines
-				end,
-				["*"] = function()
-					return vim.fn.systemlist('wl-paste --primary --no-newline|sed -e "s/\r$//"', { "" }, 1)
-				end,
-			},
-			cache_enabled = true,
-		}
-	end
-end
-
 -- Enable break indent
 vim.o.breakindent = true
 
@@ -101,7 +78,7 @@ if utils.IS_WINDOWS and vim.fn.executable("pyenv") then
 	local version = vim.fn.system("pyenv global"):gsub("\n", "")
 	local user_profile = vim.fn.getenv("USERPROFILE")
 	local python_path = user_profile .. "/.pyenv/pyenv-win/versions/" .. version
-	if vim.fn.isdirectory(python_path) then
+	if vim.fn.isdirectory(python_path) and vim.fn.executable(python_path .. "/python.exe") then
 		local path = vim.fn.getenv("PATH")
 		vim.fn.setenv("PATH", python_path .. ";" .. path)
 	end
