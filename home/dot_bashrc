@@ -224,4 +224,6 @@ if command -v yazi &>/dev/null; then
 		rm -f -- "$tmp"
 	}
 fi
+
+[ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env" 
 # #endregion Tools

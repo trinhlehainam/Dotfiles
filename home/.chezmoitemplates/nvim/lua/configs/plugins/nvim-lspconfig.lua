@@ -107,6 +107,7 @@ local capabilities = require("utils.lsp").get_cmp_capabilities()
 local mason_lspconfig = require('mason-lspconfig')
 mason_lspconfig.setup {
 	ensure_installed = vim.tbl_keys(servers),
+	automatic_installation = true
 }
 
 local lspconfig = require('lspconfig')

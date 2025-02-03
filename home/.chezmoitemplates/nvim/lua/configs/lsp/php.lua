@@ -26,7 +26,6 @@ M.linterconfig.linters_by_ft = {
 }
 
 local phpactor = LspConfig:new("phpactor")
-phpactor.use_masonlsp_setup = true
 phpactor.setup = function(capabilities, on_attach)
 	-- NOTE: laravel.nvim use lspconfig to detect installed servers
 	-- Need to set up lspconfig first
