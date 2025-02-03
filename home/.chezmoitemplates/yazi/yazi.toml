@@ -33,7 +33,7 @@ ueberzug_offset = [ 0, 0, 0, 0 ]
 [opener]
 edit = [
 	{ run = '${EDITOR:-vi} "$@"', desc = "$EDITOR", block = true, for = "unix" },
-	{ run = '%EDITOR% %*',    orphan = true, desc = "%EDITOR%",           for = "windows" },
+	{ run = 'nvim %*',		  block = true,  desc = "nvim",               for = "windows" },
 	{ run = 'windsurf %*',    orphan = true, desc = "windsurf",           for = "windows" },
 	{ run = 'windsurf -w %*', block = true,  desc = "windsurf (block)",   for = "windows" },
 ]
