@@ -59,6 +59,7 @@ if (Test-Command yazi)
 Set-Alias which Get-Command
 if (Test-Command nvim)
 {
+  [System.Environment]::SetEnvironmentVariable("EDITOR", "nvim")
   Set-Alias -Name v -Value nvim
 }
 
