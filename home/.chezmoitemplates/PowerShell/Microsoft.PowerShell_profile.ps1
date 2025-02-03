@@ -101,6 +101,20 @@ if (Test-Command bat)
   Set-Alias cat bat
 }
 
+if (Test-Command yazi)
+{
+  # INFO: https://yazi-rs.github.io/docs/quick-start#shell-wrapper
+  function y {
+    $tmp = [System.IO.Path]::GetTempFileName()
+      yazi $args --cwd-file="$tmp"
+      $cwd = Get-Content -Path $tmp -Encoding UTF8
+      if (-not [String]::IsNullOrEmpty($cwd) -and $cwd -ne $PWD.Path) {
+        Set-Location -LiteralPath ([System.IO.Path]::GetFullPath($cwd))
+      }
+    Remove-Item -Path $tmp
+  }
+}
+
 Invoke-Expression (&starship init powershell)
 fnm env --use-on-cd | Out-String | Invoke-Expression
 Invoke-Expression (& { (zoxide init powershell | Out-String) })

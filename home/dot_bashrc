@@ -212,4 +212,16 @@ fi
 
 # NOTE: atuin require bash-preexec
 [ -f /home/linuxbrew/.linuxbrew/etc/profile.d/bash-preexec.sh ] && . /home/linuxbrew/.linuxbrew/etc/profile.d/bash-preexec.sh
+
+if command -v yazi &>/dev/null; then
+	# INFO: https://yazi-rs.github.io/docs/quick-start#shell-wrapper
+	y() {
+		local tmp="$(mktemp -t "yazi-cwd.XXXXXX")" cwd
+		yazi "$@" --cwd-file="$tmp"
+		if cwd="$(command cat -- "$tmp")" && [ -n "$cwd" ] && [ "$cwd" != "$PWD" ]; then
+			builtin cd -- "$cwd"
+		fi
+		rm -f -- "$tmp"
+	}
+fi
 # #endregion Tools
