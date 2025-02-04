@@ -11,7 +11,7 @@
 REQUIRED_TOOLS=("find" "read" "stat" "dirname" "sed" "jq" "chezmoi")
 for tool in "${REQUIRED_TOOLS[@]}"; do
 	if ! command -v "$tool" &>/dev/null; then
-		echo "Error: $tool is not installed."
+		echo "ERROR: $tool is not installed."
 		exit 1
 	fi
 done
@@ -24,7 +24,7 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
 elif [[ "$OSTYPE" == "cygwin" || "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
 	nvim_config_dir="$HOME/AppData/Local/nvim"
 else
-	echo "Unsupported OS: $OSTYPE"
+	echo "ERROR: Unsupported OS $OSTYPE"
 	exit 1
 fi
 
@@ -33,9 +33,42 @@ chezmoi_root_dir="$HOME/.local/share/chezmoi/home"
 templates_dir="$chezmoi_root_dir/.chezmoitemplates/nvim"
 state_file="$templates_dir/state.json"
 
+validate_template_file() {
+	# file not exist
+	if [ ! -f "$1" ]; then
+		return 1
+	fi
+
+	# file not inside $chezmoi_root_dir"/.chezmoitemplates/ folder
+	if [[ "$1" != "$chezmoi_root_dir"/.chezmoitemplates/* ]]; then
+		return 1
+	fi
+
+	local base_name
+	base_name=$(basename "$1")
+
+	# file start with "."
+	if [[ "$base_name" =~ ^\. ]]; then
+		return 1
+	fi
+
+	# state.json file
+	if [[ "$base_name" == *"state.json"* ]]; then
+		return 1
+	fi
+
+	return 0
+}
+
 new_template() {
+	if ! validate_template_file "$2"; then
+		echo "WARN: Invalid template file $2"
+		echo "INFO: Skip creating template for $2"
+		return 1
+	fi
 	local chezmoi_root_dir="$1"
-	template_file="${2#"$chezmoi_root_dir"/.chezmoitemplates/}"
+	# Trip the "$chezmoi_root_dir"/.chezmoitemplates/ prefix path
+	local template_file="${2#"$chezmoi_root_dir"/.chezmoitemplates/}"
 	if [[ "$OSTYPE" == "cygwin" || "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
 		target_file="$chezmoi_root_dir/AppData/Local/$template_file.tmpl"
 	else
@@ -52,6 +85,7 @@ new_template() {
 	template_string="{$template_string}"
 	#
 	echo "$template_string" >"$target_file"
+	return 0
 }
 
 # Function to remove a template
@@ -65,11 +99,15 @@ remove_template() {
 		target_file="$chezmoi_root_dir/dot_config/$template_file.tmpl"
 	fi
 
-	if [ -f "$target_file" ]; then
-		destination_file="${template_file#nvim/}"
-		destination_file="$nvim_config_dir/$destination_file"
-		chezmoi destroy --force "$destination_file"
+	if [ ! -f "$target_file" ]; then
+		return 1
 	fi
+
+	destination_file="${template_file#nvim/}"
+	destination_file="$nvim_config_dir/$destination_file"
+	chezmoi destroy --force "$destination_file"
+
+	return 0
 }
 
 # Load previous state if it exists
@@ -86,27 +124,31 @@ fi
 # Get current state
 declare -A current_state
 while IFS= read -r -d '' file; do
-	template_file=${file#"$chezmoi_root_dir"/.chezmoitemplates/}
-	# Ignore create template for state.json file
-	if [[ "$template_file" == *"state.json"* ]]; then
+	# Ignore files that are not templates
+	if ! validate_template_file "$file"; then
 		continue
 	fi
+	# Trip the "$chezmoi_root_dir"/.chezmoitemplates/ prefix path
+	template_file=${file#"$chezmoi_root_dir"/.chezmoitemplates/}
 	current_state["$template_file"]=$(stat -c %Y "$file")
 done < <(find "$templates_dir" -type f -print0)
 
 # Detect added files
 for file in "${!current_state[@]}"; do
 	if [ ! "${previous_state[$file]+exists}" ]; then
-		echo "Creating template for: $file"
-		new_template "$chezmoi_root_dir" "$file"
+		template_file="$chezmoi_root_dir/.chezmoitemplates/$file"
+		if new_template "$chezmoi_root_dir" "$template_file" ; then
+			echo "INFO: Template for $file created"
+		fi
 	fi
 done
 
 # Detect deleted files
 for file in "${!previous_state[@]}"; do
 	if [ ! "${current_state[$file]+exists}" ]; then
-		echo "Removing template for: $file"
-		remove_template "$chezmoi_root_dir" "$file"
+		if remove_template "$chezmoi_root_dir" "$file" ; then 
+			echo "INFO: Template for $file removed"; 
+		fi
 	fi
 done
 
@@ -132,6 +174,7 @@ hashtable_to_json() {
 
 	json="$json}"
 
+	# Output result to stdout
 	echo "$json"
 }
 
