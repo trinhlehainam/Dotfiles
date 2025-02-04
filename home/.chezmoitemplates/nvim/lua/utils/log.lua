@@ -3,16 +3,16 @@ local levels = vim.log.levels
 ---@param level number
 ---@return fun(message: string)
 local notify_fn = function(level)
-	return
-	---@param message string
-	function(message)
-		vim.schedule_wrap(function()
-			local hasnotify, _ = pcall(require, "notify")
-			if hasnotify then
-				vim.notify(message, level, { title = "Nvim Dotfiles" })
-			end
-		end)()
-	end
+  return
+  ---@param message string
+  function(message)
+    vim.schedule_wrap(function()
+      local hasnotify, _ = pcall(require, 'notify')
+      if hasnotify then
+        vim.notify(message, level, { title = 'Nvim Dotfiles' })
+      end
+    end)()
+  end
 end
 
 local M = {}
