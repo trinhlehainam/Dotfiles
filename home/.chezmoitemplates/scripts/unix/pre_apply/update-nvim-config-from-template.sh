@@ -34,26 +34,34 @@ templates_dir="$chezmoi_root_dir/.chezmoitemplates/nvim"
 state_file="$templates_dir/state.json"
 
 validate_template_file() {
-	# file not exist
-	if [ ! -f "$1" ]; then
+	local file=$1
+
+	if [ -z "$file" ]; then
+		echo "INFO: No template file provided"
 		return 1
 	fi
 
-	# file not inside $chezmoi_root_dir"/.chezmoitemplates/ folder
-	if [[ "$1" != "$chezmoi_root_dir"/.chezmoitemplates/* ]]; then
+	if [ ! -f "$file" ]; then
+		echo "INFO: Template file does not exist"
+		return 1
+	fi
+
+	if [[ "$file" != "$chezmoi_root_dir"/.chezmoitemplates/* ]]; then
+		echo "INFO: Template file is not inside $chezmoi_root_dir/.chezmoitemplates/ folder ${file}"
 		return 1
 	fi
 
 	local base_name
-	base_name=$(basename "$1")
+	base_name=$(basename "$file")
 
 	# file start with "."
 	if [[ "$base_name" =~ ^\. ]]; then
+		echo "INFO: Template file ${base_name} starts with . "
 		return 1
 	fi
 
-	# state.json file
 	if [[ "$base_name" == *"state.json"* ]]; then
+		echo "INFO: Template file name is state.json"
 		return 1
 	fi
 
@@ -126,6 +134,7 @@ declare -A current_state
 while IFS= read -r -d '' file; do
 	# Ignore files that are not templates
 	if ! validate_template_file "$file"; then
+		echo "INFO: Ignoring tracking template file \"$file\" state in \"state.json\""
 		continue
 	fi
 	# Trip the "$chezmoi_root_dir"/.chezmoitemplates/ prefix path

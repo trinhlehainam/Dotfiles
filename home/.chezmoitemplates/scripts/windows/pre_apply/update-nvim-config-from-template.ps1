@@ -1,3 +1,33 @@
+param (
+    [Parameter(Mandatory = $false, Position=0)]
+    [AllowEmptyString()]
+    [string]$ChezmoiArgs
+)
+
+
+# https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_comparison_operators?view=powershell-7.5#matching-operators
+# https://www.chezmoi.io/reference/command-line-flags/global/
+$isVerbose = $ChezmoiArgs -match "--verbose|-v"
+
+function Write-Log {
+    param (
+        [ValidateSet("Info", "Warn", "Err")]
+        [string]$Level = "Info",
+        [string]$Message
+    )
+    
+    switch ($Level) {
+        "Info" { Write-Host "INFO: $Message" }
+        "Warn" { 
+            if (!$isVerbose) { return }
+            Write-Warning "WARN: $Message" 
+        }
+        "Err" { 
+            Write-Error "ERROR: $Message" 
+        }
+    }
+}
+
 # NOTE: Required tools:
 # - chezmoi: Template processor
 $REQUIRED_TOOLS = @("chezmoi")
@@ -14,7 +44,7 @@ function Test-Command {
 
 foreach ($tool in $REQUIRED_TOOLS) {
     if (-not (Test-Command -Command $tool)) {
-        Write-Error "Error: $tool is not installed."
+        Write-Log -Level "Err" -Message "$tool is not installed."
         exit 1
     }
 }
@@ -23,7 +53,7 @@ foreach ($tool in $REQUIRED_TOOLS) {
 if ($env:OS -match "Windows_NT") {
     $nvim_config_dir = "$env:USERPROFILE\AppData\Local\nvim"
 } else {
-    Write-Host "Unsupported OS: $($PSVersionTable.OS)"
+    Write-Log -Level "Err" -Message "Unsupported OS $($PSVersionTable.OS)"
     exit 1
 }
 
@@ -32,11 +62,55 @@ $chezmoi_root_dir = "$env:USERPROFILE\.local\share\chezmoi\home"
 $templates_dir = "$chezmoi_root_dir\.chezmoitemplates\nvim"
 $state_file = "$templates_dir\state.json"
 
+function Confirm-TemplateFile {
+    param (
+        [string]$File,
+        [switch]$Verbose
+    )
+
+    if ($null -eq $File) {
+        Write-Log -Level "Info" -Message "Template file is empty"
+        return $false
+    }
+
+    if (-not (Test-Path $File)) {
+        Write-Log -Level "Info" -Message "Template file not found: $File"
+        return $false
+    }
+
+	# file not inside $chezmoi_root_dir"/.chezmoitemplates/ folder
+    if (-not $File.StartsWith("$chezmoi_root_dir\.chezmoitemplates\")) {
+        Write-Log -Level "Info" -Message "Template file is not inside $chezmoi_root_dir/.chezmoitemplates/ folder $File"
+        return $false
+    }
+    
+    $baseName = [System.IO.Path]::GetFileName($File)
+    
+    # File start with "."
+    if ($baseName[0] -eq ".") {
+        Write-Log -Level "Info" -Message "Template file $baseName starts with ."
+        return $false
+    }
+
+    if ($baseName -eq "state.json") {
+        Write-Log -Level "Info" -Message "Template file is state.json"
+        return $false
+    }
+
+    return $true
+}
+
 function New-Template {
     param (
         [string]$chezmoi_root_dir,
         [string]$template_file
     )
+
+    if (-not (Confirm-TemplateFile -File $template_file)) {
+        Write-Log -Level "Warn" -Message "Skipping invalid template: $template_file"
+        Write-Log -Level "Info" -Message "Skip creating template for $template_file"
+        return $false
+    }
 
     if ($env:OS -match "Windows_NT") {
         $target_file = "$chezmoi_root_dir\AppData\Local\$template_file.tmpl"
@@ -57,6 +131,8 @@ function New-Template {
     $template_string = $template_string.Replace("\", "/")
     #
     $template_string | Set-Content -Path $target_file
+    
+    return $true
 }
 
 function Remove-Template {
@@ -71,11 +147,16 @@ function Remove-Template {
         $target_file = "$chezmoi_root_dir/dot_config/$template_file.tmpl"
     }
     
-    if (Test-Path $target_file) {
-        $destination_file = $template_file.Substring("nvim".Length + 1) 
-        $destination_file = "$nvim_config_dir\$destination_file"
-        chezmoi destroy --force $destination_file
+    if (-not (Test-Path $target_file)) {
+        Write-Log -Level "Warn" -Message "Skipping removing non-existing template file $template_file"
+        return $false
     }
+
+    $destination_file = $template_file.Substring("nvim".Length + 1) 
+    $destination_file = "$nvim_config_dir\$destination_file"
+    chezmoi destroy --force $destination_file
+    
+    return $true
 }
 
 # Load previous state if it exists
@@ -92,11 +173,11 @@ if (Test-Path $state_file) {
 # Get current state
 $current_state = @{}
 Get-ChildItem -Path $templates_dir -File -Recurse | ForEach-Object {
-    $template_file = $_.FullName.Substring($templates_dir.Length - "nvim".Length)
-    # Ignore create template for state.json file
-    if ($template_file.Contains("state.json")) {
+    if (-not (Confirm-TemplateFile -file $_.FullName)) {
+        Write-Log -Level "Info" -Message "Ignoring tracking template file `"$_`" in `"state.json`""
         return
     }
+    $template_file = $_.FullName.Substring($templates_dir.Length - "nvim".Length)
     $timestamp = Get-Date $_.LastWriteTime
     $timestamp = ([DateTimeOffset]$timestamp).ToUnixTimeSeconds()
     $timestamp = "Date($timestamp)"
@@ -106,16 +187,19 @@ Get-ChildItem -Path $templates_dir -File -Recurse | ForEach-Object {
 # Detect added files
 foreach ($file in $current_state.Keys) {
     if (-not $previous_state.ContainsKey($file)) {
-        Write-Host "Creating template for: $file"
-        New-Template -chezmoi_root_dir $chezmoi_root_dir -template_file $file
+        $template_file = "$chezmoi_root_dir\.chezmoitemplates\$file"
+        if (New-Template -chezmoi_root_dir $chezmoi_root_dir -template_file $template_file) {
+            Write-Log -Level "Info" -Message "Template file $file created"
+        }
     }
 }
 
 # Detect deleted files
 foreach ($file in $previous_state.Keys) {
     if (-not $current_state.ContainsKey($file)) {
-        Write-Host "Removing template for: $file"
-        Remove-Template -chezmoi_root_dir $chezmoi_root_dir -template_file $file
+        if (Remove-Template -chezmoi_root_dir $chezmoi_root_dir -template_file $file) {
+            Write-Log -Level "Info" -Message "Template file $file removed"
+        }
     }
 }
 
