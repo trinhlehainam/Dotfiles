@@ -15,7 +15,7 @@ function Write-Log
         [string]$Level = "Info",
         [string]$Message
     )
-    
+
     switch ($Level)
     {
         "Info"
@@ -45,7 +45,7 @@ function Test-Command
     param (
         [string]$Command
     )
-    
+
     $commandPath = (Get-Command $Command -ErrorAction SilentlyContinue).Path
     return $null -ne $commandPath
 }
@@ -99,9 +99,9 @@ function Confirm-TemplateFile
         Write-Log -Level "Warn" -Message "Template file is not inside $CHEZMOI_ROOT_DIR/.chezmoitemplates/ folder $File"
         return $false
     }
-    
+
     $baseName = [System.IO.Path]::GetFileName($File)
-    
+
     # File start with "."
     if ($baseName[0] -eq ".")
     {
@@ -171,7 +171,7 @@ function Remove-Template
     {
         $targetFile = "$CHEZMOI_ROOT_DIR/dot_config/$TemplateFile.tmpl"
     }
-    
+
     if (-not (Test-Path $targetFile))
     {
         Write-Log -Level "Warn" -Message "Skipping removing non-existing template file $targetFile"
@@ -181,7 +181,7 @@ function Remove-Template
     $destinationFile = $template_file.Substring("nvim".Length + 1) 
     $destinationFile = "$nvim_config_dir\$destinationFile"
     chezmoi destroy --force $destinationFile
-    
+
     return $true
 }
 
