@@ -239,8 +239,8 @@ if command -v vagrant &>/dev/null; then
 		export VAGRANT_WSL_ENABLE_WINDOWS_ACCESS="1"
 		export PATH="$PATH:/mnt/c/Program Files/Oracle/VirtualBox"
 		# https://www.reddit.com/r/bashonubuntuonwindows/comments/8dhhrr/comment/dxn9obq/?utm_source=share&utm_medium=web3x&utm_name=web3xcss&utm_term=1&utm_content=share_button
-		username="$(cmd.exe /c "echo %USERNAME%" 2>/dev/null)"
-		export VAGRANT_WSL_WINDOWS_ACCESS_USER_HOME_PATH="/mnt/c/Users/$username"
+		# username="$(cmd.exe /c "echo %USERNAME%" 2>/dev/null)"
+		# export VAGRANT_WSL_WINDOWS_ACCESS_USER_HOME_PATH="/mnt/c/Users/$username"
 	fi
 fi
 # #endregion Tools
