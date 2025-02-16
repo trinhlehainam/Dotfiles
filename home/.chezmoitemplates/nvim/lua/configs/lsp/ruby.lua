@@ -4,7 +4,7 @@ local M = LanguageSetting:new()
 
 local log = require('utils.log')
 
-if not vim.fn.executable('ruby') then
+if vim.fn.executable('ruby') == 0 then
   log.info('ruby-lsp requires ruby to be installed')
   log.info(
     'install ruby following instructions: https://github.com/rbenv/rbenv?tab=readme-ov-file#using-package-managers'
