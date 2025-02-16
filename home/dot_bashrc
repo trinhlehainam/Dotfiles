@@ -232,6 +232,10 @@ if [ -d "$HOME/.local/bin" ]; then
 	export PATH="$HOME/.local/bin:$PATH"
 fi
 
+if command -v rbenv &>/dev/null; then
+	eval "$(rbenv init - --no-rehash bash)"
+fi
+
 if command -v vagrant &>/dev/null; then
 	# https://github.com/microsoft/WSL/issues/423#issuecomment-1620472312
 	if systemd-detect-virt | grep -q wsl; then
