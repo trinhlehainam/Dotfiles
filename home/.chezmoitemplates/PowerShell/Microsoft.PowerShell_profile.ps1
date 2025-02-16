@@ -90,28 +90,31 @@ if (Test-Command eza)
   {
     eza -alF --tree --level=2 --git --icons
   }
-  Set-Alias ls Invoke-Eza
-  Set-Alias ll Invoke-Eza-alF
-  Set-Alias la Invoke-Eza-aF
-  Set-Alias l Invoke-Eza-F
-  Set-Alias lt Invoke-Eza-tree
+  # https://serverfault.com/a/452663
+  Set-Alias -Name ls -Value Invoke-Eza -Option AllScope
+  Set-Alias -Name ll -Value Invoke-Eza-alF
+  Set-Alias -Name la -Value Invoke-Eza-aF
+  Set-Alias -Name l -Value Invoke-Eza-F
+  Set-Alias -Name lt -Value Invoke-Eza-tree
 }
 
 if (Test-Command bat)
 {
-  Set-Alias cat bat
+  Set-Alias -Name cat -Value bat -Option AllScope
 }
 
 if (Test-Command yazi)
 {
   # INFO: https://yazi-rs.github.io/docs/quick-start#shell-wrapper
-  function y {
+  function y
+  {
     $tmp = [System.IO.Path]::GetTempFileName()
-      yazi $args --cwd-file="$tmp"
-      $cwd = Get-Content -Path $tmp -Encoding UTF8
-      if (-not [String]::IsNullOrEmpty($cwd) -and $cwd -ne $PWD.Path) {
-        Set-Location -LiteralPath ([System.IO.Path]::GetFullPath($cwd))
-      }
+    yazi $args --cwd-file="$tmp"
+    $cwd = Get-Content -Path $tmp -Encoding UTF8
+    if (-not [String]::IsNullOrEmpty($cwd) -and $cwd -ne $PWD.Path)
+    {
+      Set-Location -LiteralPath ([System.IO.Path]::GetFullPath($cwd))
+    }
     Remove-Item -Path $tmp
   }
 }

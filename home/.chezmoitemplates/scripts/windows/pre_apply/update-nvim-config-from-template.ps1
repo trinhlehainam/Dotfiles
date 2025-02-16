@@ -70,9 +70,9 @@ if ($env:OS -match "Windows_NT")
 }
 
 # Define chezmoi directories
-$chezmoi_root_dir = "$env:USERPROFILE\.local\share\chezmoi\home"
-$templates_dir = "$chezmoi_root_dir\.chezmoitemplates\nvim"
-$state_file = "$templates_dir\state.json"
+$CHEZMOI_ROOT_DIR = "$env:USERPROFILE\.local\share\chezmoi\home"
+$TEMPLATES_DIR = "$CHEZMOI_ROOT_DIR\.chezmoitemplates\nvim"
+$STATE_FILE = "$templates_dir\state.json"
 
 function Confirm-TemplateFile
 {
@@ -93,10 +93,10 @@ function Confirm-TemplateFile
         return $false
     }
 
-    # file not inside $chezmoi_root_dir"/.chezmoitemplates/ folder
-    if (-not $File.StartsWith("$chezmoi_root_dir\.chezmoitemplates\"))
+    # file not inside $CHEZMOI_ROOT_DIR"/.chezmoitemplates/ folder
+    if (-not $File.StartsWith("$CHEZMOI_ROOT_DIR\.chezmoitemplates\"))
     {
-        Write-Log -Level "Warn" -Message "Template file is not inside $chezmoi_root_dir/.chezmoitemplates/ folder $File"
+        Write-Log -Level "Warn" -Message "Template file is not inside $CHEZMOI_ROOT_DIR/.chezmoitemplates/ folder $File"
         return $false
     }
     
@@ -121,117 +121,115 @@ function Confirm-TemplateFile
 function New-Template
 {
     param (
-        [string]$chezmoi_root_dir,
-        [string]$template_file
+        [string]$ChezmoiRootDir,
+        [string]$TemplateFile
     )
-
-    if (-not (Confirm-TemplateFile -File $template_file))
-    {
-        Write-Log -Level "Warn" -Message "Skip creating template: $template_file"
-        return $false
-    }
 
     if ($env:OS -match "Windows_NT")
     {
-        $target_file = "$chezmoi_root_dir\AppData\Local\$template_file.tmpl"
+        $targetFile = "$ChezmoiRootDir\AppData\Local\$TemplateFile.tmpl"
     } else
     {
-        $target_file = "$chezmoi_root_dir/dot_config/dot_$template_file.tmpl"
+        $targetFile = "$ChezmoiRootDir/dot_config/dot_$TemplateFile.tmpl"
     }
-    $target_dir = [System.IO.Path]::GetDirectoryName($target_file)
-    if (-not (Test-Path $target_dir))
+
+    $targetDir = [System.IO.Path]::GetDirectoryName($targetFile)
+    if (-not (Test-Path $targetDir))
     {
-        New-Item -ItemType Directory -Force -Path $target_dir
+        New-Item -ItemType Directory -Force -Path $targetDir
     }
-    if (-not (Test-Path $target_file))
+    if (-not (Test-Path $targetFile))
     {
-        New-Item -ItemType File -Force -Path $target_file
+        New-Item -ItemType File -Force -Path $targetFile
     }
     # Avoid chezmoi template checking
-    $template_string = "- template `"$template_file`" . -"
-    $template_string = "{$template_string}"
-    $template_string = "{$template_string}"
-    $template_string = $template_string.Replace("\", "/")
+    $templateString = "- template `"$TemplateFile`" . -"
+    $templateString = "{$templateString}"
+    $templateString = "{$templateString}"
+    $templateString = $templateString.Replace("\", "/")
     #
-    $template_string | Set-Content -Path $target_file
-    
+    if (-not ($templateString | Set-Content -Path $targetFile))
+    {
+        Write-Log -Level "Warn" -Message "Failed to create template file $targetFile"
+        return $false
+    }
+
     return $true
 }
 
 function Remove-Template
 {
     param (
-        [string]$chezmoi_root_dir,
-        [string]$template_file
+        [string]$ChezmoiRootDir,
+        [string]$TemplateFile
     )
 
     if ($env:OS -match "Windows_NT")
     {
-        $target_file = "$chezmoi_root_dir\AppData\Local\$template_file.tmpl"
+        $targetFile = "$CHEZMOI_ROOT_DIR\AppData\Local\$TemplateFile.tmpl"
     } else
     {
-        $target_file = "$chezmoi_root_dir/dot_config/$template_file.tmpl"
+        $targetFile = "$CHEZMOI_ROOT_DIR/dot_config/$TemplateFile.tmpl"
     }
     
-    if (-not (Test-Path $target_file))
+    if (-not (Test-Path $targetFile))
     {
-        Write-Log -Level "Warn" -Message "Skipping removing non-existing template file $template_file"
+        Write-Log -Level "Warn" -Message "Skipping removing non-existing template file $targetFile"
         return $false
     }
 
-    $destination_file = $template_file.Substring("nvim".Length + 1) 
-    $destination_file = "$nvim_config_dir\$destination_file"
-    chezmoi destroy --force $destination_file
+    $destinationFile = $template_file.Substring("nvim".Length + 1) 
+    $destinationFile = "$nvim_config_dir\$destinationFile"
+    chezmoi destroy --force $destinationFile
     
     return $true
 }
 
 # Load previous state if it exists
-$previous_state = @{}
-if (Test-Path $state_file)
+$PREVIOUS_STATE = @{}
+if (Test-Path $STATE_FILE)
 {
-    $json = Get-Content -Path $state_file | ConvertFrom-Json
+    $json = Get-Content -Path $STATE_FILE | ConvertFrom-Json
     # ConvertFrom-Json -AsHashtable somehow doesn't work
     # Add properties manually to hashtable
     $json.psobject.properties | ForEach-Object {
-        $previous_state.Add($_.Name, $_.Value)
+        $PREVIOUS_STATE.Add($_.Name, $_.Value)
     }
 }
 
 # Get current state
-$current_state = @{}
-Get-ChildItem -Path $templates_dir -File -Recurse | ForEach-Object {
+$CURRENT_STATE = @{}
+Get-ChildItem -Path $TEMPLATES_DIR -File -Recurse | ForEach-Object {
     if (-not (Confirm-TemplateFile -file $_.FullName))
     {
         Write-Log -Level "Warn" -Message "Ignoring tracking template file `"$_`" in `"state.json`""
         return
     }
-    $template_file = $_.FullName.Substring($templates_dir.Length - "nvim".Length)
+    $templateFile = $_.FullName.Substring($templates_dir.Length - "nvim".Length)
     $timestamp = Get-Date $_.LastWriteTime
     $timestamp = ([DateTimeOffset]$timestamp).ToUnixTimeSeconds()
     $timestamp = "Date($timestamp)"
-    $current_state.Add($template_file, $timestamp)
+    $CURRENT_STATE.Add($templateFile, $timestamp)
 }
 
 # Detect added files
-foreach ($file in $current_state.Keys)
+foreach ($file in $CURRENT_STATE.Keys)
 {
-    if (-not $previous_state.ContainsKey($file))
+    if (-not $PREVIOUS_STATE.ContainsKey($file))
     {
-        $template_file = "$chezmoi_root_dir\.chezmoitemplates\$file"
-        if (New-Template -chezmoi_root_dir $chezmoi_root_dir -template_file $template_file)
+        if (New-Template -ChezmoiRootDir $CHEZMOI_ROOT_DIR -TemplateFile $file)
         {
             Write-Log -Level "Info" -Message "Template file $file created"
-        }
+        }     
     }
 }
 
 # Detect deleted files
-foreach ($file in $previous_state.Keys)
+foreach ($file in $PREVIOUS_STATE.Keys)
 {
-    if (-not $current_state.ContainsKey($file))
+    if (-not $CURRENT_STATE.ContainsKey($file))
     {
-        if (Remove-Template -chezmoi_root_dir $chezmoi_root_dir -template_file $file)
+        if (Remove-Template -ChezmoiRootDir $CHEZMOI_ROOT_DIR -TemplateFile $file)
         {
             Write-Log -Level "Info" -Message "Template file $file removed"
         }
@@ -239,4 +237,4 @@ foreach ($file in $previous_state.Keys)
 }
 
 # Save current state
-$current_state | ConvertTo-Json -Compress | Set-Content -Path $state_file
+$CURRENT_STATE | ConvertTo-Json -Compress | Set-Content -Path $STATE_FILE
