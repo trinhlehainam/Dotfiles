@@ -197,7 +197,9 @@ fi
 eval "$(fzf --bash)"
 # #endregion FZF
 
-eval "$(starship init bash)"
+if ! [ "$TERM_PROGRAM" = "vscode" ]; then
+	eval "$(starship init bash)"
+fi
 eval "$(zoxide init bash)"
 eval "$(fnm env)"
 eval "$(atuin init bash)"
