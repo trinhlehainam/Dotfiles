@@ -114,7 +114,9 @@ M.dapconfig.setup = function()
   end
 
   rustaceanvim_opts.dap = {
+    autoload_configurations = true,
     adapter = {
+      name = 'codelldb',
       type = 'server',
       port = '${port}',
       host = '127.0.0.1',

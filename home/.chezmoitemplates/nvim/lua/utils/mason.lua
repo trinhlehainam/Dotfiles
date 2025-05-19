@@ -78,16 +78,21 @@ end
 ---@param pkg_name string
 ---@return string | nil
 M.get_mason_package_path = function(pkg_name)
-  local hasregistry, registry = pcall(require, 'mason-registry')
-  if not hasregistry then
+  local hasRegistry, registry = pcall(require, 'mason-registry')
+  if not hasRegistry then
     return nil
   end
 
-  local ok, pkg = pcall(registry.get_package, pkg_name)
-  if not ok then
+  local hasPkg, pkg = pcall(registry.get_package, pkg_name)
+  if not hasPkg then
     return nil
   end
-  return pkg:get_install_path()
+
+  local hasLocation, location = pcall(require, 'mason-core.installer.InstallLocation')
+  if not hasLocation then
+    return nil
+  end
+  return location:package(pkg.name)
 end
 
 return M

@@ -4,7 +4,7 @@ return {
     'neovim/nvim-lspconfig',
     'mfussenegger/nvim-dap',
   },
-  version = '^4', -- Recommended
+  version = '^6', -- Recommended
   lazy = false, -- This plugin is already lazy
   config = function()
     ---@type fun() | nil
