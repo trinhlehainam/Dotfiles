@@ -9,9 +9,8 @@ M.formatterconfig.formatters_by_ft = {
   json = { 'jq' },
 }
 
-local jsonls = LspConfig:new('jsonls')
-jsonls.server = 'jsonls'
-jsonls.config = {
+local json_lsp = LspConfig:new('jsonls', 'json-lsp')
+json_lsp.config = {
   json = {
     schemas = require('schemastore').json.schemas({
       extra = {
@@ -27,6 +26,6 @@ jsonls.config = {
   },
 }
 
-M.lspconfigs = { jsonls }
+M.lspconfigs = { json_lsp }
 
 return M

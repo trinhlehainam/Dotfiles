@@ -9,7 +9,8 @@ function M:new()
   }
   t.lspconfig = {
     server = nil,
-    settings = {},
+    mason_package = nil,
+    config = {},
   }
   t.lspconfigs = {}
   t.dapconfig = {

@@ -27,23 +27,14 @@ M.formatterconfig.formatters_by_ft = {
 -- INFO: https://github.com/golang/tools/blob/master/gopls/doc/settings.md
 -- INFO: https://github.com/golang/tools/blob/master/gopls/doc/vim.md#configuration
 local gopls = LspConfig:new('gopls')
-gopls.setup = function(capabilities, on_attach)
-  require('lspconfig')[gopls.server].setup({
-    capabilities = capabilities,
-    on_attach = on_attach,
-    settings = {
-      templateExtensions = { 'tmpl', 'gotmpl' },
-    },
-  })
-end
+gopls.config = {
+  templateExtensions = { 'tmpl', 'gotmpl' },
+}
 
 -- NOTE: golangci-lint-langserver requires golangci-lint to be installed
 M.linterconfig.servers = { 'golangci-lint' }
 -- INFO: https://github.com/nametake/golangci-lint-langserver?tab=readme-ov-file#configuration-for-nvim-lspconfig
 local golangci_lint_ls = LspConfig:new('golangci_lint_ls')
-golangci_lint_ls.setup = function(_, _)
-  require('lspconfig')[golangci_lint_ls.server].setup({})
-end
 
 M.lspconfigs = { gopls, golangci_lint_ls }
 

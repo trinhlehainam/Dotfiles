@@ -88,11 +88,8 @@ M.get_mason_package_path = function(pkg_name)
     return nil
   end
 
-  local hasLocation, location = pcall(require, 'mason-core.installer.InstallLocation')
-  if not hasLocation then
-    return nil
-  end
-  return location:package(pkg.name)
+  -- https://github.com/mason-org/mason.nvim/blob/7c7318e8/CHANGELOG.md#package-api-changes
+  return vim.fn.exepath(pkg.name)
 end
 
 return M

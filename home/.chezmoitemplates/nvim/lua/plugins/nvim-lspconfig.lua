@@ -6,7 +6,6 @@ return { -- Main LSP Configuration
     -- NOTE: `opts = {}` is the same as calling `require('mason').setup({})`
     -- https://github.com/mason-org/mason.nvim
     { 'mason-org/mason.nvim', opts = {} },
-    'mason-org/mason-lspconfig.nvim',
     'WhoIsSethDaniel/mason-tool-installer.nvim',
 
     -- Useful status updates for LSP

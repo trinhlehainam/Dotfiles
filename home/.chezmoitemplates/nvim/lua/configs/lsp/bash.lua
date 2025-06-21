@@ -16,7 +16,7 @@ M.linterconfig.linters_by_ft = {
   sh = { 'shellcheck' },
 }
 
-local bashls = LspConfig:new('bashls')
+local bashls = LspConfig:new('bashls', 'bash-language-server')
 M.lspconfigs = { bashls }
 
 return M

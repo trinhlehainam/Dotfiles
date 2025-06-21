@@ -193,9 +193,6 @@ vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagn
 --  - settings (table): Override the default settings passed when initializing the server.
 --        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
 local servers = {
-  dockerls = {},
-  powershell_es = {},
-  html = {},
   lua_ls = {
     -- cmd = { ... },
     -- filetypes = { ... },
@@ -210,20 +207,7 @@ local servers = {
       },
     },
   },
-  stylua = {},
 }
-
--- local lspconfigs = require('configs.lsp').lspconfigs
--- for _, lspconfig in pairs(lspconfigs) do
---   local server_name = lspconfig.server
---   if type(server_name) ~= 'string' or server_name == '' then
---     goto continue
---   end
-
---   servers[server_name] = lspconfig.config
-
---   ::continue::
--- end
 
 -- Ensure the servers and tools above are installed
 --
@@ -238,13 +222,35 @@ local servers = {
 --
 -- You can add other tools here that you want Mason to install
 -- for you, so that they are available from within Neovim.
-local ensure_installed = vim.tbl_keys(servers or {})
+local ensure_installed = {'lua-language-server', 'stylua'}
+local lspconfigs = require('configs.lsp').lspconfigs
+for _, lspconfig in pairs(lspconfigs) do
+  local package_name = lspconfig.mason_package
+  if type(package_name) ~= 'string' or package_name == '' then
+    goto continue
+  end
+
+  ensure_installed[#ensure_installed + 1] = package_name
+
+  ::continue::
+end
 require('mason-tool-installer').setup({ ensure_installed = ensure_installed })
+
+for _, lspconfig in pairs(lspconfigs) do
+  local server_name = lspconfig.server
+  if type(server_name) ~= 'string' or server_name == '' then
+    goto continue
+  end
+
+  servers[server_name] = lspconfig.config
+
+  ::continue::
+end
 
 -- Installed LSPs are configured and enabled automatically with mason-lspconfig
 -- The loop below is for overriding the default configuration of LSPs with the ones in the servers table
-vim.lsp.enable(ensure_installed)
 for server_name, config in pairs(servers) do
+  vim.lsp.enable(server_name)
   vim.lsp.config(server_name, config)
 end
 

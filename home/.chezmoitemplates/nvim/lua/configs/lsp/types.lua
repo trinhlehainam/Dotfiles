@@ -7,10 +7,11 @@
 ---@field filetypes? string[]
 
 ---@class custom.LspConfig
--- Use `mason-lspconfig` to install LSP
--- Reference available LSP that can be installed by `mason-lspconfig` here:
--- https://github.com/williamboman/mason-lspconfig.nvim?tab=readme-ov-file#available-lsp-servers
+-- https://github.com/neovim/nvim-lspconfig/blob/master/doc/configs.md#lsp-configs
 ---@field server? string
+-- Reference available LSP packages that can be installed by `mason`:
+-- https://mason-registry.dev/registry/list
+---@field mason_package? string
 ---@field config vim.lsp.Config
 
 ---@class custom.DapConfig

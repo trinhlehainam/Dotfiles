@@ -31,16 +31,17 @@ vim.filetype.add({
 })
 
 -- INFO: https://github.com/neovim/nvim-lspconfig/blob/master/doc/configs.md#ansiblels
-local ansiblels = LspConfig:new('ansiblels')
-ansiblels.server = 'ansiblels'
+local ansiblels = LspConfig:new('ansiblels', 'ansible-language-server')
 
 -- NOTE: ansible-lint is not supported on Windows
 -- INFO: https://ansible.readthedocs.io/projects/lint/installing/
 if common.IS_WINDOWS then
   ansiblels.config = {
-    validation = {
-      lint = {
-        enabled = false,
+    settings = {
+      validation = {
+        lint = {
+          enabled = false,
+        },
       },
     },
   }
