@@ -28,22 +28,6 @@ local vue_ls = LspConfig:new('vue_ls', 'vue-language-server')
 
 local vtsls = LspConfig:new('vtsls', 'vtsls')
 
-local log = require('utils.log')
-local mason_utils = require('utils.mason')
-
-local volar_pkg_path = mason_utils.get_mason_package_path('vue-language-server')
-if not volar_pkg_path then
-  log.info('vue-language-server is not installed in mason package')
-  return M
-end
-
--- INFO:
---	- https://github.com/vuejs/language-tools?tab=readme-ov-file#community-integration
---	- https://vuejs.org/guide/typescript/overview.html#volar-takeover-mode
---	- https://github.com/mason-org/mason-registry/issues/5064
---	- https://stackoverflow.com/a/59788563
-local vue_language_server_path = volar_pkg_path .. '/node_modules/@vue/language-server'
-
 -- vtsls configuration scheme
 -- INFO: https://github.com/yioneko/vtsls/blob/main/packages/service/configuration.schema.json
 local configuration = {
@@ -66,19 +50,6 @@ vtsls.config = {
     -- INFO: https://github.com/yioneko/nvim-vtsls?tab=readme-ov-file#other-useful-snippets
     typescript = configuration,
     javascript = configuration,
-    vtsls = {
-      tsserver = {
-        globalPlugins = {
-          {
-            name = '@vue/typescript-plugin',
-            location = vue_language_server_path,
-            languages = { 'vue' },
-            configNamespace = 'typescript',
-            enableForWorkspaceTypeScriptVersions = true,
-          },
-        },
-      },
-    },
   },
 }
 

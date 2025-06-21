@@ -16,7 +16,7 @@ function M:new()
   t.dapconfig = {
     type = nil,
     setup = nil,
-    use_masondap_default_setup = false,
+    use_masondap_default_setup = true,
   }
   t.formatterconfig = {
     servers = nil,
@@ -26,7 +26,6 @@ function M:new()
     servers = nil,
     linters_by_ft = nil,
   }
-  t.after_masonlsp_setup = nil
   return t
 end
 

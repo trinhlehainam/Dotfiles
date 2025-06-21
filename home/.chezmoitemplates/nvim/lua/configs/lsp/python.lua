@@ -51,34 +51,9 @@ vim.api.nvim_create_autocmd("LspAttach", {
 M.lspconfigs = { pyright, ruff }
 
 M.dapconfig.type = 'python'
-M.dapconfig.setup = function()
-  local log = require('utils.log')
-
-  local debugpy_path = require('utils.mason').get_mason_package_path('debugpy')
-
-  if type(debugpy_path) ~= 'string' or debugpy_path == '' then
-    log.error('debugpy is not installed')
-    return
-  end
-
-  local has_dappython, dappython = pcall(require, 'dap-python')
-  if not has_dappython then
-    log.error('nvim-dap-python is not installed')
-    return
-  end
-
-  local function get_debugpy_path()
-    if vim.fn.has('win32') == 1 then
-      return debugpy_path .. '/venv/Scripts/python.exe'
-    else
-      return debugpy_path .. '/venv/bin/python'
-    end
-  end
-  dappython.setup(get_debugpy_path())
-end
 
 M.neotest_adapter_setup = function()
-  local has_pytest, _ = pcall(require, 'neotest-python')
+  local has_pytest, pytest = pcall(require, 'neotest-python')
   if not has_pytest then
     return {}
   end
@@ -86,7 +61,7 @@ M.neotest_adapter_setup = function()
   -- INFO: https://github.com/nvim-neotest/neotest-python/issues/40#issuecomment-1336947205
   -- INFO: https://github.com/nvim-neotest/neotest-python/issues/75#issuecomment-2188820822
   -- INFO: https://github.com/rcasia/neotest-bash/issues/17#issuecomment-2183972514
-  return require('neotest-python')
+  return pytest
 end
 
 return M
