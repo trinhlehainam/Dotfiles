@@ -1,5 +1,7 @@
 return { -- Formatter
   'stevearc/conform.nvim',
+  event = { 'BufWritePre' },
+  cmd = { 'ConformInfo' },
   dependencies = { 'williamboman/mason.nvim' },
   lazy = false,
   keys = {
