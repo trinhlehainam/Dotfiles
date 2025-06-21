@@ -1,3 +1,5 @@
+-- https://github.com/nvim-lua/kickstart.nvim
+--
 -- Install package manager
 --    https://github.com/folke/lazy.nvim
 --    `:help lazy.nvim.txt` for more info
