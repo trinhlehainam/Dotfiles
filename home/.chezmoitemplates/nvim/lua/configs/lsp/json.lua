@@ -11,7 +11,7 @@ M.formatterconfig.formatters_by_ft = {
 
 local jsonls = LspConfig:new('jsonls')
 jsonls.server = 'jsonls'
-jsonls.settings = {
+jsonls.config = {
   json = {
     schemas = require('schemastore').json.schemas({
       extra = {

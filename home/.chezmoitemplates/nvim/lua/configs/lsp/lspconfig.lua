@@ -7,7 +7,7 @@ function M:new(server)
   local t = setmetatable({}, { __index = M })
   t.server = server
   t.use_masonlsp_setup = true
-  t.settings = {}
+  t.config = {}
   t.setup = nil
   return t
 end

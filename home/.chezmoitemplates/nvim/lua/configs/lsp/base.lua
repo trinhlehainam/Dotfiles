@@ -9,8 +9,6 @@ function M:new()
   }
   t.lspconfig = {
     server = nil,
-    setup = nil,
-    use_masonlsp_setup = true,
     settings = {},
   }
   t.lspconfigs = {}

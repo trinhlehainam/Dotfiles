@@ -220,7 +220,7 @@ local servers = {
 --     goto continue
 --   end
 
---   servers[server_name] = lspconfig.settings
+--   servers[server_name] = lspconfig.config
 
 --   ::continue::
 -- end

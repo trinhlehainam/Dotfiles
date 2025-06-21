@@ -1,7 +1,6 @@
 ---LuaLS Anotations
 --- INFO: https://github.com/LuaLS/lua-language-server/wiki/Annotations
 
----@alias custom.LspConfig.Setup fun(capabilities: lsp.ClientCapabilities, on_attach: fun(client: lsp.Client, bufnr: integer))
 ---@alias custom.NeotestAdapterSetup fun(): neotest.Adapter
 
 ---@class custom.TreeSitter
@@ -12,12 +11,7 @@
 -- Reference available LSP that can be installed by `mason-lspconfig` here:
 -- https://github.com/williamboman/mason-lspconfig.nvim?tab=readme-ov-file#available-lsp-servers
 ---@field server? string
---- `mason-lspconfig` uses `nvim-lspconfig` to setup LSP servers
---- LSP servers configurations documentation:
---- https://github.com/neovim/nvim-lspconfig/blob/master/doc/server_configurations.md
----@field setup? custom.LspConfig.Setup
----@field use_masonlsp_setup boolean
----@field settings table
+---@field config vim.lsp.Config
 
 ---@class custom.DapConfig
 -- Use `mason-nvim-dap` to install DAP

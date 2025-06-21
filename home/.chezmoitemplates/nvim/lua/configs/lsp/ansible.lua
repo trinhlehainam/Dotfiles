@@ -37,7 +37,7 @@ ansiblels.server = 'ansiblels'
 -- NOTE: ansible-lint is not supported on Windows
 -- INFO: https://ansible.readthedocs.io/projects/lint/installing/
 if common.IS_WINDOWS then
-  ansiblels.settings = {
+  ansiblels.config = {
     validation = {
       lint = {
         enabled = false,
