@@ -11,6 +11,7 @@ return { -- Highlight, edit, and navigate code
     -- { "EmranMR/tree-sitter-blade" },
   },
   config = function()
+    require('treesitter-context').setup({})
     require('configs.plugins.nvim-treesitter')
   end,
 }
