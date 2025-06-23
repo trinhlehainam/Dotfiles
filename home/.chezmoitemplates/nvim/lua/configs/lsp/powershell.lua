@@ -12,7 +12,7 @@ if vim.fn.executable('powershell') == 0 or vim.fn.executable('pwsh') == 0 then
   return M
 end
 
-M.lspconfigs = { LspConfig:new('powershell_es') }
+M.lspconfigs = { LspConfig:new('powershell_es', 'powershell-editor-services') }
 
 return M
 

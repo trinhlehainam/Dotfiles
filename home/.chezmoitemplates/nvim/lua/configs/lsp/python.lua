@@ -14,71 +14,46 @@ M.formatterconfig.formatters_by_ft = {
   },
 }
 
-local pyright = LspConfig:new('pyright')
-pyright.setup = function(capabilities, on_attach)
-  require('lspconfig')[pyright.server].setup({
-    capabilities = capabilities,
-    on_attach = on_attach,
-    settings = {
-      pyright = {
-        -- Using Ruff's import organizer
-        disableOrganizeImports = true,
-      },
-      python = {
-        analysis = {
-          -- Ignore all files for analysis to exclusively use Ruff for linting
-          ignore = { '*' },
-        },
+local pyright = LspConfig:new('pyright', 'pyright')
+pyright.config = {
+  settings = {
+    pyright = {
+      -- Using Ruff's import organizer
+      disableOrganizeImports = true,
+    },
+    python = {
+      analysis = {
+        -- Ignore all files for analysis to exclusively use Ruff for linting
+        ignore = { '*' },
       },
     },
-  })
-end
+  }
+}
 
-local ruff = LspConfig:new('ruff')
+local ruff = LspConfig:new('ruff', 'ruff')
 -- Ruff configuration for Neovim
--- INFO: https://github.com/astral-sh/ruff/blob/main/crates/ruff_server/docs/setup/NEOVIM.md
-ruff.setup = function(_, _)
-  require('lspconfig')[ruff.server].setup({
-    on_attach = function(client, _)
-      if client.name == 'ruff' then
-        -- Disable hover in favor of Pyright
-        client.server_capabilities.hoverProvider = false
-      end
-    end,
-  })
-end
+-- INFO: https://docs.astral.sh/ruff/editors/setup/#neovim
+vim.api.nvim_create_autocmd("LspAttach", {
+  group = vim.api.nvim_create_augroup('lsp_attach_disable_ruff_hover', { clear = true }),
+  callback = function(args)
+    local client = vim.lsp.get_client_by_id(args.data.client_id)
+    if client == nil then
+      return
+    end
+    if client.name == 'ruff' then
+      -- Disable hover in favor of Pyright
+      client.server_capabilities.hoverProvider = false
+    end
+  end,
+  desc = 'LSP: Disable hover capability from Ruff',
+})
 
 M.lspconfigs = { pyright, ruff }
 
 M.dapconfig.type = 'python'
-M.dapconfig.setup = function()
-  local log = require('utils.log')
-
-  local debugpy_path = require('utils.mason').get_mason_package_path('debugpy')
-
-  if type(debugpy_path) ~= 'string' or debugpy_path == '' then
-    log.error('debugpy is not installed')
-    return
-  end
-
-  local has_dappython, dappython = pcall(require, 'dap-python')
-  if not has_dappython then
-    log.error('nvim-dap-python is not installed')
-    return
-  end
-
-  local function get_debugpy_path()
-    if vim.fn.has('win32') == 1 then
-      return debugpy_path .. '/venv/Scripts/python.exe'
-    else
-      return debugpy_path .. '/venv/bin/python'
-    end
-  end
-  dappython.setup(get_debugpy_path())
-end
 
 M.neotest_adapter_setup = function()
-  local has_pytest, _ = pcall(require, 'neotest-python')
+  local has_pytest, pytest = pcall(require, 'neotest-python')
   if not has_pytest then
     return {}
   end
@@ -86,7 +61,7 @@ M.neotest_adapter_setup = function()
   -- INFO: https://github.com/nvim-neotest/neotest-python/issues/40#issuecomment-1336947205
   -- INFO: https://github.com/nvim-neotest/neotest-python/issues/75#issuecomment-2188820822
   -- INFO: https://github.com/rcasia/neotest-bash/issues/17#issuecomment-2183972514
-  return require('neotest-python')
+  return pytest
 end
 
 return M

@@ -3,15 +3,11 @@ description: Suggests a git commit message based on staged changes, supporting t
 ---
 
 <user_inputs>
-- Output the target directory(e.g., path to a submodule) **provided by the user** into <target_directory> xml tag.
+- **Working Directory (Optional):**
+  - Identify by checking the initial command for a path provided either with a keyword (e.g., `dir:`, `target:`, `in: <path>`) or as a standalone argument. Keywords take precedence.
+  - If a path is identified, set the <working_directory> XML tag to this path. This directory will be the Cwd for `git` commands.
+  - If no path is provided, set the <working_directory> XML tag to the project root/initiation directory.
 </user_inputs>
-
-<check_target_directory>
-- Check if a <target_directory> was specified when this workflow was invoked.
-- If a <target_directory> is provided, all subsequent `git` commands in this workflow (executed via the `run_command` tool) **MUST** use this <target_directory> as their Current Working Directory (`Cwd`).
-- If no <target_directory> is specified or <target_directory> is empty, `git` commands should be run from the current project root or the directory where the workflow was initiated.
-- Output the working directory context into <working_directory> xml tag.
-</check_target_directory>
 
 <search_git_commands>
 - **Plan Git Documentation Queries:**
@@ -20,13 +16,13 @@ description: Suggests a git commit message based on staged changes, supporting t
         2. `viewing staged changes` (Purpose: to find the command to show the differences between the files in the staging area)
     - **ALWAYS USE `code-reasoning` tool** to break down plan process in step by step.
     - Output the list of planned queries into <planned_git_doc_queries> xml tag.
-- **Execute Git Documentation Queries using `context7`:**
-    - First, call `mcp1_resolve-library-id` with `libraryName: "git"` to get the Context7 ID for `Git Documentation` (e.g., `/git/htmldocs`), **NOT** `git source code`. Store this ID.
+- **Execute Git Documentation Queries using `context7` tool:**
+    - Use the `context7` tool to search for libraries related to 'Git'. From the list of returned libraries, select the one with the ID `/git/htmldocs` and a description similar to 'HTML Git documentation'. Store this library ID into <git_doc_library_id> xml tag.
     - Then, for **each query** identified in <planned_git_doc_queries>:
-        - Call `mcp1_get-library-docs` using the stored Git Documentation ID and the specific query string (with `tokens: 2000`).
+        - Use the `context7` tool with <git_doc_library_id> as library ID to retrieve relevant documentation for the query, requesting approximately 2000 tokens.
     - Ensure all queries are executed and their results collected.
 <important>
-- **Prioritize Non-Interactive Commands:** When analyzing results from `mcp1_get-library-docs`, prioritize commands marked as non-interactive or including **"no pager"**.
+- **Prioritize Non-Interactive Commands:** When analyzing results from `context7` tool, prioritize commands marked as non-interactive or including **"no pager"**.
 </important>
 - Collate and output the relevant command information into <git_commands> xml tag.
 </search_git_commands>
@@ -48,9 +44,8 @@ description: Suggests a git commit message based on staged changes, supporting t
 </analyze_changes>
 
 <fetch_conventional_commits_spec>
-- **Fetch Conventional Commits Specification using `context7`:**
-    - First, call `mcp1_resolve-library-id` with `libraryName: "conventionalcommits"` to get list of available libraries related to `conventionalcommits`. Then select the library has description similar to `The conventional commits specification`. Store the ID into <conventional_commits_spec_id> xml tag.
-    - Then, call `mcp1_get-library-docs` with the retrieved <conventional_commits_spec_id>, setting `tokens: 8000` (or a similarly large value) to ensure the full specification context is fetched. Store the output into <conventional_commits_spec> xml tag.
+- Use the `context7` tool to find the library ID for 'conventionalcommits'. Select the library whose description is similar to 'The conventional commits specification'. Store the ID into <conventional_commits_spec_id> xml tag.
+- Then, use the `context7` tool with the retrieved <conventional_commits_spec_id> to fetch the Conventional Commits specification, requesting approximately 8000 tokens to ensure the full context is retrieved. Store the output into <conventional_commits_spec> xml tag.
 </fetch_conventional_commits_spec>
 
 <formulate_commit_message>

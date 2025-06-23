@@ -25,7 +25,7 @@ M.linterconfig.linters_by_ft = {
   -- php = { "easy-coding-standard" },
 }
 
-local phpactor = LspConfig:new('phpactor')
+local phpactor = LspConfig:new('phpactor', 'phpactor')
 phpactor.setup = function(capabilities, on_attach)
   -- NOTE: laravel.nvim use lspconfig to detect installed servers
   -- Need to set up lspconfig first

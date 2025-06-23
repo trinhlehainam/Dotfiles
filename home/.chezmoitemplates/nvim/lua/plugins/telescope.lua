@@ -20,7 +20,7 @@ end
 
 return { -- Fuzzy Finder (files, lsp, etc)
   'nvim-telescope/telescope.nvim',
-  version = '*',
+  event = 'VimEnter',
   dependencies = {
     'nvim-lua/plenary.nvim',
     get_telescope_fzf_native_setup(),
