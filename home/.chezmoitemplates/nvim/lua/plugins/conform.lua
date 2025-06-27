@@ -2,7 +2,7 @@ return { -- Formatter
   'stevearc/conform.nvim',
   event = { 'BufWritePre' },
   cmd = { 'ConformInfo' },
-  dependencies = { 'williamboman/mason.nvim' },
+  dependencies = { 'WhoIsSethDaniel/mason-tool-installer.nvim' },
   lazy = false,
   keys = {
     {

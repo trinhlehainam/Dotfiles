@@ -1,5 +1,3 @@
-local mason_utils = require('utils.mason')
-
 local formatters = require('configs.lsp').formatters
 local ensure_installed_formatters = { 'stylua' }
 
@@ -17,7 +15,7 @@ for _, formatter in ipairs(formatters) do
   end
 end
 
-mason_utils.install(ensure_installed_formatters)
+require('mason-tool-installer').setup({ ensure_installed = ensure_installed_formatters })
 
 require('conform').setup({
   notify_on_error = false,
