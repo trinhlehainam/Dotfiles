@@ -1,6 +1,6 @@
 return { -- Linter
   'mfussenegger/nvim-lint',
-  dependencies = { 'williamboman/mason.nvim' },
+  dependencies = { 'WhoIsSethDaniel/mason-tool-installer.nvim' },
   event = {
     'BufReadPre',
     'BufNewFile',

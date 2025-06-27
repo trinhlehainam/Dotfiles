@@ -1,4 +1,3 @@
-local mason_utils = require('utils.mason')
 local lint = require('lint')
 
 local linters = require('configs.lsp').linters
@@ -20,7 +19,7 @@ for _, linter in ipairs(linters) do
   end
 end
 
-mason_utils.install(ensure_installed_linters)
+require('mason-tool-installer').setup({ ensure_installed = ensure_installed_linters })
 
 lint.linters_by_ft = linters_by_ft
 
