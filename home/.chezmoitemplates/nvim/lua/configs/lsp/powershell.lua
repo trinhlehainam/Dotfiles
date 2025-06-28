@@ -12,10 +12,8 @@ if vim.fn.executable('powershell') == 0 or vim.fn.executable('pwsh') == 0 then
   return M
 end
 
-M.lspconfigs = { LspConfig:new('powershell_es', 'powershell-editor-services') }
+local powershell_es = LspConfig:new(nil, 'powershell-editor-services')
+
+M.lspconfigs = { powershell_es }
 
 return M
-
--- TODO: configure DAP
--- https://github.com/TheLeoP/powershell.nvim?tab=readme-ov-file#dap
---
