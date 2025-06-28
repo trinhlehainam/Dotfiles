@@ -29,21 +29,21 @@ inoremap <A-h> <Esc>i
 inoremap <A-l> <Esc>la
 
 " Telescope fzf like keymap 
-noremap <leader>ff :action GotoFile<CR>
-noremap <leader>fg :action SearchEverywhere<CR>
-noremap <leader>fw :action TextSearchAction<CR>
+noremap <leader>sf :action GotoFile<CR>
+noremap <leader>sg :action SearchEverywhere<CR>
+noremap <leader>sw :action TextSearchAction<CR>
 noremap <leader>/ :action Find<CR>
-noremap <leader>ds :action ActivateStructureToolWindow<CR>
-noremap <leader>ws :action GotoSymbol<CR>
+" noremap <leader>ds :action ActivateStructureToolWindow<CR>
 noremap <leader><space> :action Switcher<CR>
 
 " Nvim lsp like keymap
-noremap <leader>rn :action RenameElement<CR>
-noremap <leader>ca :action ShowIntentionActions<CR>
-noremap gd :action GotoDeclaration<CR>
-noremap <leader>D :action GotoTypeDeclaration<CR>
-noremap gr :action ShowUsages<CR>
-noremap gI :action ReSharperGotoImplementation<CR>
+noremap grn :action RenameElement<CR>
+noremap gra :action ShowIntentionActions<CR>
+noremap grd :action GotoDeclaration<CR>
+noremap grr :action ShowUsages<CR>
+noremap grt :action GotoTypeDeclaration<CR>
+noremap gri :action ReSharperGotoImplementation<CR>
+noremap gO :action GotoSymbol<CR>
 
 " Diagnostic keymap 
 noremap [d :action GotoNextError<CR>
@@ -77,9 +77,10 @@ noremap <C-p> :action EditorPaste<CR>
 " noremap <C-z> :action ToggleDistractionFreeMode<CR>
 noremap <leader>tt :action ActivateProjectToolWindow<CR>
 noremap sb :action ActivateBuildToolWindow<CR>
-noremap <leader>gs :action ActivateVersionControlToolWindow<CR>
 noremap <C-\> :action ActivateTerminalToolWindow<CR>
 
+" Git
+noremap <leader>gs :action ActivateVersionControlToolWindow<CR>
 noremap <leader>gu :action Vcs.UpdateProject<CR>
 noremap <leader>gf :action Git.Fetch<CR>
 noremap <leader>gc :action CheckinProject<CR> 
