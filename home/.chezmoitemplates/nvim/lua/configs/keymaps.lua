@@ -28,13 +28,6 @@ vim.keymap.set('i', 'jk', '<Esc>', opts.nore)
 --Jump out of surround pairs
 vim.keymap.set('i', '<C-e>', '<Esc>%%a', opts.nore)
 
---Window Navigation
-vim.keymap.set('n', '<C-l>', '<C-w>l', opts.nore)
-vim.keymap.set('n', '<C-k>', '<C-w>k', opts.nore)
-vim.keymap.set('n', '<C-j>', '<C-w>j', opts.nore)
-vim.keymap.set('n', '<C-h>', '<C-w>h', opts.nore)
-vim.keymap.set('n', '<C-x>', '<C-w>c', opts.nore)
-
 -- These mappings control the size of splits (height/width)
 vim.keymap.set('n', '<A-,>', '<c-w>5<', opts.nore)
 vim.keymap.set('n', '<A-.>', '<c-w>5>', opts.nore)
