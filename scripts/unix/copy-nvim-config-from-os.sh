@@ -115,9 +115,6 @@ copy_and_rename() {
     
     if [[ $errors -gt 0 ]]; then
         return 1
-    elif [[ $file_count -eq 0 ]]; then
-        log "WARNING: No files were copied from $src_dir"
-        return 1
     fi
     
     return 0
