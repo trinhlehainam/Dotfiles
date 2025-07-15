@@ -1,3 +1,4 @@
+#!/bin/bash
 set -euo pipefail
 
 # Function to log messages with timestamp
@@ -28,7 +29,7 @@ if [[ "$OSTYPE" == "linux-gnu"* ]]; then
 elif [[ "$OSTYPE" == "darwin"* ]]; then
     nvim_config_dir="$HOME/.config/nvim"
     log "Detected macOS system"
-elif [[ "$OSTYPE" == "cygwin" || "$OSTYPE" == "msys" ]]; then
+elif [[ "$OSTYPE" == "cygwin"* || "$OSTYPE" == "msys"* ]]; then
     nvim_config_dir="$HOME/AppData/Local/nvim"
     log "Detected Windows system (Cygwin/MSYS)"
 else
@@ -61,6 +62,7 @@ copy_and_rename() {
     local src_dir="$1"
     local dest_dir="$2"
     local file_count=0
+    local errors=0
 
     if [[ ! -d "$src_dir" ]]; then
         log "WARNING: Source directory does not exist: $src_dir"
@@ -76,10 +78,13 @@ copy_and_rename() {
             local subdir=$(basename "$file")
             if ! mkdir -p "$dest_dir/$subdir"; then
                 log "ERROR: Failed to create directory: $dest_dir/$subdir"
+                ((errors++))
                 continue
             fi
             # Recursively copy and rename inside the subdirectory
-            copy_and_rename "$file" "$dest_dir/$subdir"
+            if ! copy_and_rename "$file" "$dest_dir/$subdir"; then
+                ((errors++))
+            fi
         elif [[ -f "$file" ]]; then
             local filename
             filename=$(basename "$file")
@@ -90,6 +95,7 @@ copy_and_rename() {
                     ((file_count++))
                 else
                     log "ERROR: Failed to copy $filename"
+                    ((errors++))
                 fi
             else
                 if cp "$file" "$dest_dir/$filename"; then
@@ -97,12 +103,22 @@ copy_and_rename() {
                     ((file_count++))
                 else
                     log "ERROR: Failed to copy $filename"
+                    ((errors++))
                 fi
             fi
         elif [[ -L "$file" ]]; then
             log "WARNING: Skipping symbolic link: $file"
         fi
     done
+    
+    log "Processed $file_count files in $src_dir"
+    
+    if [[ $errors -gt 0 ]]; then
+        return 1
+    elif [[ $file_count -eq 0 ]]; then
+        log "WARNING: No files were copied from $src_dir"
+        return 1
+    fi
     
     return 0
 }
