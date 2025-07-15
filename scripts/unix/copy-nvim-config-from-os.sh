@@ -81,7 +81,8 @@ copy_and_rename() {
             # Recursively copy and rename inside the subdirectory
             copy_and_rename "$file" "$dest_dir/$subdir"
         elif [[ -f "$file" ]]; then
-            local filename=$(basename "$file")
+            local filename
+            filename=$(basename "$file")
             if [[ $filename == .* ]]; then
                 local new_filename="dot_${filename:1}"
                 if cp "$file" "$dest_dir/$new_filename"; then
