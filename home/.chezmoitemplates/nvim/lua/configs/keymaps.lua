@@ -206,15 +206,15 @@ vim.keymap.set('i', '<C-p>', '<Esc>"+pa', opts.nore)   -- Paste from system clip
 -- ============================================================================
 
 -- ----------------------------------------------------------------------------
--- Word Navigation in Insert Mode
+-- Character Navigation in Insert Mode
 -- ----------------------------------------------------------------------------
 
--- Navigate by words while staying in insert mode
--- Alt-h: Move to beginning of current word (or previous word)
--- Alt-l: Move to beginning of next word
--- Useful for quick corrections without leaving insert mode
-vim.keymap.set('i', '<A-h>', '<Esc>i', opts.nore)   -- Move to word beginning
-vim.keymap.set('i', '<A-l>', '<Esc>la', opts.nore)  -- Move to next word
+-- Navigate by single characters while staying in insert mode
+-- Alt-h: Move one character to the left
+-- Alt-l: Move one character to the right
+-- Useful for quick cursor adjustments without leaving insert mode
+vim.keymap.set('i', '<A-h>', '<Esc>hi', opts.nore)  -- Move one character left
+vim.keymap.set('i', '<A-l>', '<Esc>la', opts.nore)  -- Move one character right
 
 -- ============================================================================
 -- SEARCH & NAVIGATION ENHANCEMENTS
