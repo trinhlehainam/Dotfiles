@@ -14,7 +14,6 @@ require('crates').setup({
   },
 })
 
-vim.keymap.set('n', '<leader>c', nil, { desc = '[C]rates' })
 vim.keymap.set('n', '<leader>ct', crates.toggle, { desc = '[C]rates [T]oggle' })
 vim.keymap.set('n', '<leader>cr', crates.reload, { desc = '[C]rates [R]eload' })
 
