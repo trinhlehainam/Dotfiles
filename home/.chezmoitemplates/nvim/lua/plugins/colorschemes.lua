@@ -2,12 +2,15 @@ return {
   'rebelot/kanagawa.nvim',
   'folke/tokyonight.nvim',
   'navarasu/onedark.nvim',
+  'sainnhe/gruvbox-material',
   'ellisonleao/gruvbox.nvim',
-  'catppuccin/nvim',
+  'sainnhe/everforest',
   {
-    'sainnhe/gruvbox-material',
+    'catppuccin/nvim',
+    name = 'catppuccin',
+    priority = 1000,
     config = function()
-      vim.cmd.colorscheme('gruvbox-material')
+      vim.cmd.colorscheme('catppuccin')
     end,
   },
 }
