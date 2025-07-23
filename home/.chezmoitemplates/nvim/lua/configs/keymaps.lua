@@ -29,10 +29,10 @@ vim.keymap.set('i', 'jk', '<Esc>', opts.nore)
 vim.keymap.set('i', '<C-e>', '<Esc>%%a', opts.nore)
 
 -- These mappings control the size of splits (height/width)
-vim.keymap.set('n', '<A-,>', '<c-w>5<', opts.nore)
-vim.keymap.set('n', '<A-.>', '<c-w>5>', opts.nore)
-vim.keymap.set('n', '<A-u>', '<C-W>+', opts.nore)
-vim.keymap.set('n', '<A-d>', '<C-W>-', opts.nore)
+vim.keymap.set('n', '<A-,>', '<c-w>5>', opts.nore)
+vim.keymap.set('n', '<A-.>', '<c-w>5<', opts.nore)
+vim.keymap.set('n', '<A-u>', '<C-W>5+', opts.nore)
+vim.keymap.set('n', '<A-d>', '<C-W>5-', opts.nore)
 
 --Buffer Navigation
 vim.keymap.set('n', 'bh', ':bfirst<CR>', opts.nore)
