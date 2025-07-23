@@ -6,14 +6,15 @@ return {
     'TmuxNavigateDown',
     'TmuxNavigateUp',
     'TmuxNavigateRight',
-    'TmuxNavigatePrevious',
+    -- 'TmuxNavigatePrevious',
     'TmuxNavigatorProcessList',
   },
   keys = {
-    { '<c-h>', '<cmd><C-U>TmuxNavigateLeft<cr>' },
-    { '<c-j>', '<cmd><C-U>TmuxNavigateDown<cr>' },
-    { '<c-k>', '<cmd><C-U>TmuxNavigateUp<cr>' },
-    { '<c-l>', '<cmd><C-U>TmuxNavigateRight<cr>' },
-    { '<c-\\>', '<cmd><C-U>TmuxNavigatePrevious<cr>' },
+    -- Normal mode mappings (default)
+    { '<c-h>', '<cmd><C-U>TmuxNavigateLeft<cr>', mode = 'n' },
+    { '<c-j>', '<cmd><C-U>TmuxNavigateDown<cr>', mode = 'n' },
+    { '<c-k>', '<cmd><C-U>TmuxNavigateUp<cr>', mode = 'n' },
+    { '<c-l>', '<cmd><C-U>TmuxNavigateRight<cr>', mode = 'n' },
+    -- { '<c-\\>', '<cmd><C-U>TmuxNavigatePrevious<cr>', mode = 'n' },
   },
 }
