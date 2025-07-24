@@ -16,15 +16,15 @@ This is a chezmoi dotfiles repository for managing cross-platform development co
 - `chezmoi data` - Show template data available for use in templates
 - `chezmoi doctor` - Check for potential configuration issues
 
-### Neovim Configuration
-- Scripts for syncing Neovim configs are in `scripts/`:
-  - `scripts/unix/copy-nvim-config-from-os.sh` - Copy existing Neovim config on Unix systems
-  - `scripts/windows/copy-nvim-config-from-os.ps1` - Copy existing Neovim config on Windows
-
-### Lua Development (WezTerm)
-- `stylua` for code formatting (config: `home/dot_config/wezterm/dot_stylua.toml`)
-- `luacheck` for linting (config: `home/dot_config/wezterm/dot_luacheckrc`)
+### Development & Testing Commands
+- `stylua home/dot_config/wezterm/` - Format WezTerm Lua code
+- `luacheck home/dot_config/wezterm/` - Lint WezTerm Lua code
 - Style settings: 100 column width, 3-space indentation, single quotes preferred
+
+### Neovim Template Management
+- `home/.chezmoitemplates/scripts/unix/pre_apply/update-nvim-config-from-template.sh` - Automatically syncs Neovim config templates on Unix/macOS
+- `home/.chezmoitemplates/scripts/windows/pre_apply/update-nvim-config-from-template.ps1` - Automatically syncs Neovim config templates on Windows
+- These scripts run automatically during `chezmoi apply` to keep template references updated
 
 ## Architecture
 
@@ -53,12 +53,33 @@ This is a chezmoi dotfiles repository for managing cross-platform development co
 - PowerShell profiles for Windows environments
 - Bash aliases and rc files for Unix systems
 
-### Template System
-Files ending in `.tmpl` are chezmoi templates that can use Go template syntax with access to:
-- OS/platform detection
-- Environment variables  
-- Custom template data
-- Conditional includes based on system type
+### Advanced Template Architecture
 
-### Cross-Platform Support
-The configuration supports Windows, macOS, and Linux with platform-specific adaptations handled through chezmoi templating and conditional logic in setup scripts.
+#### Template Types
+- **`.tmpl` files**: Direct templates that render to target locations
+- **`.chezmoitemplates/` directory**: Reusable template fragments included via `{{- template "name" . -}}` syntax
+
+#### Template Management System
+The repository uses an automated template management system for Neovim configurations:
+- Templates in `home/.chezmoitemplates/nvim/` are automatically tracked
+- Pre-apply scripts create `.tmpl` files that reference templates using `{{- template "nvim/path/to/file" . -}}`
+- State tracking in `home/.chezmoitemplates/nvim/state.json` monitors template changes
+- Added/removed templates trigger automatic creation/deletion of corresponding `.tmpl` files
+
+#### Cross-Platform Adaptations
+- **Windows**: Templates render to `AppData/Local/` structure
+- **Unix/macOS**: Templates render to `.config/` structure  
+- Platform detection via `$OSTYPE` in shell scripts and chezmoi's built-in OS detection
+- Conditional logic handles path differences and tool availability
+
+### Configuration Workflows
+
+#### Adding New Neovim Configurations
+1. Create template file in `home/.chezmoitemplates/nvim/`
+2. Run `chezmoi apply` to trigger automatic template creation
+3. The pre-apply script will create corresponding `.tmpl` file with template reference
+
+#### Modifying Existing Configurations
+1. Edit template files directly in `.chezmoitemplates/` directory
+2. Changes automatically propagate via template system during `chezmoi apply`
+3. No manual `.tmpl` file management required
