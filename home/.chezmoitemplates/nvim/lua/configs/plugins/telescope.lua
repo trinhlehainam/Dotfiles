@@ -1,16 +1,34 @@
+-- https://github.com/nvim-telescope/telescope.nvim/wiki/Configuration-Recipes#file-and-text-search-in-hidden-files-and-directories
 -- See `:help telescope` and `:help telescope.setup()`
+local telescope = require('telescope')
+local telescopeConfig = require('telescope.config')
+
+-- Clone the default Telescope configuration
+local vimgrep_arguments = { unpack(telescopeConfig.values.vimgrep_arguments) }
+
+-- I want to search in hidden/dot files.
+table.insert(vimgrep_arguments, '--hidden')
+-- I don't want to search in the `.git` directory.
+table.insert(vimgrep_arguments, '--glob')
+table.insert(vimgrep_arguments, '!**/.git/*')
 require('telescope').setup({
-  pickers = {
-    colorscheme = {
-      enable_preview = true,
-    },
-  },
   defaults = {
+    -- `hidden = true` is not supported in text grep commands.
+    vimgrep_arguments = vimgrep_arguments,
     mappings = {
       i = {
         ['<C-u>'] = false,
         ['<C-d>'] = false,
       },
+    },
+  },
+  pickers = {
+    find_files = {
+      -- `hidden = true` will still show the inside of `.git/` as it's not `.gitignore`d.
+      find_command = { 'rg', '--files', '--hidden', '--glob', '!**/.git/*' },
+    },
+    colorscheme = {
+      enable_preview = true,
     },
   },
   extensions = {
@@ -21,14 +39,15 @@ require('telescope').setup({
 })
 
 -- Enable telescope fzf native, if installed
-pcall(require('telescope').load_extension, 'fzf')
-pcall(require('telescope').load_extension, 'ui-select')
+pcall(telescope.load_extension, 'fzf')
+pcall(telescope.load_extension, 'ui-select')
 
 -- See `:help telescope.builtin`
 local builtin = require('telescope.builtin')
 vim.keymap.set('n', '<leader>sc', builtin.colorscheme, { desc = '[S]earch [C]olorscheme' })
 vim.keymap.set('n', '<leader>sh', builtin.help_tags, { desc = '[S]earch [H]elp' })
 vim.keymap.set('n', '<leader>sk', builtin.keymaps, { desc = '[S]earch [K]eymaps' })
+vim.keymap.set('n', '<leader>sf', builtin.find_files, { desc = '[S]earch [F]iles' })
 vim.keymap.set('n', '<leader>ss', builtin.builtin, { desc = '[S]earch [S]elect Telescope' })
 vim.keymap.set('n', '<leader>sw', builtin.grep_string, { desc = '[S]earch current [W]ord' })
 vim.keymap.set('n', '<leader>sg', builtin.live_grep, { desc = '[S]earch by [G]rep' })
@@ -41,27 +60,6 @@ vim.keymap.set(
   { desc = '[S]earch Recent Files ("." for repeat)' }
 )
 vim.keymap.set('n', '<leader><leader>', builtin.buffers, { desc = '[ ] Find existing buffers' })
-
--- https://github.com/nvim-telescope/telescope.nvim/wiki/Configuration-Recipes#file-and-text-search-in-hidden-files-and-directories
-vim.keymap.set('n', '<leader>sf', function()
-  builtin.find_files({
-    hidden = true,
-    find_command = {
-      'rg',
-      '--files',
-      '--hidden',
-      '--glob=!**/.git/*',
-      '--glob=!**/.idea/*',
-      '--glob=!**/.vscode/*',
-      '--glob=!**/node_modules/*',
-      '--glob=!**/build/*',
-      '--glob=!**/dist/*',
-      '--glob=!**/yarn.lock',
-      '--glob=!**/package-lock.json',
-      '--glob=!**/lazy-lock.json',
-    },
-  })
-end, { desc = '[S]earch [F]iles' })
 
 -- Slightly advanced example of overriding default behavior and theme
 vim.keymap.set('n', '<leader>/', function()
