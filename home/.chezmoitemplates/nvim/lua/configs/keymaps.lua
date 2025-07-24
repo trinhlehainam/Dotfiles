@@ -87,22 +87,56 @@ vim.keymap.set('i', 'jk', '<Esc>', opts.nore)
 vim.keymap.set('i', '<C-e>', '<Esc>%%a', opts.nore)
 
 -- ----------------------------------------------------------------------------
--- Vim-Tmux Terminal Navigator Integration
+-- Terminal Mode Navigation & Vim-Tmux Navigator Integration
+-- ----------------------------------------------------------------------------
+--
+-- This section configures terminal mode keybindings with intelligent handling
+-- for vim-tmux-navigator integration. The setup provides seamless navigation
+-- between Neovim splits, terminal buffers, and tmux panes.
+--
+-- Integration Points:
+-- 1. Works with toggleterm.nvim for floating/split terminals
+-- 2. Integrates with vim-tmux-navigator plugin (see lua/plugins/vim-tmux-navigator.lua)
+-- 3. Provides fallback navigation when plugin is not loaded
+--
+-- Key Behaviors:
+-- - jk: Quick escape from terminal to normal mode (consistent with insert mode)
+-- - Ctrl-w: Access window commands from terminal mode
+-- - Ctrl-h/j/k/l: Smart navigation that works across vim/tmux boundaries
+--
+-- Reference: https://github.com/akinsho/toggleterm.nvim?tab=readme-ov-file#terminal-window-mappings
 -- ----------------------------------------------------------------------------
 
--- See https://github.com/akinsho/toggleterm.nvim?tab=readme-ov-file#terminal-window-mappings
 function _G.set_terminal_keymaps()
+  -- Buffer-local options for terminal keymaps
   local opts = { buffer = 0 }
+  
+  -- Quick escape from terminal mode using 'jk' (matches insert mode escape)
   vim.keymap.set('t', 'jk', [[<C-\><C-n>]], opts)
+  
+  -- Enable window commands in terminal mode
+  -- Allows Ctrl-w followed by any window command (split, close, etc.)
   vim.keymap.set('t', '<C-w>', [[<C-\><C-n><C-w>]], opts)
-  -- Check if vim-tmux-navigator plugin is available
-  -- See: https://github.com/christoomey/vim-tmux-navigator/blob/master/plugin/tmux_navigator.vim
+  
+  -- Smart navigation with vim-tmux-navigator awareness
+  -- When plugin is loaded: Use TmuxNavigate commands for cross-boundary navigation
+  -- When plugin is not loaded: Use standard Vim window navigation as fallback
+  --
+  -- The plugin sets vim.g.loaded_tmux_navigator when it loads, allowing us to
+  -- conditionally set appropriate mappings. This ensures navigation works
+  -- whether or not the user has tmux running or the plugin installed.
+  --
+  -- Plugin source: https://github.com/christoomey/vim-tmux-navigator/blob/master/plugin/tmux_navigator.vim
   if vim.g.loaded_tmux_navigator == nil then
+    -- Fallback: Standard Vim window navigation
+    -- Exit terminal mode, then use standard window movement commands
     vim.keymap.set('t', '<C-h>', [[<C-\><C-n><C-w>h]], opts)
     vim.keymap.set('t', '<C-j>', [[<C-\><C-n><C-w>j]], opts)
     vim.keymap.set('t', '<C-k>', [[<C-\><C-n><C-w>k]], opts)
     vim.keymap.set('t', '<C-l>', [[<C-\><C-n><C-w>l]], opts)
   else
+    -- Plugin active: Use tmux-aware navigation
+    -- These commands intelligently navigate between Vim splits and tmux panes
     vim.keymap.set('t', '<C-h>', [[<cmd>TmuxNavigateLeft<CR>]], opts)
     vim.keymap.set('t', '<C-j>', [[<cmd>TmuxNavigateDown<CR>]], opts)
     vim.keymap.set('t', '<C-k>', [[<cmd>TmuxNavigateUp<CR>]], opts)
@@ -110,7 +144,11 @@ function _G.set_terminal_keymaps()
   end
 end
 
--- if you only want these mappings for toggle term use term://*toggleterm#* instead
+-- Apply terminal keymaps to all terminal buffers
+-- This autocmd ensures our keymaps are set whenever a terminal is opened,
+-- whether it's a built-in terminal, toggleterm, or any other terminal emulator
+--
+-- For toggleterm-specific mappings, use pattern: term://*toggleterm#*
 vim.cmd('autocmd! TermOpen term://* lua set_terminal_keymaps()')
 
 -- ============================================================================
