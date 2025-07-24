@@ -98,15 +98,15 @@ function _G.set_terminal_keymaps()
   vim.keymap.set('t', '<C-w>', [[<C-\><C-n><C-w>]], opts)
   -- Check if vim-tmux-navigator is available
   if vim.g.loaded_tmux_navigator == nil then
-    vim.keymap.set('t', '<C-h>', [[<C-\><C-n><cmd>TmuxNavigateLeft<cr>]], opts)
-    vim.keymap.set('t', '<C-j>', [[<C-\><C-n><cmd>TmuxNavigateDown<cr>]], opts)
-    vim.keymap.set('t', '<C-k>', [[<C-\><C-n><cmd>TmuxNavigateUp<cr>]], opts)
-    vim.keymap.set('t', '<C-l>', [[<C-\><C-n><cmd>TmuxNavigateRight<cr>]], opts)
-  else
     vim.keymap.set('t', '<C-h>', [[<C-\><C-n><C-w>h]], opts)
     vim.keymap.set('t', '<C-j>', [[<C-\><C-n><C-w>j]], opts)
     vim.keymap.set('t', '<C-k>', [[<C-\><C-n><C-w>k]], opts)
     vim.keymap.set('t', '<C-l>', [[<C-\><C-n><C-w>l]], opts)
+  else
+    vim.keymap.set('t', '<C-h>', [[<C-\><C-n><cmd>TmuxNavigateLeft<cr>]], opts)
+    vim.keymap.set('t', '<C-j>', [[<C-\><C-n><cmd>TmuxNavigateDown<cr>]], opts)
+    vim.keymap.set('t', '<C-k>', [[<C-\><C-n><cmd>TmuxNavigateUp<cr>]], opts)
+    vim.keymap.set('t', '<C-l>', [[<C-\><C-n><cmd>TmuxNavigateRight<cr>]], opts)
   end
 end
 

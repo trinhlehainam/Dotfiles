@@ -11,6 +11,7 @@ return {
   },
   init = function()
     -- https://lazy.folke.io/spec#spec-setup
+    -- https://github.com/christoomey/vim-tmux-navigator?tab=readme-ov-file#vim-1
     vim.g.tmux_navigator_no_mappings = 1
   end,
   keys = {
