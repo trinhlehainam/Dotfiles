@@ -90,22 +90,23 @@ vim.keymap.set('i', '<C-e>', '<Esc>%%a', opts.nore)
 -- Vim-Tmux Terminal Navigator Integration
 -- ----------------------------------------------------------------------------
 
--- See https://github.com/christoomey/vim-tmux-navigator
+-- See https://github.com/akinsho/toggleterm.nvim?tab=readme-ov-file#terminal-window-mappings
 function _G.set_terminal_keymaps()
   local opts = { buffer = 0 }
   vim.keymap.set('t', 'jk', [[<C-\><C-n>]], opts)
   vim.keymap.set('t', '<C-w>', [[<C-\><C-n><C-w>]], opts)
-  -- Check if vim-tmux-navigator is available
+  -- Check if vim-tmux-navigator plugin is available
+  -- See: https://github.com/christoomey/vim-tmux-navigator/blob/master/plugin/tmux_navigator.vim
   if vim.g.loaded_tmux_navigator == nil then
     vim.keymap.set('t', '<C-h>', [[<C-\><C-n><C-w>h]], opts)
     vim.keymap.set('t', '<C-j>', [[<C-\><C-n><C-w>j]], opts)
     vim.keymap.set('t', '<C-k>', [[<C-\><C-n><C-w>k]], opts)
     vim.keymap.set('t', '<C-l>', [[<C-\><C-n><C-w>l]], opts)
   else
-    vim.keymap.set('t', '<C-h>', [[<C-\><C-n><cmd>TmuxNavigateLeft<cr>]], opts)
-    vim.keymap.set('t', '<C-j>', [[<C-\><C-n><cmd>TmuxNavigateDown<cr>]], opts)
-    vim.keymap.set('t', '<C-k>', [[<C-\><C-n><cmd>TmuxNavigateUp<cr>]], opts)
-    vim.keymap.set('t', '<C-l>', [[<C-\><C-n><cmd>TmuxNavigateRight<cr>]], opts)
+    vim.keymap.set('t', '<C-h>', [[<cmd>TmuxNavigateLeft<CR>]], opts)
+    vim.keymap.set('t', '<C-j>', [[<cmd>TmuxNavigateDown<CR>]], opts)
+    vim.keymap.set('t', '<C-k>', [[<cmd>TmuxNavigateUp<CR>]], opts)
+    vim.keymap.set('t', '<C-l>', [[<cmd>TmuxNavigateRight<CR>]], opts)
   end
 end
 
