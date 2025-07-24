@@ -93,7 +93,6 @@ vim.keymap.set('i', '<C-e>', '<Esc>%%a', opts.nore)
 -- See https://github.com/christoomey/vim-tmux-navigator
 function _G.set_terminal_keymaps()
   local opts = { buffer = 0 }
-  vim.keymap.set('t', '<esc>', [[<C-\><C-n>]], opts)
   vim.keymap.set('t', 'jk', [[<C-\><C-n>]], opts)
   vim.keymap.set('t', '<C-w>', [[<C-\><C-n><C-w>]], opts)
   -- Check if vim-tmux-navigator is available
