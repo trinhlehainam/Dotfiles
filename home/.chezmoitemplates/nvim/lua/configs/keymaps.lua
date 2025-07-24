@@ -149,7 +149,11 @@ end
 -- whether it's a built-in terminal, toggleterm, or any other terminal emulator
 --
 -- For toggleterm-specific mappings, use pattern: term://*toggleterm#*
-vim.cmd('autocmd! TermOpen term://* lua set_terminal_keymaps()')
+vim.api.nvim_create_autocmd('TermOpen', {
+  pattern = 'term://*',
+  callback = set_terminal_keymaps,
+  desc = 'Set terminal navigation keymaps'
+})
 
 -- ============================================================================
 -- WINDOW & SPLIT MANAGEMENT
