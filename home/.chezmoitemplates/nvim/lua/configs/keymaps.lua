@@ -108,16 +108,16 @@ vim.keymap.set('i', '<C-e>', '<Esc>%%a', opts.nore)
 -- Reference: https://github.com/akinsho/toggleterm.nvim?tab=readme-ov-file#terminal-window-mappings
 -- ----------------------------------------------------------------------------
 
-function _G.set_terminal_keymaps()
+local function set_terminal_keymaps()
   -- Buffer-local options for terminal keymaps
-  local opts = { buffer = 0 }
+  local terminal_opts = { buffer = 0 }
 
   -- Quick escape from terminal mode using 'jk' (matches insert mode escape)
-  vim.keymap.set('t', 'jk', [[<C-\><C-n>]], opts)
+  vim.keymap.set('t', 'jk', [[<C-\><C-n>]], terminal_opts)
 
   -- Enable window commands in terminal mode
   -- Allows Ctrl-w followed by any window command (split, close, etc.)
-  vim.keymap.set('t', '<C-w>', [[<C-\><C-n><C-w>]], opts)
+  vim.keymap.set('t', '<C-w>', [[<C-\><C-n><C-w>]], terminal_opts)
 
   -- Smart navigation with vim-tmux-navigator awareness
   -- When plugin is loaded: Use TmuxNavigate commands for cross-boundary navigation
@@ -131,17 +131,17 @@ function _G.set_terminal_keymaps()
   if vim.g.loaded_tmux_navigator == nil then
     -- Fallback: Standard Vim window navigation
     -- Exit terminal mode, then use standard window movement commands
-    vim.keymap.set('t', '<C-h>', [[<C-\><C-n><C-w>h]], opts)
-    vim.keymap.set('t', '<C-j>', [[<C-\><C-n><C-w>j]], opts)
-    vim.keymap.set('t', '<C-k>', [[<C-\><C-n><C-w>k]], opts)
-    vim.keymap.set('t', '<C-l>', [[<C-\><C-n><C-w>l]], opts)
+    vim.keymap.set('t', '<C-h>', [[<C-\><C-n><C-w>h]], terminal_opts)
+    vim.keymap.set('t', '<C-j>', [[<C-\><C-n><C-w>j]], terminal_opts)
+    vim.keymap.set('t', '<C-k>', [[<C-\><C-n><C-w>k]], terminal_opts)
+    vim.keymap.set('t', '<C-l>', [[<C-\><C-n><C-w>l]], terminal_opts)
   else
     -- Plugin active: Use tmux-aware navigation
     -- These commands intelligently navigate between Vim splits and tmux panes
-    vim.keymap.set('t', '<C-h>', [[<cmd>TmuxNavigateLeft<CR>]], opts)
-    vim.keymap.set('t', '<C-j>', [[<cmd>TmuxNavigateDown<CR>]], opts)
-    vim.keymap.set('t', '<C-k>', [[<cmd>TmuxNavigateUp<CR>]], opts)
-    vim.keymap.set('t', '<C-l>', [[<cmd>TmuxNavigateRight<CR>]], opts)
+    vim.keymap.set('t', '<C-h>', [[<cmd>TmuxNavigateLeft<CR>]], terminal_opts)
+    vim.keymap.set('t', '<C-j>', [[<cmd>TmuxNavigateDown<CR>]], terminal_opts)
+    vim.keymap.set('t', '<C-k>', [[<cmd>TmuxNavigateUp<CR>]], terminal_opts)
+    vim.keymap.set('t', '<C-l>', [[<cmd>TmuxNavigateRight<CR>]], terminal_opts)
   end
 end
 
