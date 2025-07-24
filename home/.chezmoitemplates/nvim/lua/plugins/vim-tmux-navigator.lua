@@ -9,12 +9,15 @@ return {
     -- 'TmuxNavigatePrevious',
     'TmuxNavigatorProcessList',
   },
+  init = function()
+    -- https://lazy.folke.io/spec#spec-setup
+    vim.g.tmux_navigator_no_mappings = 1
+  end,
   keys = {
     -- Normal mode mappings (default)
-    { '<c-h>', '<cmd><C-U>TmuxNavigateLeft<cr>', mode = 'n' },
-    { '<c-j>', '<cmd><C-U>TmuxNavigateDown<cr>', mode = 'n' },
-    { '<c-k>', '<cmd><C-U>TmuxNavigateUp<cr>', mode = 'n' },
-    { '<c-l>', '<cmd><C-U>TmuxNavigateRight<cr>', mode = 'n' },
-    -- { '<c-\\>', '<cmd><C-U>TmuxNavigatePrevious<cr>', mode = 'n' },
+    { '<c-h>', '<cmd>TmuxNavigateLeft<cr>' },
+    { '<c-j>', '<cmd>TmuxNavigateDown<cr>' },
+    { '<c-k>', '<cmd>TmuxNavigateUp<cr>' },
+    { '<c-l>', '<cmd>TmuxNavigateRight<cr>' },
   },
 }
