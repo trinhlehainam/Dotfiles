@@ -81,9 +81,10 @@ vim.keymap.set('n', 'S', '', opts.nore)
 -- Alternative to reaching for the Esc key, more ergonomic
 vim.keymap.set('i', 'jk', '<Esc>', opts.nore)
 
--- Quick jump to end of surrounding pairs in insert mode
--- Useful for escaping from quotes, brackets, parentheses
--- <C-e> jumps to end of current 'word' and continues in insert mode
+-- Jump to matching closing delimiter in insert mode
+-- Navigates to the end of surrounding pairs: () [] {}
+-- Press <C-e> to jump to the matching closing delimiter
+-- Example: cursor inside "te|xt(some)" -> <C-e> -> "text(|some)"
 vim.keymap.set('i', '<C-e>', '<Esc>%%a', opts.nore)
 
 -- ----------------------------------------------------------------------------
@@ -110,14 +111,14 @@ vim.keymap.set('i', '<C-e>', '<Esc>%%a', opts.nore)
 function _G.set_terminal_keymaps()
   -- Buffer-local options for terminal keymaps
   local opts = { buffer = 0 }
-  
+
   -- Quick escape from terminal mode using 'jk' (matches insert mode escape)
   vim.keymap.set('t', 'jk', [[<C-\><C-n>]], opts)
-  
+
   -- Enable window commands in terminal mode
   -- Allows Ctrl-w followed by any window command (split, close, etc.)
   vim.keymap.set('t', '<C-w>', [[<C-\><C-n><C-w>]], opts)
-  
+
   -- Smart navigation with vim-tmux-navigator awareness
   -- When plugin is loaded: Use TmuxNavigate commands for cross-boundary navigation
   -- When plugin is not loaded: Use standard Vim window navigation as fallback
@@ -152,7 +153,7 @@ end
 vim.api.nvim_create_autocmd('TermOpen', {
   pattern = 'term://*',
   callback = set_terminal_keymaps,
-  desc = 'Set terminal navigation keymaps'
+  desc = 'Set terminal navigation keymaps',
 })
 
 -- ============================================================================
