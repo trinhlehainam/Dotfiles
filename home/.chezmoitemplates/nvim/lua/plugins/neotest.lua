@@ -9,8 +9,10 @@ return {
     -- adapters
     -- INFO: https://github.com/nvim-neotest/neotest?tab=readme-ov-file#supported-runners
     'nvim-neotest/neotest-plenary',
-    'mrcjkb/rustaceanvim',
     'nvim-neotest/neotest-python',
+    'olimorris/neotest-phpunit',
+    'V13Axel/neotest-pest',
+    'mrcjkb/rustaceanvim',
     'fredrikaverpil/neotest-golang',
   },
   config = function()

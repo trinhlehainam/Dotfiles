@@ -2,6 +2,20 @@ local LanguageSetting = require('configs.lsp.base')
 local LspConfig = require('configs.lsp.lspconfig')
 local M = LanguageSetting:new()
 
+-- https://github.com/davidosomething/dotfiles/blob/dev/nvim/lua/dko/filetypes.lua
+vim.filetype.add({
+  extension = {
+    conf = 'conf',
+    env = 'dotenv',
+  },
+  filename = {
+    ['.env'] = 'dotenv',
+  },
+  pattern = {
+    ['%.env%.[%w_.-]+'] = 'dotenv',
+  },
+})
+
 M.treesitter.filetypes = { 'bash' }
 
 M.formatterconfig.servers = { 'shellharden' }
