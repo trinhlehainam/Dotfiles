@@ -25,36 +25,16 @@ M.linterconfig.linters_by_ft = {
   -- php = { "easy-coding-standard" },
 }
 
-local phpactor = LspConfig:new('phpactor', 'phpactor')
-phpactor.setup = function(capabilities, on_attach)
-  -- NOTE: laravel.nvim use lspconfig to detect installed servers
-  -- Need to set up lspconfig first
-  require('lspconfig')[phpactor.server].setup({
-    capabilities = capabilities,
-    on_attach = on_attach,
-  })
-end
-M.lspconfigs = { phpactor }
+M.lspconfigs = { LspConfig:new('phpactor', 'phpactor') }
 
-M.after_masonlsp_setup = function()
-  local haslaravel, laravel = pcall(require, 'laravel')
+M.dapconfig.type = 'php'
 
-  if not haslaravel then
-    log.error('laravel.nvim is not installed')
-    return
+M.neotest_adapter_setup = function()
+  local has_phpunit, phpunit = pcall(require, 'neotest-phpunit')
+  if not has_phpunit then
+    return {}
   end
-
-  laravel.setup({
-    features = {
-      null_ls = {
-        enable = false,
-      },
-    },
-  })
-
-  vim.keymap.set('n', '<leader>la', ':Laravel artisan<cr>', { desc = '[L]aravel [A]rtisan' })
-  vim.keymap.set('n', '<leader>lm', ':Laravel related<cr>', { desc = '[L]aravel [R]elated' })
-  vim.keymap.set('n', '<leader>lr', ':Laravel routes<cr>', { desc = 'Find [L]aravel [R]outes' })
+  return phpunit
 end
 
 return M

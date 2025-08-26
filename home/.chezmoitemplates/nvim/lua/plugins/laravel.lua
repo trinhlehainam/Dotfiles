@@ -1,17 +1,19 @@
 return {
+  -- https://adalessa.github.io/laravel-nvim-docs/docs/getting-started/
   'adalessa/laravel.nvim',
   dependencies = {
-    'nvim-telescope/telescope.nvim',
     'tpope/vim-dotenv',
+    'nvim-telescope/telescope.nvim',
     'MunifTanjim/nui.nvim',
-    -- "nvimtools/none-ls.nvim",
+    'kevinhwang91/promise-async',
   },
-  cmd = { 'Sail', 'Artisan', 'Composer', 'Npm', 'Yarn', 'Laravel' },
-  -- keys = {
-  -- 	{ "<leader>la", ":Laravel artisan<cr>" },
-  -- 	{ "<leader>lr", ":Laravel routes<cr>" },
-  -- 	{ "<leader>lm", ":Laravel related<cr>" },
-  -- },
+  cmd = { 'Laravel' },
+  keys = {
+    { '<leader>la', ':Laravel artisan<cr>' },
+    { '<leader>lr', ':Laravel routes<cr>' },
+    { '<leader>lm', ':Laravel related<cr>' },
+  },
   event = { 'VeryLazy' },
-  -- NOTE: config is in configs/lsp/php.lua
+  opts = {},
+  config = true,
 }
