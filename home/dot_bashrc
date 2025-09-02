@@ -270,4 +270,8 @@ fi
 export PATH="/home/vietisthinkpad/.config/herd-lite/bin:$PATH"
 export PHP_INI_SCAN_DIR="/home/vietisthinkpad/.config/herd-lite/bin:$PHP_INI_SCAN_DIR"
 
-source "$HOME/.local/bin/env"
+[ -f "$HOME/.local/bin/env" ] && . "$HOME/.local/bin/env" 
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
