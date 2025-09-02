@@ -27,13 +27,13 @@ pyright.config = {
         ignore = { '*' },
       },
     },
-  }
+  },
 }
 
 local ruff = LspConfig:new('ruff', 'ruff')
 -- Ruff configuration for Neovim
 -- INFO: https://docs.astral.sh/ruff/editors/setup/#neovim
-vim.api.nvim_create_autocmd("LspAttach", {
+vim.api.nvim_create_autocmd('LspAttach', {
   group = vim.api.nvim_create_augroup('lsp_attach_disable_ruff_hover', { clear = true }),
   callback = function(args)
     local client = vim.lsp.get_client_by_id(args.data.client_id)

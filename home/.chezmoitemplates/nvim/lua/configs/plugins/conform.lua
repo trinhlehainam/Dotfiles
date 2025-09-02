@@ -1,11 +1,13 @@
-local formatters = require('configs.lsp').formatters
-local ensure_installed_formatters = { 'stylua' }
+local log = require('utils.log')
 
-for _, formatter in ipairs(formatters) do
-  if vim.islist(formatter.servers) then
-    vim.list_extend(ensure_installed_formatters, formatter.servers)
-  end
+-- Safely load formatters configuration
+local ok, lsp_config = pcall(require, 'configs.lsp')
+if not ok then
+  log.warn('Failed to load configs.lsp module for conform.nvim')
+  return
 end
+
+local formatters = lsp_config.formatters or {}
 
 local formatters_by_ft = { lua = { 'stylua' } }
 
@@ -14,8 +16,6 @@ for _, formatter in ipairs(formatters) do
     formatters_by_ft = vim.tbl_extend('keep', formatters_by_ft, formatter.formatters_by_ft)
   end
 end
-
-require('mason-tool-installer').setup({ ensure_installed = ensure_installed_formatters })
 
 require('conform').setup({
   notify_on_error = false,

@@ -159,15 +159,6 @@ vim.diagnostic.config({
   virtual_text = {
     source = 'if_many',
     spacing = 2,
-    format = function(diagnostic)
-      local diagnostic_message = {
-        [vim.diagnostic.severity.ERROR] = diagnostic.message,
-        [vim.diagnostic.severity.WARN] = diagnostic.message,
-        [vim.diagnostic.severity.INFO] = diagnostic.message,
-        [vim.diagnostic.severity.HINT] = diagnostic.message,
-      }
-      return diagnostic_message[diagnostic.severity]
-    end,
   },
 })
 
@@ -192,6 +183,7 @@ vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagn
 --  - capabilities (table): Override fields in capabilities. Can be used to disable certain LSP features.
 --  - settings (table): Override the default settings passed when initializing the server.
 --        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
+--- @type table<string, vim.lsp.Config>
 local servers = {
   lua_ls = {
     -- cmd = { ... },
@@ -209,42 +201,22 @@ local servers = {
   },
 }
 
--- Ensure the servers and tools above are installed
---
--- To check the current status of installed tools and/or manually install
--- other tools, you can run
---    :Mason
---
--- You can press `g?` for help in this menu.
---
--- `mason` had to be setup earlier: to configure its options see the
--- `dependencies` table for `nvim-lspconfig` above.
---
--- You can add other tools here that you want Mason to install
--- for you, so that they are available from within Neovim.
-local ensure_installed = {'lua-language-server', 'stylua'}
-local lspconfigs = require('configs.lsp').lspconfigs
-for _, lspconfig in pairs(lspconfigs) do
-  local package_name = lspconfig.mason_package
-  if type(package_name) ~= 'string' or package_name == '' then
-    goto continue
-  end
-
-  ensure_installed[#ensure_installed + 1] = package_name
-
-  ::continue::
+-- Safely load LSP configurations
+local log = require('utils.log')
+local lspconfigs = {}
+local ok, lsp_config = pcall(require, 'configs.lsp')
+if ok then
+  lspconfigs = lsp_config.lspconfigs or {}
+else
+  log.warn('Failed to load configs.lsp module for lspconfig')
 end
-require('mason-tool-installer').setup({ ensure_installed = ensure_installed })
 
 for _, lspconfig in pairs(lspconfigs) do
   local server_name = lspconfig.server
-  if type(server_name) ~= 'string' or server_name == '' then
-    goto continue
+  -- Only add valid server configurations
+  if type(server_name) == 'string' and server_name ~= '' then
+    servers[server_name] = lspconfig.config
   end
-
-  servers[server_name] = lspconfig.config
-
-  ::continue::
 end
 
 -- Installed LSPs are configured and enabled automatically with mason-lspconfig

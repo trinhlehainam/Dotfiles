@@ -1,14 +1,20 @@
-local lint = require('lint')
+-- Safely load the lint plugin
+local ok_lint, lint = pcall(require, 'lint')
+if not ok_lint then
+  -- Plugin not installed, skip setup
+  return
+end
 
-local linters = require('configs.lsp').linters
+local log = require('utils.log')
 
---- @type string[]
-local ensure_installed_linters = {}
-
-for _, linter in ipairs(linters) do
-  if vim.islist(linter.servers) then
-    vim.list_extend(ensure_installed_linters, linter.servers)
-  end
+-- Safely load linters configuration
+-- Don't return on failure - use defaults instead
+local linters = {}
+local ok_lsp, lsp_config = pcall(require, 'configs.lsp')
+if ok_lsp then
+  linters = lsp_config.linters or {}
+else
+  log.warn('Failed to load configs.lsp module for nvim-lint - using defaults')
 end
 
 local linters_by_ft = {}
@@ -18,8 +24,6 @@ for _, linter in ipairs(linters) do
     linters_by_ft = vim.tbl_extend('keep', linters_by_ft, linter.linters_by_ft)
   end
 end
-
-require('mason-tool-installer').setup({ ensure_installed = ensure_installed_linters })
 
 lint.linters_by_ft = linters_by_ft
 
@@ -50,4 +54,4 @@ vim.api.nvim_create_autocmd({ 'BufEnter', 'BufWritePost', 'InsertLeave' }, {
 
 vim.keymap.set('n', '<leader>ll', function()
   lint.try_lint()
-end, { desc = '[T]ry [l]inting for current file' })
+end, { desc = '[T]ry [L]inting for current file' })
