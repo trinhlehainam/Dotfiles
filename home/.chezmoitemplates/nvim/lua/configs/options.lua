@@ -71,7 +71,6 @@ vim.o.scrolloff = 10
 -- See `:help 'confirm'`
 vim.o.confirm = true
 
-
 -- [[ Custom settings
 
 -- Disable break line when text go off editor's window

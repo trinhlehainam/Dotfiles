@@ -29,7 +29,7 @@ M.neotest_adapter_setup = function()
 
   local has_neotest_rust, neotest_rust = pcall(require, 'rustaceanvim.neotest')
   if not has_neotest_rust then
-    log.info("rustaceanvim.neotest is not installed")
+    log.info('rustaceanvim.neotest is not installed')
     return {}
   end
   return neotest_rust

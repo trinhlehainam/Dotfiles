@@ -14,7 +14,8 @@ vim.filetype.add({
   },
 })
 
-local docker_compose_language_service = LspConfig:new('docker_compose_language_service', 'docker-compose-language-service')
+local docker_compose_language_service =
+  LspConfig:new('docker_compose_language_service', 'docker-compose-language-service')
 local dockerls = LspConfig:new('dockerls', 'dockerfile-language-server')
 
 M.lspconfigs = { docker_compose_language_service, dockerls }
