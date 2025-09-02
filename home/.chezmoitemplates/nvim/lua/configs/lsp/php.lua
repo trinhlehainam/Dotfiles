@@ -6,23 +6,21 @@ local log = require('utils.log')
 local common = require('utils.common')
 
 if common.IS_WINDOWS then
-  log.info('php language server is not supported on Windows')
-  return M
+	log.info('php language server is not supported on Windows')
+	return M
 end
 
 M.treesitter.filetypes = { 'php' }
 
-M.formatterconfig.servers = { 'blade-formatter', 'php-cs-fixer' }
+M.formatterconfig.servers = { 'blade-formatter', 'pint' }
 M.formatterconfig.formatters_by_ft = {
-  blade = { 'blade-formatter' },
-  -- php = { "php-cs-fixer" },
-  -- php = { "easy-coding-standard" },
+	blade = { 'blade-formatter' },
+	php = { "pint" },
 }
 
 M.linterconfig.servers = { 'phpcs' }
 M.linterconfig.linters_by_ft = {
-  -- php = { "phpcs" },
-  -- php = { "easy-coding-standard" },
+	php = { "phpcs" },
 }
 
 M.lspconfigs = { LspConfig:new('phpactor', 'phpactor') }
@@ -30,11 +28,11 @@ M.lspconfigs = { LspConfig:new('phpactor', 'phpactor') }
 M.dapconfig.type = 'php'
 
 M.neotest_adapter_setup = function()
-  local has_phpunit, phpunit = pcall(require, 'neotest-phpunit')
-  if not has_phpunit then
-    return {}
-  end
-  return phpunit
+	local has_phpunit, phpunit = pcall(require, 'neotest-phpunit')
+	if not has_phpunit then
+		return {}
+	end
+	return phpunit
 end
 
 return M
