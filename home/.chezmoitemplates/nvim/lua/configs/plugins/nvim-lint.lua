@@ -1,14 +1,21 @@
-local lint = require('lint')
-local log = require('utils.log')
-
--- Safely load linters configuration
-local ok, lsp_config = pcall(require, 'configs.lsp')
-if not ok then
-  log.warn('Failed to load configs.lsp module for nvim-lint')
+-- Safely load the lint plugin
+local ok_lint, lint = pcall(require, 'lint')
+if not ok_lint then
+  -- Plugin not installed, skip setup
   return
 end
 
-local linters = lsp_config.linters or {}
+local log = require('utils.log')
+
+-- Safely load linters configuration
+-- Don't return on failure - use defaults instead
+local linters = {}
+local ok_lsp, lsp_config = pcall(require, 'configs.lsp')
+if ok_lsp then
+  linters = lsp_config.linters or {}
+else
+  log.warn('Failed to load configs.lsp module for nvim-lint - using defaults')
+end
 
 local linters_by_ft = {}
 
