@@ -102,7 +102,7 @@ if ! shopt -oq posix; then
 	fi
 fi
 
-# #region Keybindings
+# Keybindings
 # Ctrl-l clears the screen in vi mode
 # INFO: https://unix.stackexchange.com/a/104101
 set -o vi
@@ -122,9 +122,9 @@ bind -m vi-insert 'Control-l: clear-screen'
 bind -m vi-insert '"jk": vi-movement-mode'
 bind -m vi-command '"gl": end-of-line'
 bind -m vi-command '"gh": beginning-of-line'
-# #endregion Keybindings
+# Keybindings end
 
-# #region Homebrew
+# Homebrew
 export HOMEBREW_FORCE_BREWED_CURL=1
 eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 # To deal with `failed to fetch attestations` error
@@ -158,9 +158,9 @@ if command -v brew &>/dev/null; then
 		done
 	fi
 fi
-# #endregion Homebrew
+# Homebrew end
 
-# #region Tools
+# Tools
 
 if command -v pyenv 1>/dev/null 2>&1; then
 	export PYENV_ROOT="$(pyenv root)"
@@ -181,7 +181,7 @@ else
 fi
 unset GREP_OPTIONS
 
-# #region FZF
+# FZF
 # NOTE: customize fzf layout
 # INFO: https://vitormv.github.io/fzf-themes/
 
@@ -195,19 +195,27 @@ fi
 # INFO: https://github.com/junegunn/fzf?tab=readme-ov-file#setting-up-shell-integration
 # Set up fzf key bindings and fuzzy completion
 eval "$(fzf --bash)"
-# #endregion FZF
+# FZF end
 
 if ! [ "$TERM_PROGRAM" = "vscode" ]; then
 	eval "$(starship init bash)"
 fi
 eval "$(zoxide init bash)"
 # fnm
-FNM_PATH="/home/vietisthinkpad/.local/share/fnm"
+FNM_PATH="$HOME/.local/share/fnm"
 if [ -d "$FNM_PATH" ]; then
 	export PATH="$FNM_PATH:$PATH"
 	eval "$(fnm env)"
 	eval "$(fnm completions --shell bash)"
 fi
+
+# pnpm
+export PNPM_HOME="$HOME/.local/share/pnpm"
+case ":$PATH:" in
+  *":$PNPM_HOME:"*) ;;
+  *) export PATH="$PNPM_HOME:$PATH" ;;
+esac
+# pnpm end
 
 eval "$(atuin init bash)"
 
@@ -236,7 +244,7 @@ fi
 
 [ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env" 
 
-# region Python
+# Python
 # NOTE: python install user tools in $HOME/.local/bin
 if [ -d "$HOME/.local/bin" ]; then
 	export PATH="$HOME/.local/bin:$PATH"
@@ -248,7 +256,7 @@ fi
 if command -v uvx &>/dev/null; then
 	eval "$(uvx --generate-shell-completion bash)"
 fi
-# endregion Python
+# Python
 
 if command -v rbenv &>/dev/null; then
 	eval "$(rbenv init - --no-rehash bash)"
@@ -265,13 +273,14 @@ if command -v vagrant &>/dev/null; then
 		# export VAGRANT_WSL_WINDOWS_ACCESS_USER_HOME_PATH="/mnt/c/Users/$username"
 	fi
 fi
-# #endregion Tools
+# Tools end
 
-export PATH="/home/vietisthinkpad/.config/herd-lite/bin:$PATH"
-export PHP_INI_SCAN_DIR="/home/vietisthinkpad/.config/herd-lite/bin:$PHP_INI_SCAN_DIR"
+export PATH="$HOME/.config/herd-lite/bin:$PATH"
+export PHP_INI_SCAN_DIR="$HOME/.config/herd-lite/bin:$PHP_INI_SCAN_DIR"
 
 [ -f "$HOME/.local/bin/env" ] && . "$HOME/.local/bin/env" 
 
 # bun
 export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
+# bun end
