@@ -11,7 +11,7 @@ return {
     -- OR use snacks.nvim's image module:
     -- "folke/snacks.nvim",
   },
-  lazy = false, -- neo-tree will lazily load itself
+  lazy = true, -- Load neo-tree only when explicitly called via keybinding
   ---@module "neo-tree"
   ---@type neotree.Config?
   opts = {

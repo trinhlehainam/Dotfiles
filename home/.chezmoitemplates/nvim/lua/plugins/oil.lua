@@ -15,7 +15,7 @@ return {
       -- Send deleted files to the trash instead of permanently deleting them (:help oil-trash)
       delete_to_trash = true,
       -- Skip the confirmation popup for simple operations (:help oil.skip_confirm_for_simple_edits)
-      skip_comfirm_for_simple_edits = true,
+      skip_confirm_for_simple_edits = true,
     })
 
     vim.keymap.set('n', '-', require('oil').open, { desc = 'Open parent directory' })
