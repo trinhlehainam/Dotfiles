@@ -5,7 +5,18 @@ return { -- Main LSP Configuration
     -- Mason must be loaded before its dependents so we need to set it up here.
     -- NOTE: `opts = {}` is the same as calling `require('mason').setup({})`
     -- https://github.com/mason-org/mason.nvim
-    { 'mason-org/mason.nvim', opts = {} },
+    {
+      'mason-org/mason.nvim',
+      config = function()
+        require('mason').setup({
+          -- https://github.com/seblyng/roslyn.nvim?tab=readme-ov-file#-installation
+          registries = {
+            'github:mason-org/mason-registry',
+            'github:Crashdummyy/mason-registry',
+          },
+        })
+      end,
+    },
     'WhoIsSethDaniel/mason-tool-installer.nvim',
 
     -- Useful status updates for LSP
