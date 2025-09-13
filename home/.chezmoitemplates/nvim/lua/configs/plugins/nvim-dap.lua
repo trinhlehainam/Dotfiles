@@ -64,7 +64,7 @@ for _, dapconfig in ipairs(dapconfigs) do
   end
   table.insert(daptypes, daptype)
 
-  --- INFO: https://github.com/jay-babu/mason-nvim-dap.nvim?tab=readme-ov-file#handlers-usage-automatic-setup
+  --- @see: https://github.com/jay-babu/mason-nvim-dap.nvim?tab=readme-ov-file#handlers-usage-automatic-setup
   ---@class custom.HandlerConfig
   ---@field name boolean -- adapter name
   ---

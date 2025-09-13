@@ -39,11 +39,11 @@ local golangci_lint_ls = LspConfig:new('golangci_lint_ls', 'golangci-lint')
 M.lspconfigs = { gopls, golangci_lint_ls }
 
 --- @type custom.DapConfig
-local go_dap = {
+local delve = {
   type = 'delve',
   use_masondap_default_setup = true,
 }
-M.dapconfigs = { go_dap }
+M.dapconfigs = { delve }
 
 M.neotest_adapter_setup = function()
   local has_gotest, gotest = pcall(require, 'neotest-golang')

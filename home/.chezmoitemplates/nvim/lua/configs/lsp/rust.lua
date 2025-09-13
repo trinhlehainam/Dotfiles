@@ -20,11 +20,11 @@ end
 M.lspconfigs = { LspConfig:new(nil, 'rust-analyzer') }
 
 --- @type custom.DapConfig
-local rust_dap = {
+local codelldb = {
   type = 'codelldb',
   use_masondap_default_setup = false,
 }
-M.dapconfigs = { rust_dap }
+M.dapconfigs = { codelldb }
 
 M.neotest_adapter_setup = function()
   if not has_rustceanvim() then
