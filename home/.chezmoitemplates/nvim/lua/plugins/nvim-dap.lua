@@ -26,6 +26,9 @@ return {
     'mfussenegger/nvim-dap-python',
     'leoluz/nvim-dap-go',
   },
+  keys = {
+    { '<leader>d', nil, desc = '[D]ebug' },
+  },
   config = function()
     require('configs.plugins.nvim-dap')
   end,

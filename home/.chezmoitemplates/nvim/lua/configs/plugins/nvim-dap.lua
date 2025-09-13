@@ -3,13 +3,24 @@ local dapui = require('dapui')
 
 -- Basic debugging keymaps, feel free to change to your liking!
 vim.keymap.set('n', '<F5>', dap.continue, { desc = 'Debug: Start/Continue' })
-vim.keymap.set('n', '<F1>', dap.step_into, { desc = 'Debug: Step Into' })
-vim.keymap.set('n', '<F2>', dap.step_over, { desc = 'Debug: Step Over' })
-vim.keymap.set('n', '<F3>', dap.step_out, { desc = 'Debug: Step Out' })
+vim.keymap.set('n', '<F10>', dap.step_over, { desc = 'Debug: Step Over' })
+vim.keymap.set('n', '<F11>', dap.step_into, { desc = 'Debug: Step Into' })
+vim.keymap.set('n', '<F12>', dap.step_out, { desc = 'Debug: Step Out' })
 vim.keymap.set('n', '<leader>b', dap.toggle_breakpoint, { desc = 'Debug: Toggle Breakpoint' })
 vim.keymap.set('n', '<leader>B', function()
   dap.set_breakpoint(vim.fn.input('Breakpoint condition: '))
 end, { desc = 'Debug: Set Breakpoint' })
+vim.keymap.set('n', '<leader>do', dap.step_over, { desc = '[D]ebug: Step [o]ver' })
+vim.keymap.set('n', '<leader>di', dap.step_into, { desc = '[D]ebug: Step [i]nto' })
+vim.keymap.set('n', '<leader>dc', dap.run_to_cursor, { desc = '[D]ebug: Run to [c]ursor' })
+vim.keymap.set('n', '<leader>dr', dap.repl.toggle, { desc = '[D]ebug: Toggle DAP [R]EPL' })
+vim.keymap.set('n', '<leader>dj', dap.down, { desc = '[D]ebug: Go down stack frame' })
+vim.keymap.set('n', '<leader>dk', dap.up, { desc = '[D]ebug: Go up stack frame' })
+vim.keymap.set('n', '<leader>dc', dap.terminate, { desc = '[D]ebug: Terminate' })
+vim.keymap.set('n', '<leader>dq', function()
+  dap.terminate()
+  dap.clear_breakpoints()
+end, { desc = '[D]ebug: Terminate and clear breakpoints' })
 
 -- Dap UI setup
 -- For more information, see |:help nvim-dap-ui|
@@ -64,7 +75,7 @@ for _, dapconfig in ipairs(dapconfigs) do
   end
   table.insert(daptypes, daptype)
 
-  --- @see: https://github.com/jay-babu/mason-nvim-dap.nvim?tab=readme-ov-file#handlers-usage-automatic-setup
+  -- https://github.com/jay-babu/mason-nvim-dap.nvim?tab=readme-ov-file#handlers-usage-automatic-setup
   ---@class custom.HandlerConfig
   ---@field name boolean -- adapter name
   ---
