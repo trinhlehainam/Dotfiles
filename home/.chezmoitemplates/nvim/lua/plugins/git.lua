@@ -7,6 +7,9 @@ return {
 
       'nvim-telescope/telescope.nvim', -- optional
     },
+    keys = {
+      { '<leader>g', nil, desc = '[G]it' },
+    },
     config = function()
       local neogit = require('neogit')
       neogit.setup({
