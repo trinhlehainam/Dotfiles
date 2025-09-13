@@ -20,7 +20,10 @@ local neotest_adapter_setups = {}
 
 for lang, settings in pairs(language_settings) do
   table.insert(M.treesitters, settings.treesitter)
-  M.dapconfigs[lang] = settings.dapconfig
+  -- Collect all dapconfigs into a flat array
+  if settings.dapconfigs and #settings.dapconfigs > 0 then
+    vim.list_extend(M.dapconfigs, settings.dapconfigs)
+  end
   vim.list_extend(M.lspconfigs, settings.lspconfigs)
   table.insert(M.formatters, settings.formatterconfig)
   table.insert(M.linters, settings.linterconfig)

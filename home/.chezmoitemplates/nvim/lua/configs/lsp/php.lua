@@ -18,14 +18,19 @@ M.formatterconfig.formatters_by_ft = {
   php = { 'pint' },
 }
 
-M.linterconfig.servers = { 'phpcs' }
-M.linterconfig.linters_by_ft = {
-  php = { 'phpcs' },
-}
+-- M.linterconfig.servers = { 'phpcs' }
+-- M.linterconfig.linters_by_ft = {
+--   php = { 'phpcs' },
+-- }
 
 M.lspconfigs = { LspConfig:new('phpactor', 'phpactor') }
 
-M.dapconfig.type = 'php'
+--- @type custom.DapConfig
+local php_dap = {
+  type = 'php',
+  use_masondap_default_setup = true,
+}
+M.dapconfigs = { php_dap }
 
 M.neotest_adapter_setup = function()
   local has_phpunit, phpunit = pcall(require, 'neotest-phpunit')

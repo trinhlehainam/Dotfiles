@@ -108,8 +108,8 @@
 ---@field treesitter custom.TreeSitter
 --- Array of LSP server configurations (supports multiple servers per language)
 ---@field lspconfigs custom.LspConfig[]
---- Debug adapter configuration for step-through debugging
----@field dapconfig custom.DapConfig
+--- Debug adapters configuration for step-through debugging
+---@field dapconfigs custom.DapConfig[]
 --- Code formatter configuration for consistent styling
 ---@field formatterconfig custom.FormatterConfig
 --- Code linter configuration for quality and error detection
@@ -127,8 +127,8 @@
 ---@field treesitters custom.TreeSitter[]
 --- Collection of all LSP server configurations across all languages
 ---@field lspconfigs custom.LspConfig[]
---- Language-keyed debug adapter configurations (e.g., {python = pythonDapConfig})
----@field dapconfigs table<string, custom.DapConfig>
+--- Debug adapter configurations
+---@field dapconfigs custom.DapConfig[]
 --- Collection of all formatter configurations
 ---@field formatters custom.FormatterConfig[]
 --- Collection of all linter configurations
