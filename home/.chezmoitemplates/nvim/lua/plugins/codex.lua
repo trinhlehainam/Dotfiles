@@ -8,7 +8,7 @@ return {
       function()
         require('codex').toggle()
       end,
-      desc = 'Toggle Codex popup',
+      desc = '[C]odex Toggle',
     },
   },
   opts = {
