@@ -50,6 +50,7 @@ return { -- Useful plugin to show you pending keybinds.
       { '<leader>a', group = 'AI/Claude Code' },
       { '<leader>g', group = '[G]it' },
       { '<leader>d', group = '[D]ebug' },
+      { '<leader>w', group = 'Session' },
     },
   },
 }
