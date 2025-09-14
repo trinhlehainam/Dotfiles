@@ -1,5 +1,6 @@
 return {
   'TheLeoP/powershell.nvim',
+  dependencies = { 'williamboman/mason.nvim' },
   config = function()
     require('powershell').setup({
       -- https://github.com/TheLeoP/powershell.nvim?tab=readme-ov-file#configuration
