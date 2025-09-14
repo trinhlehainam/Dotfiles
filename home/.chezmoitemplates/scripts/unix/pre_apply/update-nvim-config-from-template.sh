@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # Initialize variables
-VERBOSE=false
 DRY_RUN=false
 LOG_LEVEL="info"
 
@@ -10,20 +9,20 @@ if [[ -n "${CHEZMOI_ARGS:-}" ]]; then
     set -- $CHEZMOI_ARGS
 
     # Skip the first argument (chezmoi executable path)
-    shift
+		shift
 
     # Parse remaining arguments
     while [[ $# -gt 0 ]]; do
         case "$1" in
             -v|--verbose)
-                VERBOSE=true
-                LOG_LEVEL="debug"
+								LOG_LEVEL="debug"
                 ;;
             -n|--dry-run)
                 DRY_RUN=true
                 ;;
             --debug)
-                LOG_LEVEL="trace"
+								echo "Debug mode enabled"
+								LOG_LEVEL="debug"
                 ;;
             *)
                 # Skip other arguments
@@ -34,20 +33,20 @@ if [[ -n "${CHEZMOI_ARGS:-}" ]]; then
 fi
 
 # Function to check if a log level should be displayed
-should_log() {
+can_log() {
     local level="$1"
     case "$LOG_LEVEL" in
-        "trace")
+        "debug")
             return 0  # Log everything
             ;;
-        "debug")
-            [[ "$level" != "TRACE" ]]
-            ;;
+				"warn")
+						[[ "$level" == "ERROR" || "$level" == "WARN" ]]
+						;;
         "info")
-            [[ "$level" != "TRACE" && "$level" != "DEBUG" ]]
+            [[ "$level" == "ERROR" || "$level" == "WARN" || "$level" == "INFO" ]]
             ;;
         *)
-            [[ "$level" == "ERROR" || "$level" == "WARN" ]]
+						return 1
             ;;
     esac
 }
@@ -56,9 +55,10 @@ should_log() {
 log() {
     local level="$1"
     local message="$2"
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local timestamp
+		timestamp=$(date '+%Y-%m-%d %H:%M:%S')
 
-    if ! should_log "$level"; then
+    if ! can_log "$level"; then
         return
     fi
 
@@ -74,9 +74,6 @@ log() {
             ;;
         "DEBUG")
             echo "[$timestamp] DEBUG: $message"
-            ;;
-        "TRACE")
-            echo "[$timestamp] TRACE: $message"
             ;;
     esac
 }
@@ -96,10 +93,6 @@ log_info() {
 
 log_debug() {
     log "DEBUG" "$1"
-}
-
-log_trace() {
-    log "TRACE" "$1"
 }
 
 # NOTE: Required tools:
@@ -136,25 +129,25 @@ templates_dir="$chezmoi_root_dir/.chezmoitemplates/nvim"
 state_file="$templates_dir/state.json"
 
 log_debug "Configuration loaded: LOG_LEVEL=$LOG_LEVEL, DRY_RUN=$DRY_RUN"
-log_trace "Directories: chezmoi_root_dir=$chezmoi_root_dir"
-log_trace "Templates dir: $templates_dir"
-log_trace "State file: $state_file"
+log_debug "Chezmoi root dir: $chezmoi_root_dir"
+log_debug "Templates dir: $templates_dir"
+log_debug "State file: $state_file"
 
 validate_template_file() {
 	local file=$1
 
 	if [ "$file" = "" ]; then
-		log_info "No template file provided"
+		log_debug "No template file provided"
 		return 1
 	fi
 
 	if [ ! -f "$file" ]; then
-		log_info "Template file does not exist"
+		log_debug "Template file does not exist"
 		return 1
 	fi
 
 	if [[ "$file" != "$chezmoi_root_dir"/.chezmoitemplates/* ]]; then
-		log_info "Template file is not inside $chezmoi_root_dir/.chezmoitemplates/ folder ${file}"
+		log_debug "Template file is not inside $chezmoi_root_dir/.chezmoitemplates/ folder ${file}"
 		return 1
 	fi
 
@@ -163,12 +156,12 @@ validate_template_file() {
 
 	# file start with "."
 	if [[ "$base_name" =~ ^\. ]]; then
-		log_info "Template file ${base_name} starts with ."
+		log_debug "Template file ${base_name} starts with ."
 		return 1
 	fi
 
 	if [[ "$base_name" == *"state.json"* ]]; then
-		log_info "Template file name is state.json"
+		log_debug "Template file name is state.json"
 		return 1
 	fi
 
@@ -178,7 +171,7 @@ validate_template_file() {
 new_template() {
 	if ! validate_template_file "$2"; then
 		log_warn "Invalid template file $2"
-		log_info "Skip creating template for $2"
+		log_debug "Skip creating template for $2"
 		return 1
 	fi
 	local chezmoi_root_dir="$1"
@@ -257,7 +250,7 @@ declare -A current_state
 while IFS= read -r -d '' file; do
 	# Ignore files that are not templates
 	if ! validate_template_file "$file"; then
-		log_info "Ignoring tracking template file \"$file\" state in \"state.json\""
+		log_debug "Ignoring tracking template file \"$file\" state in \"state.json\""
 		continue
 	fi
 	# Trip the "$chezmoi_root_dir"/.chezmoitemplates/ prefix path
