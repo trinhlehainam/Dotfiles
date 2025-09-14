@@ -1,109 +1,118 @@
 #!/bin/bash
 
+# Require Bash 4+ for associative arrays (macOS default bash is 3.2)
+if [[ -z "${BASH_VERSINFO:-}" || ${BASH_VERSINFO[0]} -lt 4 ]]; then
+  echo "[ERROR] Bash 4+ required; on macOS, install newer bash (e.g., brew install bash) and run this script with it." >&2
+  exit 1
+fi
+
 # Initialize variables
 DRY_RUN=false
 LOG_LEVEL="info"
 
 # Parse CHEZMOI_ARGS
 if [[ -n "${CHEZMOI_ARGS:-}" ]]; then
-    set -- $CHEZMOI_ARGS
+	eval "set -- $CHEZMOI_ARGS"
 
-    # Skip the first argument (chezmoi executable path)
+		# Skip the first argument (chezmoi executable path)
 		shift
 
-    # Parse remaining arguments
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            -v|--verbose)
-								LOG_LEVEL="debug"
-                ;;
-            -n|--dry-run)
-                DRY_RUN=true
-                ;;
-            --debug)
-								echo "Debug mode enabled"
-								LOG_LEVEL="debug"
-                ;;
-            *)
-                # Skip other arguments
-                ;;
-        esac
-        shift
-    done
+		# Parse remaining arguments
+		while [[ $# -gt 0 ]]; do
+			case "$1" in
+				-v|--verbose)
+					LOG_LEVEL="debug"
+					;;
+				-n|--dry-run)
+					DRY_RUN=true
+					;;
+				--debug)
+					LOG_LEVEL="debug"
+					;;
+				*)
+					# Skip other arguments
+					;;
+			esac
+			shift
+		done
 fi
 
 # Function to check if a log level should be displayed
 can_log() {
-    local level="$1"
-    case "$LOG_LEVEL" in
-        "debug")
-            return 0  # Log everything
-            ;;
-				"warn")
-						[[ "$level" == "ERROR" || "$level" == "WARN" ]]
-						;;
-        "info")
-            [[ "$level" == "ERROR" || "$level" == "WARN" || "$level" == "INFO" ]]
-            ;;
-        *)
-						return 1
-            ;;
-    esac
+	local level="$1"
+	case "$LOG_LEVEL" in
+		"debug")
+			return 0  # Log everything
+			;;
+		"error")
+			[[ "$level" == "ERROR" ]]
+			;;
+		"warn")
+			[[ "$level" == "ERROR" || "$level" == "WARN" ]]
+			;;
+		"info")
+			[[ "$level" == "ERROR" || "$level" == "WARN" || "$level" == "INFO" ]]
+			;;
+		*)
+			# Fallback to info if an unknown level is set
+			[[ "$level" == "ERROR" || "$level" == "WARN" || "$level" == "INFO" ]]
+			;;
+	esac
 }
 
 # Main logging function
 log() {
-    local level="$1"
-    local message="$2"
-    local timestamp
-		timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+	local level="$1"
+	local message="$2"
+	local timestamp
+	timestamp=$(date '+%Y-%m-%d %H:%M:%S')
 
-    if ! can_log "$level"; then
-        return
-    fi
+	if ! can_log "$level"; then
+		return
+	fi
 
-    case "$level" in
-        "ERROR")
-            echo "[$timestamp] ERROR: $message" >&2
-            ;;
-        "WARN")
-            echo "[$timestamp] WARN: $message" >&2
-            ;;
-        "INFO")
-            echo "[$timestamp] INFO: $message"
-            ;;
-        "DEBUG")
-            echo "[$timestamp] DEBUG: $message"
-            ;;
-    esac
+	case "$level" in
+		"ERROR")
+			echo "[$timestamp] ERROR: $message" >&2
+			;;
+		"WARN")
+			echo "[$timestamp] WARN: $message" >&2
+			;;
+		"INFO")
+			echo "[$timestamp] INFO: $message"
+			;;
+		"DEBUG")
+			echo "[$timestamp] DEBUG: $message"
+			;;
+	esac
 }
 
 # Dedicated logging methods
 log_error() {
-    log "ERROR" "$1"
+	log "ERROR" "$1"
 }
 
 log_warn() {
-    log "WARN" "$1"
+	log "WARN" "$1"
 }
 
 log_info() {
-    log "INFO" "$1"
+	log "INFO" "$1"
 }
 
 log_debug() {
-    log "DEBUG" "$1"
+	log "DEBUG" "$1"
 }
 
 # NOTE: Required tools:
 #   - find: File finder
-#   - read: Read from stdin
+#   - basename: Path processor
 #   - stat: File metadata processor
 #   - dirname: Path processor
 #   - sed: Text processor
 #   - jq: JSON processor
 #   - chezmoi: Template processor
-REQUIRED_TOOLS=("find" "read" "stat" "dirname" "sed" "jq" "chezmoi")
+REQUIRED_TOOLS=("find" "basename" "stat" "dirname" "sed" "jq" "chezmoi")
 for tool in "${REQUIRED_TOOLS[@]}"; do
 	if ! command -v "$tool" &>/dev/null; then
 		log_error "$tool is not installed"
@@ -160,7 +169,7 @@ validate_template_file() {
 		return 1
 	fi
 
-	if [[ "$base_name" == *"state.json"* ]]; then
+	if [[ "$base_name" == "state.json" ]]; then
 		log_debug "Template file name is state.json"
 		return 1
 	fi
@@ -209,7 +218,7 @@ remove_template() {
 	local chezmoi_root_dir=$1
 	local template_file=$2
 
-	if [ "$OSTYPE" == "msys" ]; then
+	if [[ "$OSTYPE" == "cygwin" || "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
 		target_file="$chezmoi_root_dir/AppData/Local/$template_file.tmpl"
 	else
 		target_file="$chezmoi_root_dir/dot_config/$template_file.tmpl"
@@ -233,7 +242,6 @@ remove_template() {
 
 	return 0
 }
-
 # Load previous state if it exists
 declare -A previous_state
 if [ -f "$state_file" ]; then
@@ -247,6 +255,15 @@ fi
 
 # Get current state
 declare -A current_state
+# Cross-platform mtime
+# stat -c %Y fails on macOS; use an OS-aware helper.
+file_mtime() {
+	if [[ "$OSTYPE" == "darwin"* ]]; then
+		stat -f %m -- "$1"
+	else
+		stat -c %Y -- "$1"
+	fi
+}
 while IFS= read -r -d '' file; do
 	# Ignore files that are not templates
 	if ! validate_template_file "$file"; then
@@ -255,14 +272,14 @@ while IFS= read -r -d '' file; do
 	fi
 	# Trip the "$chezmoi_root_dir"/.chezmoitemplates/ prefix path
 	template_file=${file#"$chezmoi_root_dir"/.chezmoitemplates/}
-	current_state["$template_file"]=$(stat -c %Y "$file")
+	current_state["$template_file"]=$(file_mtime "$file")
 done < <(find "$templates_dir" -type f -print0)
 
 # Detect added files
 for file in "${!current_state[@]}"; do
 	if [ ! "${previous_state[$file]+exists}" ]; then
 		template_file="$chezmoi_root_dir/.chezmoitemplates/$file"
-		if new_template "$chezmoi_root_dir" "$template_file" ; then
+		if new_template "$chezmoi_root_dir" "$template_file"; then
 			log_info "Template for $file created"
 		fi
 	fi
@@ -271,8 +288,8 @@ done
 # Detect deleted files
 for file in "${!previous_state[@]}"; do
 	if [ ! "${current_state[$file]+exists}" ]; then
-		if remove_template "$chezmoi_root_dir" "$file" ; then 
-			log_info "Template for $file removed"; 
+		if remove_template "$chezmoi_root_dir" "$file"; then
+			log_info "Template for $file removed"
 		fi
 	fi
 done
