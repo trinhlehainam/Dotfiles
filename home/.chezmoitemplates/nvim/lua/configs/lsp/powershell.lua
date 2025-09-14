@@ -6,7 +6,8 @@ local log = require('utils.log')
 
 M.treesitter.filetypes = { 'powershell' }
 
-if vim.fn.executable('powershell') == 0 or vim.fn.executable('pwsh') == 0 then
+local has_executable = vim.fn.executable('powershell') == 1 or vim.fn.executable('pwsh') == 1
+if has_executable == false then
   -- https://github.com/PowerShell/PowerShellEditorServices?tab=readme-ov-file#supported-powershell-versions
   log.warn('PowerShellEditorServices requires PowerShell to be installed')
   return M
