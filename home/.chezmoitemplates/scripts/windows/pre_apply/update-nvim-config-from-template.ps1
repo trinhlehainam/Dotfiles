@@ -1,38 +1,114 @@
-param (
-    [Parameter(Mandatory = $false, Position=0)]
-    [AllowEmptyString()]
-    [string]$ChezmoiArgs
-)
+# Initialize variables
+$DRY_RUN = $false
+$LOG_LEVEL = "info"
 
-# https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_comparison_operators?view=powershell-7.5#matching-operators
-# https://www.chezmoi.io/reference/command-line-flags/global/
-$isVerbose = $ChezmoiArgs -match "--verbose|-v"
+# Parse CHEZMOI_ARGS environment variable
+if ($env:CHEZMOI_ARGS) {
+    $args = $env:CHEZMOI_ARGS -split ' '
 
+    # Skip the first argument (chezmoi executable path)
+    if ($args.Length -gt 1) {
+        $args = $args[1..($args.Length - 1)]
+    } else {
+        $args = @()
+    }
+
+    # Parse remaining arguments
+    foreach ($arg in $args) {
+        switch ($arg) {
+            {$_ -in "-v", "--verbose"} {
+                $LOG_LEVEL = "debug"
+            }
+            {$_ -in "-n", "--dry-run"} {
+                $DRY_RUN = $true
+            }
+            "--debug" {
+                Write-Host "Debug mode enabled"
+                $LOG_LEVEL = "debug"
+            }
+        }
+    }
+}
+
+# Function to check if a log level should be displayed
+function Test-LogLevel
+{
+    param (
+        [string]$Level
+    )
+
+    switch ($LOG_LEVEL)
+    {
+        "debug" {
+            return $true  # Log everything
+        }
+        "warn" {
+            return ($Level -in "ERROR", "WARN")
+        }
+        "info" {
+            return ($Level -in "ERROR", "WARN", "INFO")
+        }
+        default {
+            return $false
+        }
+    }
+}
+
+# Main logging function
 function Write-Log
 {
     param (
-        [ValidateSet("Info", "Warn", "Err")]
-        [string]$Level = "Info",
+        [ValidateSet("ERROR", "WARN", "INFO", "DEBUG")]
+        [string]$Level,
         [string]$Message
     )
 
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+
+    if (-not (Test-LogLevel -Level $Level)) {
+        return
+    }
+
     switch ($Level)
     {
-        "Info"
-        { Write-Host "INFO: $Message" 
+        "ERROR" {
+            Write-Error "[$timestamp] ERROR: $Message"
         }
-        "Warn"
-        { 
-            if (!$isVerbose)
-            { return 
-            }
-            Write-Warning "WARN: $Message" 
+        "WARN" {
+            Write-Warning "[$timestamp] WARN: $Message"
         }
-        "Err"
-        { 
-            Write-Error "ERROR: $Message" 
+        "INFO" {
+            Write-Host "[$timestamp] INFO: $Message"
+        }
+        "DEBUG" {
+            Write-Host "[$timestamp] DEBUG: $Message" -ForegroundColor Gray
         }
     }
+}
+
+# Dedicated logging methods
+function Write-LogError
+{
+    param ([string]$Message)
+    Write-Log -Level "ERROR" -Message $Message
+}
+
+function Write-LogWarn
+{
+    param ([string]$Message)
+    Write-Log -Level "WARN" -Message $Message
+}
+
+function Write-LogInfo
+{
+    param ([string]$Message)
+    Write-Log -Level "INFO" -Message $Message
+}
+
+function Write-LogDebug
+{
+    param ([string]$Message)
+    Write-Log -Level "DEBUG" -Message $Message
 }
 
 # NOTE: Required tools:
@@ -54,7 +130,7 @@ foreach ($tool in $REQUIRED_TOOLS)
 {
     if (-not (Test-Command -Command $tool))
     {
-        Write-Log -Level "Err" -Message "$tool is not installed."
+        Write-LogError "$tool is not installed"
         exit 1
     }
 }
@@ -65,14 +141,19 @@ if ($env:OS -match "Windows_NT")
     $nvim_config_dir = "$env:USERPROFILE\AppData\Local\nvim"
 } else
 {
-    Write-Log -Level "Err" -Message "Unsupported OS $($PSVersionTable.OS)"
+    Write-LogError "Unsupported OS $($PSVersionTable.OS)"
     exit 1
 }
 
 # Define chezmoi directories
 $CHEZMOI_ROOT_DIR = "$env:USERPROFILE\.local\share\chezmoi\home"
 $TEMPLATES_DIR = "$CHEZMOI_ROOT_DIR\.chezmoitemplates\nvim"
-$STATE_FILE = "$templates_dir\state.json"
+$STATE_FILE = "$TEMPLATES_DIR\state.json"
+
+Write-LogDebug "Configuration loaded: LOG_LEVEL=$LOG_LEVEL, DRY_RUN=$DRY_RUN"
+Write-LogDebug "Chezmoi root dir: $CHEZMOI_ROOT_DIR"
+Write-LogDebug "Templates dir: $TEMPLATES_DIR"
+Write-LogDebug "State file: $STATE_FILE"
 
 function Confirm-TemplateFile
 {
@@ -83,20 +164,20 @@ function Confirm-TemplateFile
 
     if ($null -eq $File)
     {
-        Write-Log -Level "Warn" -Message "Template file is empty"
+        Write-LogDebug "No template file provided"
         return $false
     }
 
     if (-not (Test-Path $File))
     {
-        Write-Log -Level "Warn" -Message "Template file not found: $File"
+        Write-LogDebug "Template file does not exist"
         return $false
     }
 
     # file not inside $CHEZMOI_ROOT_DIR"/.chezmoitemplates/ folder
     if (-not $File.StartsWith("$CHEZMOI_ROOT_DIR\.chezmoitemplates\"))
     {
-        Write-Log -Level "Warn" -Message "Template file is not inside $CHEZMOI_ROOT_DIR/.chezmoitemplates/ folder $File"
+        Write-LogDebug "Template file is not inside $CHEZMOI_ROOT_DIR/.chezmoitemplates/ folder $File"
         return $false
     }
 
@@ -105,13 +186,13 @@ function Confirm-TemplateFile
     # File start with "."
     if ($baseName[0] -eq ".")
     {
-        Write-Log -Level "Warn" -Message "Template file $baseName starts with ."
+        Write-LogDebug "Template file $baseName starts with ."
         return $false
     }
 
     if ($baseName -eq "state.json")
     {
-        Write-Log -Level "Warn" -Message "Template file is state.json"
+        Write-LogDebug "Template file name is state.json"
         return $false
     }
 
@@ -125,34 +206,46 @@ function New-Template
         [string]$TemplateFile
     )
 
+    if (-not (Confirm-TemplateFile -File $TemplateFile)) {
+        Write-LogWarn "Invalid template file $TemplateFile"
+        Write-LogDebug "Skip creating template for $TemplateFile"
+        return $false
+    }
+
+    # Strip the chezmoi templates prefix path
+    $templateFile = $TemplateFile.Substring("$ChezmoiRootDir\.chezmoitemplates\".Length)
+
     if ($env:OS -match "Windows_NT")
     {
-        $targetFile = "$ChezmoiRootDir\AppData\Local\$TemplateFile.tmpl"
+        $targetFile = "$ChezmoiRootDir\AppData\Local\$templateFile.tmpl"
     } else
     {
-        $targetFile = "$ChezmoiRootDir/dot_config/dot_$TemplateFile.tmpl"
+        $targetFile = "$ChezmoiRootDir/dot_config/$templateFile.tmpl"
+    }
+
+    Write-LogDebug "Creating template: $templateFile -> $targetFile"
+
+    if ($DRY_RUN) {
+        Write-LogInfo "[DRY RUN] Would create template: $targetFile"
+        return $true
     }
 
     $targetDir = [System.IO.Path]::GetDirectoryName($targetFile)
     if (-not (Test-Path $targetDir))
     {
-        New-Item -ItemType Directory -Force -Path $targetDir
+        New-Item -ItemType Directory -Force -Path $targetDir | Out-Null
     }
     if (-not (Test-Path $targetFile))
     {
-        New-Item -ItemType File -Force -Path $targetFile
+        New-Item -ItemType File -Force -Path $targetFile | Out-Null
     }
     # Avoid chezmoi template checking
-    $templateString = "- template `"$TemplateFile`" . -"
+    $templateString = "- template `"$templateFile`" . -"
     $templateString = "{$templateString}"
     $templateString = "{$templateString}"
     $templateString = $templateString.Replace("\", "/")
     #
-    if (-not ($templateString | Set-Content -Path $targetFile))
-    {
-        Write-Log -Level "Warn" -Message "Failed to create template file $targetFile"
-        return $false
-    }
+    $templateString | Set-Content -Path $targetFile
 
     return $true
 }
@@ -166,20 +259,27 @@ function Remove-Template
 
     if ($env:OS -match "Windows_NT")
     {
-        $targetFile = "$CHEZMOI_ROOT_DIR\AppData\Local\$TemplateFile.tmpl"
+        $targetFile = "$ChezmoiRootDir\AppData\Local\$TemplateFile.tmpl"
     } else
     {
-        $targetFile = "$CHEZMOI_ROOT_DIR/dot_config/$TemplateFile.tmpl"
+        $targetFile = "$ChezmoiRootDir/dot_config/$TemplateFile.tmpl"
     }
 
     if (-not (Test-Path $targetFile))
     {
-        Write-Log -Level "Warn" -Message "Skipping removing non-existing template file $targetFile"
         return $false
     }
 
-    $destinationFile = $template_file.Substring("nvim".Length + 1) 
+    $destinationFile = $TemplateFile.Substring("nvim\".Length)
     $destinationFile = "$nvim_config_dir\$destinationFile"
+
+    Write-LogDebug "Removing template: $TemplateFile -> $targetFile"
+
+    if ($DRY_RUN) {
+        Write-LogInfo "[DRY RUN] Would remove template: $targetFile and destroy: $destinationFile"
+        return $true
+    }
+
     chezmoi destroy --force $destinationFile
 
     return $true
@@ -202,13 +302,13 @@ $CURRENT_STATE = @{}
 Get-ChildItem -Path $TEMPLATES_DIR -File -Recurse | ForEach-Object {
     if (-not (Confirm-TemplateFile -file $_.FullName))
     {
-        Write-Log -Level "Warn" -Message "Ignoring tracking template file `"$_`" in `"state.json`""
+        Write-LogDebug "Ignoring tracking template file `"$($_.FullName)`" state in `"state.json`""
         return
     }
-    $templateFile = $_.FullName.Substring($templates_dir.Length - "nvim".Length)
+    # Strip the chezmoi templates prefix path
+    $templateFile = $_.FullName.Substring("$CHEZMOI_ROOT_DIR\.chezmoitemplates\".Length)
     $timestamp = Get-Date $_.LastWriteTime
     $timestamp = ([DateTimeOffset]$timestamp).ToUnixTimeSeconds()
-    $timestamp = "Date($timestamp)"
     $CURRENT_STATE.Add($templateFile, $timestamp)
 }
 
@@ -217,10 +317,11 @@ foreach ($file in $CURRENT_STATE.Keys)
 {
     if (-not $PREVIOUS_STATE.ContainsKey($file))
     {
-        if (New-Template -ChezmoiRootDir $CHEZMOI_ROOT_DIR -TemplateFile $file)
+        $templateFile = "$CHEZMOI_ROOT_DIR\.chezmoitemplates\$file"
+        if (New-Template -ChezmoiRootDir $CHEZMOI_ROOT_DIR -TemplateFile $templateFile)
         {
-            Write-Log -Level "Info" -Message "Template file $file created"
-        }     
+            Write-LogInfo "Template for $file created"
+        }
     }
 }
 
@@ -231,7 +332,7 @@ foreach ($file in $PREVIOUS_STATE.Keys)
     {
         if (Remove-Template -ChezmoiRootDir $CHEZMOI_ROOT_DIR -TemplateFile $file)
         {
-            Write-Log -Level "Info" -Message "Template file $file removed"
+            Write-LogInfo "Template for $file removed"
         }
     }
 }
