@@ -9,17 +9,18 @@ if ($env:CHEZMOI_ARGS) {
     # Skip the first argument (chezmoi executable path)
     if ($args.Length -gt 1) {
         $args = $args[1..($args.Length - 1)]
-    } else {
+    }
+    else {
         $args = @()
     }
 
     # Parse remaining arguments
     foreach ($arg in $args) {
         switch ($arg) {
-            {$_ -in "-v", "--verbose"} {
+            { $_ -in "-v", "--verbose" } {
                 $LOG_LEVEL = "debug"
             }
-            {$_ -in "-n", "--dry-run"} {
+            { $_ -in "-n", "--dry-run" } {
                 $DRY_RUN = $true
             }
             "--debug" {
@@ -31,14 +32,12 @@ if ($env:CHEZMOI_ARGS) {
 }
 
 # Function to check if a log level should be displayed
-function Test-LogLevel
-{
+function Test-LogLevel {
     param (
         [string]$Level
     )
 
-    switch ($LOG_LEVEL)
-    {
+    switch ($LOG_LEVEL) {
         "debug" {
             return $true  # Log everything
         }
@@ -52,15 +51,14 @@ function Test-LogLevel
             return ($Level -in "ERROR", "WARN", "INFO")
         }
         default {
-+           # Fallback to info if an unknown level is set
-+           return ($Level -in "ERROR", "WARN", "INFO")
+            # Fallback to info if an unknown level is set
+            return ($Level -in "ERROR", "WARN", "INFO")
         }
     }
 }
 
 # Main logging function
-function Write-Log
-{
+function Write-Log {
     param (
         [ValidateSet("ERROR", "WARN", "INFO", "DEBUG")]
         [string]$Level,
@@ -73,8 +71,7 @@ function Write-Log
         return
     }
 
-    switch ($Level)
-    {
+    switch ($Level) {
         "ERROR" {
             Write-Error "[$timestamp] ERROR: $Message"
         }
@@ -91,26 +88,22 @@ function Write-Log
 }
 
 # Dedicated logging methods
-function Write-LogError
-{
+function Write-LogError {
     param ([string]$Message)
     Write-Log -Level "ERROR" -Message $Message
 }
 
-function Write-LogWarn
-{
+function Write-LogWarn {
     param ([string]$Message)
     Write-Log -Level "WARN" -Message $Message
 }
 
-function Write-LogInfo
-{
+function Write-LogInfo {
     param ([string]$Message)
     Write-Log -Level "INFO" -Message $Message
 }
 
-function Write-LogDebug
-{
+function Write-LogDebug {
     param ([string]$Message)
     Write-Log -Level "DEBUG" -Message $Message
 }
@@ -120,8 +113,7 @@ function Write-LogDebug
 $REQUIRED_TOOLS = @("chezmoi")
 
 # Function to check if a command is available
-function Test-Command
-{
+function Test-Command {
     param (
         [string]$Command
     )
@@ -130,21 +122,18 @@ function Test-Command
     return $null -ne $commandPath
 }
 
-foreach ($tool in $REQUIRED_TOOLS)
-{
-    if (-not (Test-Command -Command $tool))
-    {
+foreach ($tool in $REQUIRED_TOOLS) {
+    if (-not (Test-Command -Command $tool)) {
         Write-LogError "$tool is not installed"
         exit 1
     }
 }
 
 # Determine the operating system
-if ($env:OS -match "Windows_NT")
-{
+if ($env:OS -match "Windows_NT") {
     $nvim_config_dir = "$env:USERPROFILE\AppData\Local\nvim"
-} else
-{
+}
+else {
     Write-LogError "Unsupported OS $($PSVersionTable.OS)"
     exit 1
 }
@@ -159,28 +148,24 @@ Write-LogDebug "Chezmoi root dir: $CHEZMOI_ROOT_DIR"
 Write-LogDebug "Templates dir: $TEMPLATES_DIR"
 Write-LogDebug "State file: $STATE_FILE"
 
-function Confirm-TemplateFile
-{
+function Confirm-TemplateFile {
     param (
         [string]$File,
         [switch]$Verbose
     )
 
-    if ($null -eq $File)
-    {
+    if ($null -eq $File) {
         Write-LogDebug "No template file provided"
         return $false
     }
 
-    if (-not (Test-Path $File))
-    {
+    if (-not (Test-Path $File)) {
         Write-LogDebug "Template file does not exist"
         return $false
     }
 
     # file not inside $CHEZMOI_ROOT_DIR"/.chezmoitemplates/ folder
-    if (-not $File.StartsWith("$CHEZMOI_ROOT_DIR\.chezmoitemplates\"))
-    {
+    if (-not $File.StartsWith("$CHEZMOI_ROOT_DIR\.chezmoitemplates\")) {
         Write-LogDebug "Template file is not inside $CHEZMOI_ROOT_DIR/.chezmoitemplates/ folder $File"
         return $false
     }
@@ -188,14 +173,12 @@ function Confirm-TemplateFile
     $baseName = [System.IO.Path]::GetFileName($File)
 
     # File start with "."
-    if ($baseName[0] -eq ".")
-    {
+    if ($baseName[0] -eq ".") {
         Write-LogDebug "Template file $baseName starts with ."
         return $false
     }
 
-    if ($baseName -eq "state.json")
-    {
+    if ($baseName -eq "state.json") {
         Write-LogDebug "Template file name is state.json"
         return $false
     }
@@ -203,8 +186,7 @@ function Confirm-TemplateFile
     return $true
 }
 
-function New-Template
-{
+function New-Template {
     param (
         [string]$ChezmoiRootDir,
         [string]$TemplateFile
@@ -219,11 +201,10 @@ function New-Template
     # Strip the chezmoi templates prefix path
     $templateFile = $TemplateFile.Substring("$ChezmoiRootDir\.chezmoitemplates\".Length)
 
-    if ($env:OS -match "Windows_NT")
-    {
+    if ($env:OS -match "Windows_NT") {
         $targetFile = "$ChezmoiRootDir\AppData\Local\$templateFile.tmpl"
-    } else
-    {
+    }
+    else {
         $targetFile = "$ChezmoiRootDir/dot_config/$templateFile.tmpl"
     }
 
@@ -235,12 +216,10 @@ function New-Template
     }
 
     $targetDir = [System.IO.Path]::GetDirectoryName($targetFile)
-    if (-not (Test-Path $targetDir))
-    {
+    if (-not (Test-Path $targetDir)) {
         New-Item -ItemType Directory -Force -Path $targetDir | Out-Null
     }
-    if (-not (Test-Path $targetFile))
-    {
+    if (-not (Test-Path $targetFile)) {
         New-Item -ItemType File -Force -Path $targetFile | Out-Null
     }
     # Avoid chezmoi template checking
@@ -254,23 +233,20 @@ function New-Template
     return $true
 }
 
-function Remove-Template
-{
+function Remove-Template {
     param (
         [string]$ChezmoiRootDir,
         [string]$TemplateFile
     )
 
-    if ($env:OS -match "Windows_NT")
-    {
+    if ($env:OS -match "Windows_NT") {
         $targetFile = "$ChezmoiRootDir\AppData\Local\$TemplateFile.tmpl"
-    } else
-    {
+    }
+    else {
         $targetFile = "$ChezmoiRootDir/dot_config/$TemplateFile.tmpl"
     }
 
-    if (-not (Test-Path $targetFile))
-    {
+    if (-not (Test-Path $targetFile)) {
         return $false
     }
 
@@ -291,8 +267,7 @@ function Remove-Template
 
 # Load previous state if it exists
 $PREVIOUS_STATE = @{}
-if (Test-Path $STATE_FILE)
-{
+if (Test-Path $STATE_FILE) {
     $json = Get-Content -Path $STATE_FILE | ConvertFrom-Json
     # ConvertFrom-Json -AsHashtable somehow doesn't work
     # Add properties manually to hashtable
@@ -304,8 +279,7 @@ if (Test-Path $STATE_FILE)
 # Get current state
 $CURRENT_STATE = @{}
 Get-ChildItem -Path $TEMPLATES_DIR -File -Recurse | ForEach-Object {
-    if (-not (Confirm-TemplateFile -file $_.FullName))
-    {
+    if (-not (Confirm-TemplateFile -file $_.FullName)) {
         Write-LogDebug "Ignoring tracking template file `"$($_.FullName)`" state in `"state.json`""
         return
     }
@@ -317,25 +291,19 @@ Get-ChildItem -Path $TEMPLATES_DIR -File -Recurse | ForEach-Object {
 }
 
 # Detect added files
-foreach ($file in $CURRENT_STATE.Keys)
-{
-    if (-not $PREVIOUS_STATE.ContainsKey($file))
-    {
+foreach ($file in $CURRENT_STATE.Keys) {
+    if (-not $PREVIOUS_STATE.ContainsKey($file)) {
         $templateFile = "$CHEZMOI_ROOT_DIR\.chezmoitemplates\$file"
-        if (New-Template -ChezmoiRootDir $CHEZMOI_ROOT_DIR -TemplateFile $templateFile)
-        {
+        if (New-Template -ChezmoiRootDir $CHEZMOI_ROOT_DIR -TemplateFile $templateFile) {
             Write-LogInfo "Template for $file created"
         }
     }
 }
 
 # Detect deleted files
-foreach ($file in $PREVIOUS_STATE.Keys)
-{
-    if (-not $CURRENT_STATE.ContainsKey($file))
-    {
-        if (Remove-Template -ChezmoiRootDir $CHEZMOI_ROOT_DIR -TemplateFile $file)
-        {
+foreach ($file in $PREVIOUS_STATE.Keys) {
+    if (-not $CURRENT_STATE.ContainsKey($file)) {
+        if (Remove-Template -ChezmoiRootDir $CHEZMOI_ROOT_DIR -TemplateFile $file) {
             Write-LogInfo "Template for $file removed"
         }
     }
@@ -343,3 +311,4 @@ foreach ($file in $PREVIOUS_STATE.Keys)
 
 # Save current state
 $CURRENT_STATE | ConvertTo-Json -Compress | Set-Content -Path $STATE_FILE
+
