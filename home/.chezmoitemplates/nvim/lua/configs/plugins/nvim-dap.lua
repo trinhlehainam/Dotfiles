@@ -16,7 +16,7 @@ vim.keymap.set('n', '<leader>dc', dap.run_to_cursor, { desc = '[D]ebug: Run to [
 vim.keymap.set('n', '<leader>dr', dap.repl.toggle, { desc = '[D]ebug: Toggle DAP [R]EPL' })
 vim.keymap.set('n', '<leader>dj', dap.down, { desc = '[D]ebug: Go down stack frame' })
 vim.keymap.set('n', '<leader>dk', dap.up, { desc = '[D]ebug: Go up stack frame' })
-vim.keymap.set('n', '<leader>dc', dap.terminate, { desc = '[D]ebug: Terminate' })
+vim.keymap.set('n', '<leader>ds', dap.terminate, { desc = '[D]ebug: [S]top (terminate)' })
 vim.keymap.set('n', '<leader>dq', function()
   dap.terminate()
   dap.clear_breakpoints()
