@@ -42,6 +42,9 @@ function Test-LogLevel
         "debug" {
             return $true  # Log everything
         }
+        "error" {
+            return ($Level -in "ERROR")
+        }
         "warn" {
             return ($Level -in "ERROR", "WARN")
         }
@@ -49,7 +52,8 @@ function Test-LogLevel
             return ($Level -in "ERROR", "WARN", "INFO")
         }
         default {
-            return $false
++           # Fallback to info if an unknown level is set
++           return ($Level -in "ERROR", "WARN", "INFO")
         }
     }
 }
