@@ -1,16 +1,4 @@
---- LSP Configuration Manager
---- A utility class for managing Language Server Protocol (LSP) server configurations
---- in Neovim with Mason package manager integration.
----
---- This class provides a structured way to define LSP server configurations,
---- including the mapping between Neovim LSP server names and their corresponding
---- Mason package names for automatic installation.
----
---- @class custom.LspConfig
---- @field server string? The name of the LSP server used by Neovim's LSP client to identify and enable the server
---- @field mason_package string? The package name registered in Mason, used to tell Mason which LSP server binary to install
---- @field config table Configuration table passed to the LSP server setup function
---- @field setup function? Custom setup function for advanced LSP server configuration
+--- @type custom.LspConfig
 local M = {}
 
 --- Create a new LSP configuration instance

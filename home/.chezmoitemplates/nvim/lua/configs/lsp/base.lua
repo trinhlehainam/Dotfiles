@@ -13,11 +13,7 @@ function M:new()
     config = {},
   }
   t.lspconfigs = {}
-  t.dapconfig = {
-    type = nil,
-    setup = nil,
-    use_masondap_default_setup = true,
-  }
+  t.dapconfigs = {}
   t.formatterconfig = {
     servers = nil,
     formatters_by_ft = nil,

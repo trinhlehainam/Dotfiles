@@ -50,7 +50,12 @@ vim.api.nvim_create_autocmd('LspAttach', {
 
 M.lspconfigs = { pyright, ruff }
 
-M.dapconfig.type = 'python'
+--- @type custom.DapConfig
+local python_dap = {
+  type = 'python',
+  use_masondap_default_setup = true,
+}
+M.dapconfigs = { python_dap }
 
 M.neotest_adapter_setup = function()
   local has_pytest, pytest = pcall(require, 'neotest-python')

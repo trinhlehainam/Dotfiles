@@ -19,8 +19,12 @@ end
 -- https://github.com/mrcjkb/rustaceanvim?tab=readme-ov-file#zap-quick-setup
 M.lspconfigs = { LspConfig:new(nil, 'rust-analyzer') }
 
-M.dapconfig.type = 'codelldb'
-M.dapconfig.use_masondap_default_setup = false
+--- @type custom.DapConfig
+local codelldb = {
+  type = 'codelldb',
+  use_masondap_default_setup = false,
+}
+M.dapconfigs = { codelldb }
 
 M.neotest_adapter_setup = function()
   if not has_rustceanvim() then
