@@ -2,20 +2,12 @@ local LanguageSetting = require('configs.lsp.base')
 local LspConfig = require('configs.lsp.lspconfig')
 local M = LanguageSetting:new()
 
-local log = require('utils.log')
-local common = require('utils.common')
-
-if common.IS_WINDOWS then
-  log.info('php language server is not supported on Windows')
-  return M
-end
-
 M.treesitter.filetypes = { 'php' }
 
-M.formatterconfig.servers = { 'blade-formatter', 'pint' }
+M.formatterconfig.servers = { 'blade-formatter' }
 M.formatterconfig.formatters_by_ft = {
   blade = { 'blade-formatter' },
-  php = { 'pint' },
+  -- php = { 'pint' },
 }
 
 -- M.linterconfig.servers = { 'phpcs' }
