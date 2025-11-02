@@ -23,6 +23,8 @@ return {
     'jay-babu/mason-nvim-dap.nvim',
 
     -- Add your own debuggers here
+    -- NOTE: nvim-dap-python requires luarocks to be installed for correct build
+    -- Install luarocks: https://github.com/luarocks/luarocks/wiki/Download
     'mfussenegger/nvim-dap-python',
     'leoluz/nvim-dap-go',
   },
