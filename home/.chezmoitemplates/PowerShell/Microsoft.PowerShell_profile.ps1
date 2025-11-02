@@ -1,9 +1,9 @@
 # NOTE: Change Powershell default profile location
 # https://stackoverflow.com/questions/61192049/powershell-profile-variable-pointing-to-wrong-location-where-is-profile-varia
 
-# NOTE: Remove the default 'curl' alias to Invoke-WebRequest
+# NOTE: remove default alias curlebRequest
 # https://superuser.com/a/1755566
-if(Test-Path -Path alias:curl)
+if (Test-Path -Path alias:curl)
 { 
 	Remove-Item alias:curl 
 }
@@ -43,8 +43,7 @@ function Test-Command
 		[string]$Command
 	)
 
-	$commandPath = Get-CommandPath $Command
-	return $null -ne $commandPath
+	return $null -ne (Get-Command $Command -ErrorAction SilentlyContinue)
 }
 
 # https://yazi-rs.github.io/docs/installation/#windows
@@ -60,6 +59,19 @@ if (Test-Command yazi)
 		{
 			$env:YAZI_FILE_ONE="$env:USERPROFILE\scoop\apps\git\current\usr\bin\file.exe"
 		}
+	}
+
+	# INFO: https://yazi-rs.github.io/docs/quick-start#shell-wrapper
+	function y
+	{
+		$tmp = [System.IO.Path]::GetTempFileName()
+		yazi $args --cwd-file="$tmp"
+		$cwd = Get-Content -Path $tmp -Encoding UTF8
+		if (-not [String]::IsNullOrEmpty($cwd) -and $cwd -ne $PWD.Path)
+		{
+			Set-Location -LiteralPath ([System.IO.Path]::GetFullPath($cwd))
+		}
+		Remove-Item -Path $tmp
 	}
 }
 
@@ -108,22 +120,6 @@ if (Test-Command eza)
 if (Test-Command bat)
 {
 	Set-Alias -Name cat -Value bat -Option AllScope
-}
-
-if (Test-Command yazi)
-{
-	# INFO: https://yazi-rs.github.io/docs/quick-start#shell-wrapper
-	function y
-	{
-		$tmp = [System.IO.Path]::GetTempFileName()
-		yazi $args --cwd-file="$tmp"
-		$cwd = Get-Content -Path $tmp -Encoding UTF8
-		if (-not [String]::IsNullOrEmpty($cwd) -and $cwd -ne $PWD.Path)
-		{
-			Set-Location -LiteralPath ([System.IO.Path]::GetFullPath($cwd))
-		}
-		Remove-Item -Path $tmp
-	}
 }
 
 Invoke-Expression (&starship init powershell)
