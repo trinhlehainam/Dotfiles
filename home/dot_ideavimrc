@@ -15,14 +15,34 @@ set ideajoin
 set ideaput
 set multiple-cursors
 
+" Which key
+set which-key
+set notimeout
+let g:WhichKey_FontSize = 16
+let g:WhichKey_SortOrder = "by_key_prefix_first"
+let g:WhichKey_ShowTypedSequence = "true"
+
 " Keymaps
 let mapleader=" "
   
+" https://github.com/JetBrains/ideavim/discussions/303#discussioncomment-10408136
+nmap <leader>vr <Action>(IdeaVim.ReloadVimRc.reload)
+
 nmap <Esc> :action HideActiveWindow<CR>
 inoremap jk <Esc>
 
 noremap gh ^
 noremap gl $
+
+" Windows Navigation
+nnoremap <c-h> <c-w>h  
+nnoremap <c-j> <c-w>j
+nnoremap <c-k> <c-w>k  
+nnoremap <c-l> <c-w>l  
+
+" Tmux like
+nnoremap <C-a>- :action SplitHorizontally<cr>
+nnoremap <C-a>\ :action SplitVertically<cr> 
 
 " Move Next/Pre letter in INSERT mode
 inoremap <A-h> <Esc>i
@@ -84,6 +104,11 @@ noremap <leader>gs :action ActivateVersionControlToolWindow<CR>
 noremap <leader>gu :action Vcs.UpdateProject<CR>
 noremap <leader>gf :action Git.Fetch<CR>
 noremap <leader>gc :action CheckinProject<CR> 
+noremap <leader>gd :action ActivateVcsChangesToolWindow<CR>
+map [x :action NextDiff<cr>
+map ]x :action PreviousDiff<cr>
+map <Tab> :action Diff.NextChange<cr>
+map <S-Tab> :action Diff.PrevChange<cr>
 
 " Remap multiple-cursors keys
 map mc <A-n>

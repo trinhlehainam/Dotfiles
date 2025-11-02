@@ -17,8 +17,8 @@ if (Get-Module -ListAvailable -Name PSFzf)
 	$env:FZF_CTRL_T_COMMAND="$env:FZF_DEFAULT_COMMAND"
 
 	Import-Module PSFzf
-	# replace 'Ctrl+t' and 'Ctrl+r' with your preferred bindings:
-	Set-PsFzfOption -PSReadlineChordProvider 'Ctrl+t' -PSReadlineChordReverseHistory 'Ctrl+r'
+	# https://github.com/kelleyma49/PSFzf/blob/master/docs/Set-PsFzfOption.md
+	Set-PsFzfOption -PSReadlineChordProvider 'Ctrl+t' -PSReadlineChordReverseHistory 'Ctrl+r' -GitKeyBindings
 } else
 {
 	Write-Host "PSFzf module does not exist"
