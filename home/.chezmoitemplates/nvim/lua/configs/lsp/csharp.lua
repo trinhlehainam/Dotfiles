@@ -5,6 +5,11 @@ local M = LanguageSetting:new()
 -- https://github.com/GustavEikaas/easy-dotnet.nvim?tab=readme-ov-file#requirements-5
 M.treesitter.filetypes = { 'c_sharp', 'sql', 'json', 'xml' }
 
+M.formatterconfig.servers = { 'csharpier' }
+M.formatterconfig.formatters_by_ft = {
+  cs = { 'csharpier' },
+}
+
 local roslyn = LspConfig:new('roslyn', 'roslyn')
 -- https://github.com/GustavEikaas/nvim-config/blob/main/lua/plugins/roslyn.lua
 roslyn.config = {

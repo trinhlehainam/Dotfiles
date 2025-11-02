@@ -23,6 +23,14 @@ vim.schedule(function()
   vim.o.clipboard = 'unnamedplus'
 end)
 
+-- Tabstop settings
+vim.o.tabstop = 2
+vim.o.shiftwidth = 2
+vim.o.softtabstop = 2
+vim.o.expandtab = false
+vim.o.smartindent = true
+vim.o.smarttab = true
+
 -- Enable break indent
 vim.o.breakindent = true
 
@@ -85,16 +93,6 @@ if not vim.g.vscode then
   vim.opt.spelllang = 'en_us'
   vim.opt.spell = true
 end
-
--- Tabstop settings
-vim.cmd([[
-set tabstop=2
-set shiftwidth=2
-set softtabstop=2
-set noexpandtab
-set smartindent
-set smarttab
-]])
 
 -- Highlight when yanking (copying) text
 --  Try it with `yap` in normal mode

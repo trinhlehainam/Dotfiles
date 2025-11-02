@@ -6,10 +6,6 @@ return {
     'nvim-lua/plenary.nvim',
     'nvim-tree/nvim-web-devicons', -- not strictly required, but recommended
     'MunifTanjim/nui.nvim',
-    -- Optional image support for file preview: See `# Preview Mode` for more information.
-    -- {"3rd/image.nvim", opts = {}},
-    -- OR use snacks.nvim's image module:
-    -- "folke/snacks.nvim",
   },
   lazy = true, -- Load neo-tree only when explicitly called via keybinding
   ---@module "neo-tree"
@@ -23,6 +19,22 @@ return {
         --   '.git',
         -- },
       },
+    },
+    window = {
+      mappings = {
+        -- https://github.com/GustavEikaas/easy-dotnet.nvim?tab=readme-ov-file#integrating-with-neo-tree
+        -- Make the mapping anything you want
+        ['R'] = 'easy',
+      },
+    },
+    commands = {
+      ['easy'] = function(state)
+        local node = state.tree:get_node()
+        local path = node.type == 'directory' and node.path or vim.fs.dirname(node.path)
+        require('easy-dotnet').create_new_item(path, function()
+          require('neo-tree.sources.manager').refresh(state.name)
+        end)
+      end,
     },
   },
   keys = {
