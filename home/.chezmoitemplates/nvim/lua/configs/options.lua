@@ -7,7 +7,7 @@
 vim.o.number = true
 -- You can also add relative line numbers, to help with jumping.
 --  Experiment for yourself to see if you like it!
--- vim.o.relativenumber = true
+vim.o.relativenumber = true
 
 -- Enable mouse mode, can be useful for resizing splits for example!
 vim.o.mouse = 'a'
@@ -87,7 +87,10 @@ vim.o.wrap = false
 -- Indicate limit number of character in oneline shouldn't be crossed
 vim.o.colorcolumn = '80'
 
-vim.o.relativenumber = true
+-- Enables project-local configuration
+-- See https://neovim.io/doc/user/options.html#'exrc'
+-- Since version 0.9.0 Neovim has built-in secure, see https://neovim.io/doc/user/lua.html#vim.secure
+vim.o.exrc = true
 
 if not vim.g.vscode then
   vim.opt.spelllang = 'en_us'
