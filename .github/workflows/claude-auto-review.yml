@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
+      pull-requests: write
       id-token: write
     steps:
       - name: Checkout repository
@@ -17,7 +17,7 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Automatic PR Review
+      - name: PR Review with Progress Tracking
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
