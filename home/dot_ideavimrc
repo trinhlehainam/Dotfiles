@@ -104,8 +104,8 @@ noremap <leader>gu :action Vcs.UpdateProject<cr>
 noremap <leader>gf :action Git.Fetch<cr>
 noremap <leader>gc :action CheckinProject<cr> 
 noremap <leader>gd :action ActivateVcsChangesToolWindow<cr>
-noremap ]x :action NextDiff<cr>
-noremap [x :action PreviousDiff<cr>
+noremap ]c :action NextDiff<cr>
+noremap [c :action PreviousDiff<cr>
 noremap <Tab> :action Diff.NextChange<cr>
 noremap <S-Tab> :action Diff.PrevChange<cr>
 
