@@ -171,8 +171,6 @@ vim.keymap.set(
   vim.diagnostic.open_float,
   { desc = 'Open floating diagnostic message' }
 )
--- Prefer Telescope Diagnostic
-vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostics list' })
 
 -- Enable the following language servers
 --  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
