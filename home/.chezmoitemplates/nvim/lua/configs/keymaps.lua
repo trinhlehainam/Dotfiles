@@ -224,17 +224,6 @@ vim.keymap.set('n', 'tl', ':tablast<CR>', opts.nore) -- Go to last tab
 -- ============================================================================
 
 -- ----------------------------------------------------------------------------
--- Line-based Movement
--- ----------------------------------------------------------------------------
-
--- Enhanced line navigation (works in all modes)
--- gl: Go to last non-blank character (end of content)
--- gh: Go to first non-blank character (beginning of content)
--- More intuitive than default ^ and g_ commands
-vim.keymap.set('', 'gl', 'g_', opts.nore) -- Go to last non-blank character
-vim.keymap.set('', 'gh', '^', opts.nore) -- Go to first non-blank character
-
--- ----------------------------------------------------------------------------
 -- Terminal Integration
 -- ----------------------------------------------------------------------------
 
