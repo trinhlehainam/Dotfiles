@@ -1,9 +1,11 @@
 return {
   {
-    'xiyaowong/nvim-transparent',
+    'xiyaowong/transparent.nvim',
     config = function()
+      -- Optional, you don't have to run setup.
       require('transparent').setup({
-        groups = { -- table: default groups
+        -- table: default groups
+        groups = {
           'Normal',
           'NormalNC',
           'Comment',
@@ -24,13 +26,19 @@ return {
           'LineNr',
           'NonText',
           'SignColumn',
+          'CursorLine',
           'CursorLineNr',
+          'StatusLine',
+          'StatusLineNC',
           'EndOfBuffer',
         },
-        extra_groups = { -- table/string: additional groups that should be cleared
-          -- In particular, when you set it to 'all', that means all available groups
-        },
-        exclude_groups = {}, -- table: groups you don't want to clear
+        -- table: additional groups that should be cleared
+        extra_groups = {},
+        -- table: groups you don't want to clear
+        exclude_groups = {},
+        -- function: code to be executed after highlight groups are cleared
+        -- Also the user event "TransparentClear" will be triggered
+        on_clear = function() end,
       })
     end,
   },
