@@ -1,4 +1,4 @@
---- @type custom.LspConfig
+--- @class custom.LspConfig
 local M = {}
 
 --- Create a new LSP configuration instance

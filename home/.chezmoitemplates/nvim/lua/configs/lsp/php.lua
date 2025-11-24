@@ -4,18 +4,18 @@ local M = LanguageSetting:new()
 
 M.treesitter.filetypes = { 'php' }
 
-M.formatterconfig.servers = { 'blade-formatter' }
+M.formatterconfig.servers = { 'blade-formatter', 'php-cs-fixer' }
 M.formatterconfig.formatters_by_ft = {
   blade = { 'blade-formatter' },
-  -- php = { 'pint' },
+  php = { 'php_cs_fixer' },
 }
 
--- M.linterconfig.servers = { 'phpcs' }
--- M.linterconfig.linters_by_ft = {
---   php = { 'phpcs' },
--- }
+M.linterconfig.servers = { 'phpstan' }
+M.linterconfig.linters_by_ft = {
+  php = { 'phpstan' },
+}
 
-M.lspconfigs = { LspConfig:new('phpactor', 'phpactor') }
+M.lspconfigs = { LspConfig:new('intelephense', 'intelephense') }
 
 --- @type custom.DapConfig
 local php_dap = {
