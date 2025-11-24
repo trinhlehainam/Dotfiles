@@ -7,7 +7,7 @@ M.treesitter.filetypes = { 'php' }
 M.formatterconfig.servers = { 'blade-formatter', 'php-cs-fixer' }
 M.formatterconfig.formatters_by_ft = {
   blade = { 'blade-formatter' },
-  php = { 'php-cs-fixer' },
+  php = { 'php_cs_fixer' },
 }
 
 M.linterconfig.servers = { 'phpstan' }
