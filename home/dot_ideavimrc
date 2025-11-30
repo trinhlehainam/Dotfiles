@@ -30,9 +30,6 @@ nmap <leader>vr <Action>(IdeaVim.ReloadVimRc.reload)
 nmap <Esc> :action HideActiveWindow<cr>
 inoremap jk <Esc>
 
-noremap gh ^
-noremap gl $
-
 " Windows Navigation
 nnoremap <C-h> <c-w>h  
 nnoremap <C-j> <c-w>j

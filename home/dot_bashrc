@@ -13,22 +13,33 @@ case $- in
 	*) return ;;
 esac
 
-# Disable the bell
-if [[ $iatest -gt 0 ]]; then bind "set bell-style visible"; fi
+# Disable the bell (use visible bell instead of audible)
+bind "set bell-style visible" 2>/dev/null
 
-# Expand the history size
-export HISTFILESIZE=10000
-export HISTSIZE=500
-export HISTTIMEFORMAT="%F %T" # add timestamp to history
+# ══════════════════════════════════════════════════════════════════════════════
+# History Configuration
+# ══════════════════════════════════════════════════════════════════════════════
+export HISTFILESIZE=50000                      # Max lines in history file
+export HISTSIZE=10000                          # Max commands in memory
+export HISTTIMEFORMAT="%F %T "                 # Add timestamp to history
+export HISTCONTROL=erasedups:ignorespace  # Remove duplicates, ignore space-prefixed
+export HISTIGNORE="?:??:ls:ll:la:cd:pwd:exit:clear:history:bg:fg"  # Ignore trivial commands
 
-# Don't put duplicate lines in the history and do not add lines that start with a space
-export HISTCONTROL=erasedups:ignoredups:ignorespace
+# ══════════════════════════════════════════════════════════════════════════════
+# Shell Options (shopt)
+# ══════════════════════════════════════════════════════════════════════════════
+shopt -s checkwinsize  # Update LINES/COLUMNS after each command
+shopt -s histappend    # Append to history instead of overwriting
+shopt -s histverify    # Don't execute history expansion immediately, allow review
+shopt -s autocd        # Type directory name to cd into it (e.g., `..` instead of `cd ..`)
+shopt -s cdspell       # Autocorrect minor cd typos
+shopt -s dirspell      # Autocorrect directory spelling during completion
+shopt -s direxpand     # Expand variables in path during tab completion
+shopt -s globstar      # Enable ** recursive globbing (e.g., `ls **/*.txt`)
+shopt -s nocaseglob    # Case-insensitive globbing
+shopt -s cmdhist       # Save multi-line commands as single history entry
+shopt -s lithist       # Preserve newlines in multi-line commands in history
 
-# Check the window size after each command and, if necessary, update the values of LINES and COLUMNS
-shopt -s checkwinsize
-
-# Causes bash to append to history instead of overwriting it so if you start a new terminal, you have old session history
-shopt -s histappend
 PROMPT_COMMAND='history -a'
 
 # make less more friendly for non-text input files, see lesspipe(1)
@@ -162,24 +173,17 @@ fi
 
 # Tools
 
-if command -v pyenv 1>/dev/null 2>&1; then
-	export PYENV_ROOT="$(pyenv root)"
-	eval "$(pyenv init -)"
-fi
-
 # enable color support for grep
 export CLICOLOR=1
 export LS_COLORS='no=00:fi=00:di=00;34:ln=01;36:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arj=01;31:*.taz=01;31:*.lzh=01;31:*.zip=01;31:*.z=01;31:*.Z=01;31:*.gz=01;31:*.bz2=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.jpg=01;35:*.jpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.avi=01;35:*.fli=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.ogg=01;35:*.mp3=01;35:*.wav=01;35:*.xml=00;31:'
-#export GREP_OPTIONS='--color=auto' #deprecated
 
-if command -v rg &> /dev/null; then
+if command -v rg &>/dev/null; then
 	# Alias grep to rg if ripgrep is installed
 	alias grep='rg'
 else
-	# Alias grep to /usr/bin/grep with GREP_OPTIONS if ripgrep is not installed
-	alias grep="/usr/bin/grep $GREP_OPTIONS"
+	# Alias grep to /usr/bin/grep with color support
+	alias grep='/usr/bin/grep --color=auto'
 fi
-unset GREP_OPTIONS
 
 # FZF
 # NOTE: customize fzf layout
@@ -217,6 +221,9 @@ case ":$PATH:" in
 esac
 # pnpm end
 
+# NOTE: bash-preexec MUST be sourced BEFORE atuin init
+# INFO: https://github.com/atuinsh/atuin#bash
+[ -f "${HOMEBREW_PREFIX}/etc/profile.d/bash-preexec.sh" ] && . "${HOMEBREW_PREFIX}/etc/profile.d/bash-preexec.sh"
 eval "$(atuin init bash)"
 
 if command -v delta &>/dev/null; then
@@ -226,9 +233,6 @@ fi
 if [ -f "$HOME"/bash-wakatime/bash-wakatime.sh ]; then
 	source "$HOME"/bash-wakatime/bash-wakatime.sh
 fi
-
-# NOTE: atuin require bash-preexec
-[ -f /home/linuxbrew/.linuxbrew/etc/profile.d/bash-preexec.sh ] && . /home/linuxbrew/.linuxbrew/etc/profile.d/bash-preexec.sh
 
 if command -v yazi &>/dev/null; then
 	# INFO: https://yazi-rs.github.io/docs/quick-start#shell-wrapper

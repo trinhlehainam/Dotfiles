@@ -1,23 +1,58 @@
 #!/bin/bash
 
+# ══════════════════════════════════════════════════════════════════════════════
+# Editor Aliases
+# ══════════════════════════════════════════════════════════════════════════════
 if command -v nvim &>/dev/null; then
 	alias v='nvim'
+	alias vim='nvim'
+	alias vi='nvim'
 fi
 
-# Use eza to list files
+# ══════════════════════════════════════════════════════════════════════════════
+# File Listing (eza/ls)
+# ══════════════════════════════════════════════════════════════════════════════
 if command -v eza &>/dev/null; then
-	alias ls='eza --icons'
-	alias ll='eza -alF --icons'
-	alias la='eza -aF --icons'
+	alias ls='eza --icons --group-directories-first'
+	alias ll='eza -alF --icons --group-directories-first --git'
+	alias la='eza -aF --icons --group-directories-first'
 	alias l='eza -F --icons'
 	alias lt='eza -alF --tree --level=2 --git --icons'
+	alias llt='eza -l --sort=time --icons --group-directories-first'   # Sort by time
+	alias lls='eza -l --sort=size --icons --group-directories-first'   # Sort by size
 else
-	alias ls='ls --color=auto'
-	alias ll='ls -alF --color=auto'
-	alias la='ls -aF --color=auto'
+	alias ls='ls --color=auto --group-directories-first'
+	alias ll='ls -alFh --color=auto --group-directories-first'
+	alias la='ls -aF --color=auto --group-directories-first'
 	alias l='ls -F --color=auto'
 fi
 
+# ══════════════════════════════════════════════════════════════════════════════
+# Safer File Operations
+# ══════════════════════════════════════════════════════════════════════════════
+alias cp='cp -iv'        # Interactive, verbose
+alias mv='mv -iv'        # Interactive, verbose
+alias rm='rm -Iv'        # Interactive (prompt if >3 files), verbose
+alias mkdir='mkdir -pv'  # Create parents, verbose
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Cat Replacement (bat)
+# ══════════════════════════════════════════════════════════════════════════════
 if command -v bat &>/dev/null; then
-	alias cat='bat'
+	alias cat='bat --paging=never'
+	alias catp='bat'  # With paging
+fi
+
+# ══════════════════════════════════════════════════════════════════════════════
+# System Utilities
+# ══════════════════════════════════════════════════════════════════════════════
+alias df='df -h'                              # Human-readable sizes
+alias du='du -h'                              # Human-readable sizes
+command -v free &>/dev/null && alias free='free -h'  # Human-readable sizes (Linux only)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# WSL-specific Aliases
+# ══════════════════════════════════════════════════════════════════════════════
+if grep -qi microsoft /proc/version 2>/dev/null; then
+	alias open='explorer.exe'
 fi
