@@ -6,6 +6,7 @@ return {
     'nvim-lua/plenary.nvim',
     'folke/snacks.nvim',
   },
+  opts = {},
   keys = {
     {
       '<leader>st',
