@@ -21,9 +21,9 @@ M.setup = function()
     },
   })
 
-  vim.keymap.set('n', '<leader>nt', function()
-    noice.cmd('telescope')
-  end, { desc = '[N]oice [T]elescope' })
+  vim.keymap.set('n', '<leader>np', function()
+    noice.cmd('pick')
+  end, { desc = '[N]oice Picker (His[t]ory)' })
 
   vim.keymap.set('n', '<leader>nh', function()
     noice.cmd('history')

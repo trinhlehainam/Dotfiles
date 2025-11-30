@@ -4,8 +4,6 @@ return {
     dependencies = {
       'nvim-lua/plenary.nvim', -- required
       'sindrets/diffview.nvim', -- optional - Diff integration
-
-      'nvim-telescope/telescope.nvim', -- optional
     },
     config = function()
       local neogit = require('neogit')
@@ -44,12 +42,6 @@ return {
         ':Neogit push<CR>',
         { desc = '[G]it [P]ush', silent = true, noremap = true }
       )
-      vim.keymap.set(
-        'n',
-        '<leader>gb',
-        ':Telescope git_branches<CR>',
-        { desc = '[G]it [B]ranches', silent = true, noremap = true }
-      )
     end,
   },
   -- 'tpope/vim-rhubarb',
@@ -72,8 +64,7 @@ return {
     'pwntester/octo.nvim',
     cmd = 'Octo',
     opts = {
-      -- or "fzf-lua" or "snacks" or "default"
-      picker = 'telescope',
+      picker = 'snacks',
       -- bare Octo command opens picker of commands
       enable_builtin = true,
     },
@@ -108,9 +99,7 @@ return {
     },
     dependencies = {
       'nvim-lua/plenary.nvim',
-      'nvim-telescope/telescope.nvim',
-      -- OR "ibhagwan/fzf-lua",
-      -- OR "folke/snacks.nvim",
+      'folke/snacks.nvim',
       'nvim-tree/nvim-web-devicons',
     },
   },

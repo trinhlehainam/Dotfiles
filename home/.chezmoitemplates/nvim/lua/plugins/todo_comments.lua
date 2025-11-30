@@ -1,17 +1,26 @@
 return {
+  -- https://github.com/folke/todo-comments.nvim
+  -- https://github.com/folke/snacks.nvim/blob/main/docs/picker.md#todo_comments
   'folke/todo-comments.nvim',
-  event = 'VimEnter',
   dependencies = {
     'nvim-lua/plenary.nvim',
-    'nvim-telescope/telescope.nvim',
+    'folke/snacks.nvim',
   },
-  config = function()
-    require('todo-comments').setup({
-      -- your configuration comes here
-      -- or leave it empty to use the default settings
-      -- refer to the configuration section below
-    })
-
-    vim.keymap.set('n', '<leader>ftd', ':TodoTelescope<CR>', { desc = '[F]ind [T]o[d]o' })
-  end,
+  opts = {},
+  keys = {
+    {
+      '<leader>st',
+      function()
+        Snacks.picker.todo_comments()
+      end,
+      desc = 'Todo',
+    },
+    {
+      '<leader>sT',
+      function()
+        Snacks.picker.todo_comments({ keywords = { 'TODO', 'FIX', 'FIXME' } })
+      end,
+      desc = 'Todo/Fix/Fixme',
+    },
+  },
 }

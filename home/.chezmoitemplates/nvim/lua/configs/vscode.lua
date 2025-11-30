@@ -31,7 +31,7 @@ vim.keymap.set(
 )
 vim.keymap.set('n', '<leader>/', "<Cmd>call VSCodeNotify('actions.find')<CR>", opts.nore)
 
--- Telescope
+-- Fuzzy Search
 vim.keymap.set(
   'n',
   '<leader>sf',
