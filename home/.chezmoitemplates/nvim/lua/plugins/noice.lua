@@ -7,7 +7,7 @@ return {
     { 'rcarriga/nvim-notify', opts = {
       background_colour = '#000000',
     } },
-    'nvim-telescope/telescope.nvim',
+    'folke/snacks.nvim',
   },
   config = function()
     require('configs.plugins.noice').setup()
