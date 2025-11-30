@@ -22,8 +22,8 @@ if command -v eza &>/dev/null; then
 	alias lls='eza -l --sort=size --icons --group-directories-first'   # Sort by size
 else
 	alias ls='ls --color=auto --group-directories-first'
-	alias ll='ls -alFh --color=auto'
-	alias la='ls -aF --color=auto'
+	alias ll='ls -alFh --color=auto --group-directories-first'
+	alias la='ls -aF --color=auto --group-directories-first'
 	alias l='ls -F --color=auto'
 fi
 
@@ -48,7 +48,7 @@ fi
 # ══════════════════════════════════════════════════════════════════════════════
 alias df='df -h'                              # Human-readable sizes
 alias du='du -h'                              # Human-readable sizes
-alias free='free -h'                          # Human-readable sizes
+command -v free &>/dev/null && alias free='free -h'  # Human-readable sizes (Linux only)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # WSL-specific Aliases
