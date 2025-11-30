@@ -13,7 +13,7 @@ return {
     --- @type snacks.picker.Config
     picker = {
       enabled = true,
-      -- Replace vim.ui.select with snacks picker (replaces telescope-ui-select)
+      -- Replace vim.ui.select with snacks picker
       ui_select = true,
 
       -- Matcher configuration

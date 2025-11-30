@@ -3,7 +3,6 @@ return {
   'rmagatti/auto-session',
   lazy = false,
   keys = {
-    -- Will use Telescope if installed or a vim.ui.select picker otherwise
     { '<leader>wr', '<cmd>AutoSession search<CR>', desc = 'Session: search' },
     { '<leader>ws', '<cmd>AutoSession save<CR>', desc = 'Session: save' },
     { '<leader>wa', '<cmd>AutoSession toggle<CR>', desc = 'Session: Toggle autosave' },
