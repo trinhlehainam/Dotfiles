@@ -26,7 +26,7 @@ M.setup = function()
   end, { desc = '[N]oice Picker (His[t]ory)' })
 
   vim.keymap.set('n', '<leader>nh', function()
-    noice.cmd('pick')
+    noice.cmd('history')
   end, { desc = '[N]oice [H]istory' })
 
   vim.keymap.set('n', '<leader>nd', function()
