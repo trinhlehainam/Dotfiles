@@ -8,9 +8,7 @@ return {
   },
   config = function()
     ---@type opencode.Opts
-    vim.g.opencode_opts = {
-      -- Your configuration, if any — see `lua/opencode/config.lua`, or "goto definition".
-    }
+    vim.g.opencode_opts = {}
 
     -- Required for `opts.events.reload`.
     vim.o.autoread = true
@@ -30,5 +28,34 @@ return {
     vim.keymap.set({ 'n', 't' }, '<leader>oc', function()
       require('opencode').toggle()
     end, { desc = 'Toggle opencode' })
+
+    -- Passthrough <C-A-d> and <C-A-u> to OpenCode terminal
+    -- These are used for half-page scrolling in OpenCode
+    -- Must use nvim_chan_send() to write directly to terminal PTY,
+    -- bypassing Neovim's input processing
+    vim.api.nvim_create_autocmd('FileType', {
+      pattern = 'opencode_terminal',
+      callback = function(args)
+        local bufnr = args.buf
+        local opts = { buffer = bufnr, silent = true }
+
+        local function send_to_terminal(escape_seq)
+          local chan = vim.bo[bufnr].channel
+          if chan then
+            vim.api.nvim_chan_send(chan, escape_seq)
+          end
+        end
+
+        -- ESC + Ctrl-D (0x1b 0x04) for Ctrl-Alt-D
+        vim.keymap.set('t', '<C-A-d>', function()
+          send_to_terminal('\x1b\x04')
+        end, opts)
+
+        -- ESC + Ctrl-U (0x1b 0x15) for Ctrl-Alt-U
+        vim.keymap.set('t', '<C-A-u>', function()
+          send_to_terminal('\x1b\x15')
+        end, opts)
+      end,
+    })
   end,
 }
