@@ -8,6 +8,8 @@ local ensure_installed = {
   'vim',
   'vimdoc',
   'query',
+  'markdown',
+  'markdown_inline',
   -- #endregion Required
 
   'dockerfile',
@@ -30,3 +32,10 @@ end
 
 -- Check :h nvim-treesitter-commands for a list of all available commands.
 treesitter.install(ensure_installed)
+
+vim.api.nvim_create_autocmd('FileType', {
+  pattern = { 'markdown' },
+  callback = function()
+    vim.treesitter.start()
+  end,
+})

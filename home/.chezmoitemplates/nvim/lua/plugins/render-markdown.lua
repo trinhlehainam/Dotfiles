@@ -7,5 +7,8 @@ return {
   opts = {
     -- https://github.com/MeanderingProgrammer/render-markdown.nvim?tab=readme-ov-file#completions
     completions = { lsp = { enabled = true } },
+    code = {
+      sign = false,
+    },
   },
 }
