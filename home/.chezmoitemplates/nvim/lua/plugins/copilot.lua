@@ -6,7 +6,20 @@ return {
   cmd = 'Copilot',
   event = 'InsertEnter',
   config = function()
+    -- https://github.com/zbirenbaum/copilot.lua?tab=readme-ov-file#setup-and-configuration
     require('copilot').setup({
+      panel = {
+        enabled = false,
+      },
+      suggestion = {
+        enabled = true,
+        keymap = {
+          accept = '<A-y>',
+          next = '<A-n>',
+          prev = '<A-p>',
+        },
+      },
+
       -- Filetype configuration
       filetypes = {
         ['*'] = true,
@@ -34,5 +47,10 @@ return {
         vim.b.copilot_suggestion_hidden = false
       end,
     })
+
+    -- Toggle Copilot suggestions
+    vim.keymap.set('n', '<leader>cc', function()
+      require('copilot.suggestion').toggle_auto_trigger()
+    end, { desc = '[C]opilot toggle suggestions' })
   end,
 }
