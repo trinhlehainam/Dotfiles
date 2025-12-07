@@ -13,6 +13,7 @@ return {
       },
       suggestion = {
         enabled = true,
+        auto_trigger = true,
         keymap = {
           accept = '<A-y>',
           next = '<A-n>',
