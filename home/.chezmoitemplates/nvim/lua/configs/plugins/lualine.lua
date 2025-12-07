@@ -1,7 +1,3 @@
-local function get_codeium_status()
-  return '{…} ' .. vim.fn['codeium#GetStatusString']()
-end
-
 -- Add vim visual multi statusline into lualine
 -- INFO: https://github.com/nvim-lualine/lualine.nvim/issues/951
 local function get_vim_visual_multi()
@@ -38,6 +34,10 @@ require('lualine').setup({
       },
     },
     lualine_x = {
+      { -- https://github.com/AndreM222/copilot-lualine?tab=readme-ov-file#setup
+        'copilot',
+        show_colors = true,
+      },
       'encoding',
       {
         'fileformat',
@@ -49,7 +49,6 @@ require('lualine').setup({
       },
       'filetype',
       -- https://github.com/Exafunction/codeium.vim/issues/100
-      { get_codeium_status },
     },
   },
 })

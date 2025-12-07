@@ -70,27 +70,27 @@ return {
     },
     keys = {
       {
-        '<leader>oi',
+        '<leader>Oi',
         '<CMD>Octo issue list<CR>',
         desc = 'List GitHub Issues',
       },
       {
-        '<leader>op',
+        '<leader>Op',
         '<CMD>Octo pr list<CR>',
         desc = 'List GitHub PullRequests',
       },
       {
-        '<leader>od',
+        '<leader>Od',
         '<CMD>Octo discussion list<CR>',
         desc = 'List GitHub Discussions',
       },
       {
-        '<leader>on',
+        '<leader>On',
         '<CMD>Octo notification list<CR>',
         desc = 'List GitHub Notifications',
       },
       {
-        '<leader>os',
+        '<leader>Os',
         function()
           require('octo.utils').create_base_search_command({ include_current_repo = true })
         end,
