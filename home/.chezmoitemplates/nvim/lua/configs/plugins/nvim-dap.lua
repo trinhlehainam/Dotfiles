@@ -1,6 +1,10 @@
 local dap = require('dap')
 local dapui = require('dapui')
 
+-- Dap UI setup
+-- For more information, see |:help nvim-dap-ui|
+dapui.setup()
+
 -- Basic debugging keymaps, feel free to change to your liking!
 vim.keymap.set('n', '<F5>', dap.continue, { desc = 'Debug: Start/Continue' })
 vim.keymap.set('n', '<F10>', dap.step_over, { desc = 'Debug: Step Over' })
@@ -20,14 +24,11 @@ vim.keymap.set('n', '<leader>ds', dap.terminate, { desc = '[D]ebug: [S]top (term
 vim.keymap.set('n', '<leader>dq', function()
   dap.terminate()
   dap.clear_breakpoints()
+	dapui.close()
 end, { desc = '[D]ebug: Terminate and clear breakpoints' })
 
--- Dap UI setup
--- For more information, see |:help nvim-dap-ui|
-dapui.setup()
-
 -- Toggle to see last session result. Without this, you can't see session output in case of unhandled exception.
-vim.keymap.set('n', '<F7>', dapui.toggle, { desc = 'Debug: See last session result.' })
+vim.keymap.set('n', '<leader>dt', dapui.toggle, { desc = 'Debug: See last session result.' })
 
 dap.listeners.after.event_initialized['dapui_config'] = dapui.open
 dap.listeners.before.event_terminated['dapui_config'] = dapui.close
