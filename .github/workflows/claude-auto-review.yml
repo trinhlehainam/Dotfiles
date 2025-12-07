@@ -1,8 +1,11 @@
 name: Claude Auto Review
 
+# Disabled due to no active Claude subscription
+# Uncomment the 'on' section below to re-enable
 on:
-  pull_request:
-    types: [opened]
+  workflow_dispatch: # Manual trigger only
+# pull_request:
+#   types: [opened]
 
 jobs:
   auto-review:
