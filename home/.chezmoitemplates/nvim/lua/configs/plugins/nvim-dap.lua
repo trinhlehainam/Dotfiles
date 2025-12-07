@@ -24,7 +24,7 @@ vim.keymap.set('n', '<leader>ds', dap.terminate, { desc = '[D]ebug: [S]top (term
 vim.keymap.set('n', '<leader>dq', function()
   dap.terminate()
   dap.clear_breakpoints()
-	dapui.close()
+  dapui.close()
 end, { desc = '[D]ebug: Terminate and clear breakpoints' })
 
 -- Toggle to see last session result. Without this, you can't see session output in case of unhandled exception.
