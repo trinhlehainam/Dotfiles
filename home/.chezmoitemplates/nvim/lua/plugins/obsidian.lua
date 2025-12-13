@@ -1,5 +1,8 @@
 local obsidian = require('utils.obsidian')
-local is_vault = obsidian.is_vault(0)
+
+local function is_vault()
+  return obsidian.is_vault(0)
+end
 
 return {
   'obsidian-nvim/obsidian.nvim',
@@ -28,7 +31,7 @@ return {
     {
       '<leader>sf',
       function()
-        if not is_vault then
+        if not is_vault() then
           return
         end
         vim.cmd('Obsidian quick_switch')
@@ -38,7 +41,7 @@ return {
     {
       '<leader>sg',
       function()
-        if not is_vault then
+        if not is_vault() then
           return
         end
         vim.cmd('Obsidian search')

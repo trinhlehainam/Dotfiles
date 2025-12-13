@@ -4,7 +4,12 @@ local M = {}
 ---@param bufname string
 ---@return string
 local function start_dir_from_bufname(bufname)
-  return (bufname ~= '' and vim.fs.dirname(bufname)) or vim.fn.getcwd()
+  if bufname == '' or bufname:match('^%a[%w+.-]*://') then
+    return vim.fn.getcwd()
+  end
+
+  local ok, dir = pcall(vim.fs.dirname, bufname)
+  return (ok and dir) or vim.fn.getcwd()
 end
 
 ---@param bufname string
