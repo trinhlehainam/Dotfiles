@@ -28,4 +28,26 @@ return {
       img_folder = 'Files',
     },
   },
+  keys = {
+    {
+      '<leader>sf',
+      function()
+        if not obsidian.is_vault(0) then
+          return
+        end
+        vim.cmd('Obsidian quick_switch')
+      end,
+      desc = 'Obsidian: Quick switch',
+    },
+    {
+      '<leader>sg',
+      function()
+        if not obsidian.is_vault(0) then
+          return
+        end
+        vim.cmd('Obsidian search')
+      end,
+      desc = 'Obsidian: Grep notes',
+    },
+  },
 }

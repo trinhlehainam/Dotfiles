@@ -13,25 +13,9 @@ local function restrict_marksman_to_hover_only(client)
 
   client.handlers = client.handlers or {}
 
-  client.server_capabilities.completionProvider = nil
-  client.server_capabilities.definitionProvider = nil
-  client.server_capabilities.declarationProvider = nil
-  client.server_capabilities.implementationProvider = nil
-  client.server_capabilities.typeDefinitionProvider = nil
-  client.server_capabilities.referencesProvider = nil
-  client.server_capabilities.documentFormattingProvider = nil
-  client.server_capabilities.documentRangeFormattingProvider = nil
-  client.server_capabilities.renameProvider = nil
-  client.server_capabilities.codeActionProvider = nil
-  client.server_capabilities.documentSymbolProvider = nil
-  client.server_capabilities.workspaceSymbolProvider = nil
-  client.server_capabilities.signatureHelpProvider = nil
-  client.server_capabilities.documentHighlightProvider = nil
-  client.server_capabilities.foldingRangeProvider = nil
-  client.server_capabilities.selectionRangeProvider = nil
-  client.server_capabilities.semanticTokensProvider = nil
-
-  client.handlers['textDocument/publishDiagnostics'] = function() end
+  local hover_provider = client.server_capabilities.hoverProvider
+  client.server_capabilities = {}
+  client.server_capabilities.hoverProvider = hover_provider
 end
 
 local marksman = LspConfig:new('marksman', 'marksman')
