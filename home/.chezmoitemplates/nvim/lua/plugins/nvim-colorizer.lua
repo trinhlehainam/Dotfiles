@@ -1,6 +1,6 @@
 return {
   -- https://github.com/catgoose/nvim-colorizer.lua
-  'catgoose/nvim-colorizer.nvim',
+  'catgoose/nvim-colorizer.lua',
   event = 'BufReadPre',
   opts = {
     filetypes = {
