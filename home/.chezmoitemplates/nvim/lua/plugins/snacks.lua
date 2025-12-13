@@ -53,6 +53,7 @@ return {
     quickfile = { enabled = true },
     statuscolumn = { enabled = false }, -- using custom statuscolumn
     terminal = { enabled = true },
+    image = { enabled = true },
   },
 
   -- ╭─────────────────────────────────────────────────────────╮
