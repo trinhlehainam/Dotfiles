@@ -9,10 +9,12 @@ return {
   version = '*', -- recommended, use latest release instead of latest commit
   ft = 'markdown',
   cond = is_vault,
+  --- https://github.com/obsidian-nvim/obsidian.nvim/blob/main/lua/obsidian/config/default.lua
   ---@module 'obsidian'
   ---@type obsidian.config
   opts = {
     legacy_commands = false, -- this will be removed in the next major release
+    ui = { enable = false }, -- avoid conflict with render-markdown.nvim
     disable_frontmatter = true,
     workspaces = {
       {
