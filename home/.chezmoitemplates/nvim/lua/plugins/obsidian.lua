@@ -14,7 +14,7 @@ return {
     disable_frontmatter = true,
     workspaces = {
       {
-        name = 'dynamic',
+        name = vim.fs.basename(obsidian.vault_root(0) or vim.fn.getcwd()) or 'dynamic',
         path = function()
           return obsidian.vault_root(0) or vim.fn.getcwd()
         end,
