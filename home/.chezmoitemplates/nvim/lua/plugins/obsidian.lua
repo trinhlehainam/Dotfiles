@@ -1,12 +1,11 @@
 local obsidian = require('utils.obsidian')
+local is_vault = obsidian.is_vault(0)
 
 return {
   'obsidian-nvim/obsidian.nvim',
   version = '*', -- recommended, use latest release instead of latest commit
   ft = 'markdown',
-  cond = function()
-    return obsidian.is_vault(0)
-  end,
+  cond = is_vault,
   ---@module 'obsidian'
   ---@type obsidian.config
   opts = {
@@ -23,16 +22,13 @@ return {
     picker = {
       name = 'snacks.pick',
     },
-    completion = {},
-    attachments = {
-      img_folder = 'Files',
-    },
+    attachments = {},
   },
   keys = {
     {
       '<leader>sf',
       function()
-        if not obsidian.is_vault(0) then
+        if not is_vault then
           return
         end
         vim.cmd('Obsidian quick_switch')
@@ -42,7 +38,7 @@ return {
     {
       '<leader>sg',
       function()
-        if not obsidian.is_vault(0) then
+        if not is_vault then
           return
         end
         vim.cmd('Obsidian search')

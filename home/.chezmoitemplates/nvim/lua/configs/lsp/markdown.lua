@@ -11,8 +11,6 @@ local function restrict_marksman_to_hover_only(client)
     return
   end
 
-  client.handlers = client.handlers or {}
-
   local hover_provider = client.server_capabilities.hoverProvider
   client.server_capabilities = {}
   client.server_capabilities.hoverProvider = hover_provider
