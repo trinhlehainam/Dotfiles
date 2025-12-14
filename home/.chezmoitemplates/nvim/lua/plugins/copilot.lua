@@ -26,6 +26,9 @@ return {
       nes = {
         enabled = true,
         auto_trigger = true,
+        keymap = {
+          dismiss = '<Esc>',
+        },
       },
 
       -- Filetype configuration

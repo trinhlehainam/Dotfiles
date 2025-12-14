@@ -3,6 +3,7 @@ return {
   'mrjones2014/smart-splits.nvim',
   lazy = false,
   config = function()
+    -- https://github.com/mrjones2014/smart-splits.nvim?tab=readme-ov-file#configuration
     require('smart-splits').setup()
     -- https://github.com/mrjones2014/smart-splits.nvim?tab=readme-ov-file#key-mappings
     -- recommended mappings
