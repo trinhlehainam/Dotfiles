@@ -1,11 +1,11 @@
-local wezterm = require('wezterm')
-local act = wezterm.action
+local wezterm = require('wezterm') ---@type Wezterm
+local act = wezterm.action ---@type Action
 
 -- Plugin: smart-splits integration
 -- https://github.com/mrjones2014/smart-splits.nvim?tab=readme-ov-file#wezterm
 local smart_splits = wezterm.plugin.require('https://github.com/mrjones2014/smart-splits.nvim')
 
-local config = wezterm.config_builder()
+local config = wezterm.config_builder() ---@type Config
 
 local is_windows = wezterm.target_triple:find('windows') ~= nil
 local is_linux = wezterm.target_triple:find('linux') ~= nil

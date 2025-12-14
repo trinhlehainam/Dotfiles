@@ -86,9 +86,14 @@ return { -- Autocompletion
       },
 
       sources = {
-        default = { 'lsp', 'path', 'snippets', 'lazydev', 'laravel', 'easy-dotnet' },
+        default = { 'lazydev', 'lsp', 'path', 'snippets', 'laravel', 'easy-dotnet' },
         providers = {
-          lazydev = { module = 'lazydev.integrations.blink', score_offset = 100 },
+          -- https://github.com/folke/lazydev.nvim?tab=readme-ov-file#-installation
+          lazydev = {
+            name = 'LazyDev',
+            module = 'lazydev.integrations.blink',
+            score_offset = 100,
+          },
           -- https://github.com/adalessa/laravel.nvim?tab=readme-ov-file#completion
           laravel = {
             name = 'laravel',
