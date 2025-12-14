@@ -157,29 +157,6 @@ vim.api.nvim_create_autocmd('TermOpen', {
 })
 
 -- ============================================================================
--- WINDOW & SPLIT MANAGEMENT
--- ============================================================================
-
--- ----------------------------------------------------------------------------
--- Split Resizing (Vim-Tmux Navigator Compatible)
--- ----------------------------------------------------------------------------
-
--- Window/split resize controls using Alt key combinations
--- These work seamlessly with tmux when vim-tmux-navigator is configured
---
--- IMPORTANT: Direction meanings (fixed from previous inversion):
--- Alt-,: Decrease width (move vertical border left)
--- Alt-.: Increase width (move vertical border right)
--- Alt-u: Decrease height (move horizontal border up)
--- Alt-d: Increase height (move horizontal border down)
---
--- Resize increment: 5 lines/columns for noticeable but controlled changes
-vim.keymap.set('n', '<A-,>', '<c-w>5>', opts.nore) -- Increase width (move right border right)
-vim.keymap.set('n', '<A-.>', '<c-w>5<', opts.nore) -- Decrease width (move right border left)
-vim.keymap.set('n', '<A-u>', '<C-W>5+', opts.nore) -- Increase height (move bottom border down)
-vim.keymap.set('n', '<A-d>', '<C-W>5-', opts.nore) -- Decrease height (move bottom border up)
-
--- ============================================================================
 -- BUFFER & TAB MANAGEMENT
 -- ============================================================================
 
