@@ -16,6 +16,7 @@ if platform.is_win then
   end
 end
 
-return {
-  launch_menu = launch_menu,
-}
+--- @param config Config
+return function(config)
+  config.launch_menu = launch_menu
+end

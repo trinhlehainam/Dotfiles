@@ -1,4 +1,4 @@
-local wezterm = require('wezterm')
+local wezterm = require('wezterm') ---@type Wezterm
 
 local pane_utils = require('utils.pane')
 local tmux = require('utils.tmux')

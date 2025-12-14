@@ -5,14 +5,15 @@ local font = wezterm.font_with_fallback({
   { family = 'JetBrainsMono Nerd Font', weight = 'Thin' },
 })
 
-return {
-  font = font,
-  font_size = 12.0,
-  line_height = 1,
-  cell_width = 1,
-  use_cap_height_to_scale_fallback_fonts = true,
-  allow_square_glyphs_to_overflow_width = 'WhenFollowedBySpace',
+--- @param config Config
+return function(config)
+  config.font = font
+  config.font_size = 12.0
+  config.line_height = 1
+  config.cell_width = 1
+  config.use_cap_height_to_scale_fallback_fonts = true
+  config.allow_square_glyphs_to_overflow_width = 'WhenFollowedBySpace'
 
-  freetype_load_target = 'Light',
-  freetype_render_target = 'HorizontalLcd',
-}
+  config.freetype_load_target = 'Light'
+  config.freetype_render_target = 'HorizontalLcd'
+end

@@ -6,9 +6,10 @@ local act = wezterm.action
 
 local copy_destination = platform.is_linux and 'ClipboardAndPrimarySelection' or 'Clipboard'
 
-return {
-  leader = { key = 'a', mods = 'CTRL', timeout_milliseconds = 1000 },
-  keys = {
+--- @param config Config
+return function(config)
+  config.leader = { key = 'a', mods = 'CTRL', timeout_milliseconds = 1000 }
+  config.keys = {
     { key = 'C', mods = 'CTRL|SHIFT', action = act.CopyTo(copy_destination) },
     { key = 'V', mods = 'CTRL|SHIFT', action = act.PasteFrom('Clipboard') },
 
@@ -42,5 +43,5 @@ return {
     { key = '[', mods = 'LEADER', action = act.ActivateCopyMode },
 
     { key = 's', mods = 'LEADER', action = act.ShowLauncherArgs({ flags = 'FUZZY|WORKSPACES' }) },
-  },
-}
+  }
+end
