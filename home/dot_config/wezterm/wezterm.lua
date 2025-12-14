@@ -41,7 +41,7 @@ config.scrollback_lines = 10000
 if is_windows then
   config.win32_system_backdrop = 'Disable' -- 'Acrylic', 'Tabbed', or 'Disable'
   config.window_background_opacity = 0.6 -- Mica/Tabbed require 0
-  config.window_decorations = 'INTEGRATED_BUTTONS | RESIZE'
+  config.window_decorations = 'INTEGRATED_BUTTONS|RESIZE'
   config.integrated_title_button_style = 'Windows'
 end
 
