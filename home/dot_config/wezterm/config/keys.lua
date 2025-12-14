@@ -1,5 +1,6 @@
 local wezterm = require('wezterm')
 local platform = require('utils.platform')
+local smart_splits = require('utils.smart_splits')
 
 local act = wezterm.action
 
@@ -10,6 +11,16 @@ return {
   keys = {
     { key = 'C', mods = 'CTRL|SHIFT', action = act.CopyTo(copy_destination) },
     { key = 'V', mods = 'CTRL|SHIFT', action = act.PasteFrom('Clipboard') },
+
+    smart_splits.nav('move', 'h', 'Left'),
+    smart_splits.nav('move', 'j', 'Down'),
+    smart_splits.nav('move', 'k', 'Up'),
+    smart_splits.nav('move', 'l', 'Right'),
+
+    smart_splits.nav('resize', ',', 'Left'),
+    smart_splits.nav('resize', 'd', 'Down'),
+    smart_splits.nav('resize', 'u', 'Up'),
+    smart_splits.nav('resize', '.', 'Right'),
 
     {
       key = 'l',
