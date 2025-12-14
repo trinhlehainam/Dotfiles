@@ -2,7 +2,7 @@ local wezterm = require('wezterm')
 local platform = require('utils.platform')
 local smart_splits = require('utils.smart_splits')
 
-local act = wezterm.action
+local act = wezterm.action ---@type Action
 
 local copy_destination = platform.is_linux and 'ClipboardAndPrimarySelection' or 'Clipboard'
 

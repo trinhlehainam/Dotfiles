@@ -1,9 +1,12 @@
-local wezterm = require('wezterm')
+local wezterm = require('wezterm') ---@type Wezterm
 
 local platform = require('utils.platform')
 local strings = require('utils.strings')
 local wsl = require('utils.wsl')
 
+-- Convert a WSL path to a Windows path
+--- @param wsl_distro string|nil
+--- @param linux_path string
 local function wslpath_to_windows(wsl_distro, linux_path)
   if not wsl_distro then
     return nil
