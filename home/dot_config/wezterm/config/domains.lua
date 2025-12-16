@@ -8,11 +8,12 @@ end
 local domains = wsl.domains()
 local default_domain = wsl.default_domain_name()
 
---- @param config Config
-return function(config)
-  config.wsl_domains = domains
+return {
+  apply_to_config = function(config)
+    config.wsl_domains = domains
 
-  if default_domain then
-    config.default_domain = default_domain
-  end
-end
+    if default_domain then
+      config.default_domain = default_domain
+    end
+  end,
+}

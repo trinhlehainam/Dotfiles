@@ -1,5 +1,8 @@
 local wezterm = require('wezterm') ---@type Wezterm
 
+---@class Module
+---@field apply_to_config fun(config: Config)
+
 ---@class ConfigBuilder
 ---@field config Config
 local ConfigBuilder = {}
@@ -11,10 +14,10 @@ function ConfigBuilder:init()
   return builder
 end
 
----@param module fun(config: Config)
+---@param module Module
 ---@return ConfigBuilder
 function ConfigBuilder:load(module)
-  module(self.config)
+  module.apply_to_config(self.config)
   return self
 end
 
