@@ -11,26 +11,45 @@ local function add_if_exists(launch_menu, exe, item)
   end
 end
 
--- Shell definitions: { exe, label, args }
+-- Shell definitions keyed by name: { exe, label, args }
 -- Nushell doesn't use -l; it handles login behavior via config.nu
----@type table<string, {label: string, args: string[]}>
+---@type table<string, {exe: string, label: string, args: string[]}>
 local unix_shells = {
-  bash = { label = 'Bash', args = { 'bash', '-l' } },
-  zsh = { label = 'Zsh', args = { 'zsh', '-l' } },
-  fish = { label = 'Fish', args = { 'fish', '-l' } },
-  nu = { label = 'Nushell', args = { 'nu' } },
+  bash = { exe = 'bash', label = 'Bash', args = { 'bash', '-l' } },
+  zsh = { exe = 'zsh', label = 'Zsh', args = { 'zsh', '-l' } },
+  fish = { exe = 'fish', label = 'Fish', args = { 'fish', '-l' } },
+  nu = { exe = 'nu', label = 'Nushell', args = { 'nu' } },
 }
 
----@param launch_menu SpawnCommand[]
+---@param launch_menu SpawnCommand
 ---@param shell_order string[]
 local function add_unix_shells(launch_menu, shell_order)
   for _, name in ipairs(shell_order) do
     local shell = unix_shells[name]
     if shell then
-      add_if_exists(launch_menu, name, { label = shell.label, args = shell.args })
+      add_if_exists(launch_menu, shell.exe, { label = shell.label, args = shell.args })
     end
   end
 end
+
+---@param config Config
+---@param shell_order string[]
+local function set_default_unix_prog(config, shell_order)
+  if config.default_prog ~= nil then
+    return
+  end
+
+  for _, name in ipairs(shell_order) do
+    local shell = unix_shells[name]
+    if shell and executable.exists(shell.exe) then
+      config.default_prog = shell.args
+      return
+    end
+  end
+end
+
+local linux_shell_order = { 'bash', 'zsh', 'fish', 'nu' }
+local mac_shell_order = { 'zsh', 'bash', 'fish', 'nu' }
 
 --- @type SpawnCommand[]
 local launch_menu = {}
@@ -51,16 +70,18 @@ if platform.is_win then
     args = { 'cmd.exe' },
   })
 
-  for _, domain in ipairs(wsl.domains()) do
-    table.insert(launch_menu, {
-      label = domain.distribution,
-      args = { 'wsl.exe', '-d', domain.distribution },
-    })
+  if executable.exists('wsl.exe') then
+    for _, domain in ipairs(wsl.domains()) do
+      table.insert(launch_menu, {
+        label = domain.distribution,
+        args = { 'wsl.exe', '-d', domain.distribution },
+      })
+    end
   end
 elseif platform.is_linux then
-  add_unix_shells(launch_menu, { 'bash', 'zsh', 'fish', 'nu' })
+  add_unix_shells(launch_menu, linux_shell_order)
 elseif platform.is_mac then
-  add_unix_shells(launch_menu, { 'zsh', 'bash', 'fish', 'nu' })
+  add_unix_shells(launch_menu, mac_shell_order)
 end
 
 --- @type ConfigModule
@@ -68,6 +89,12 @@ return {
   apply_to_config = function(config)
     if #launch_menu > 0 then
       config.launch_menu = launch_menu
+    end
+
+    if platform.is_linux then
+      set_default_unix_prog(config, linux_shell_order)
+    elseif platform.is_mac then
+      set_default_unix_prog(config, mac_shell_order)
     end
   end,
 }
