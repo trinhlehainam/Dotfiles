@@ -11,12 +11,12 @@
 ---@see https://wezterm.org/config/files.html#making-your-own-lua-modules
 
 ---@class ConfigModule
----@field apply_to_config fun(config: table)
+---@field apply_to_config fun(config: Config)
 
 local wezterm = require('wezterm') ---@type Wezterm
 
 ---@class ConfigBuilder
----@field config table
+---@field config Config
 local ConfigBuilder = {}
 ConfigBuilder.__index = ConfigBuilder
 
