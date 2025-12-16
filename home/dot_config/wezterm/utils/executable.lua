@@ -16,7 +16,7 @@ function M.exists(executable)
 
   local args
   if platform.is_win then
-    args = { 'where', executable }
+    args = { 'where.exe', '/Q', executable }
   else
     args = { 'sh', '-c', string.format('command -v %q >/dev/null 2>&1', executable) }
   end

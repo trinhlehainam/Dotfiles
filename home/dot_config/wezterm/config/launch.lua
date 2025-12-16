@@ -2,49 +2,87 @@ local executable = require('utils.executable')
 local platform = require('utils.platform')
 local wsl = require('utils.wsl')
 
-if not platform.is_win then
-  --- @type ConfigModule
-  return {
-    apply_to_config = function(_) end,
-  }
+---@param launch_menu SpawnCommand[]
+---@param exe string
+---@param item SpawnCommand
+local function add_if_exists(launch_menu, exe, item)
+  if executable.exists(exe) then
+    table.insert(launch_menu, item)
+  end
 end
 
+--- @type SpawnCommand[]
 local launch_menu = {}
 
-if executable.exists('pwsh.exe') then
-  table.insert(launch_menu, {
+if platform.is_win then
+  add_if_exists(launch_menu, 'pwsh.exe', {
     label = 'PowerShell 7',
-    domain = { DomainName = 'local' },
     args = { 'pwsh.exe', '-NoLogo' },
   })
-end
 
-if executable.exists('powershell.exe') then
-  table.insert(launch_menu, {
+  add_if_exists(launch_menu, 'powershell.exe', {
     label = 'PowerShell 5',
-    domain = { DomainName = 'local' },
     args = { 'powershell.exe', '-NoLogo' },
   })
-end
 
-if executable.exists('cmd.exe') then
-  table.insert(launch_menu, {
+  add_if_exists(launch_menu, 'cmd.exe', {
     label = 'Command Prompt',
-    domain = { DomainName = 'local' },
     args = { 'cmd.exe' },
   })
-end
 
-for _, domain in ipairs(wsl.domains()) do
-  table.insert(launch_menu, {
-    label = domain.name,
-    domain = { DomainName = domain.name },
+  for _, domain in ipairs(wsl.domains()) do
+    table.insert(launch_menu, {
+      label = domain.name,
+      args = { 'wsl.exe', '-d', domain.name },
+    })
+  end
+elseif platform.is_linux then
+  add_if_exists(launch_menu, 'bash', {
+    label = 'Bash',
+    args = { 'bash', '-l' },
+  })
+
+  add_if_exists(launch_menu, 'zsh', {
+    label = 'Zsh',
+    args = { 'zsh', '-l' },
+  })
+
+  add_if_exists(launch_menu, 'fish', {
+    label = 'Fish',
+    args = { 'fish', '-l' },
+  })
+
+  add_if_exists(launch_menu, 'nu', {
+    label = 'Nushell',
+    args = { 'nu' },
+  })
+elseif platform.is_mac then
+  add_if_exists(launch_menu, 'zsh', {
+    label = 'Zsh',
+    args = { 'zsh', '-l' },
+  })
+
+  add_if_exists(launch_menu, 'bash', {
+    label = 'Bash',
+    args = { 'bash', '-l' },
+  })
+
+  add_if_exists(launch_menu, 'fish', {
+    label = 'Fish',
+    args = { 'fish', '-l' },
+  })
+
+  add_if_exists(launch_menu, 'nu', {
+    label = 'Nushell',
+    args = { 'nu' },
   })
 end
 
 --- @type ConfigModule
 return {
   apply_to_config = function(config)
-    config.launch_menu = launch_menu
+    if #launch_menu > 0 then
+      config.launch_menu = launch_menu
+    end
   end,
 }
