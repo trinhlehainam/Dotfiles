@@ -11,6 +11,27 @@ local function add_if_exists(launch_menu, exe, item)
   end
 end
 
+-- Shell definitions: { exe, label, args }
+-- Nushell doesn't use -l; it handles login behavior via config.nu
+---@type table<string, {label: string, args: string[]}>
+local unix_shells = {
+  bash = { label = 'Bash', args = { 'bash', '-l' } },
+  zsh = { label = 'Zsh', args = { 'zsh', '-l' } },
+  fish = { label = 'Fish', args = { 'fish', '-l' } },
+  nu = { label = 'Nushell', args = { 'nu' } },
+}
+
+---@param launch_menu SpawnCommand[]
+---@param shell_order string[]
+local function add_unix_shells(launch_menu, shell_order)
+  for _, name in ipairs(shell_order) do
+    local shell = unix_shells[name]
+    if shell then
+      add_if_exists(launch_menu, name, { label = shell.label, args = shell.args })
+    end
+  end
+end
+
 --- @type SpawnCommand[]
 local launch_menu = {}
 
@@ -32,50 +53,14 @@ if platform.is_win then
 
   for _, domain in ipairs(wsl.domains()) do
     table.insert(launch_menu, {
-      label = domain.name,
-      args = { 'wsl.exe', '-d', domain.name },
+      label = domain.distribution,
+      args = { 'wsl.exe', '-d', domain.distribution },
     })
   end
 elseif platform.is_linux then
-  add_if_exists(launch_menu, 'bash', {
-    label = 'Bash',
-    args = { 'bash', '-l' },
-  })
-
-  add_if_exists(launch_menu, 'zsh', {
-    label = 'Zsh',
-    args = { 'zsh', '-l' },
-  })
-
-  add_if_exists(launch_menu, 'fish', {
-    label = 'Fish',
-    args = { 'fish', '-l' },
-  })
-
-  add_if_exists(launch_menu, 'nu', {
-    label = 'Nushell',
-    args = { 'nu' },
-  })
+  add_unix_shells(launch_menu, { 'bash', 'zsh', 'fish', 'nu' })
 elseif platform.is_mac then
-  add_if_exists(launch_menu, 'zsh', {
-    label = 'Zsh',
-    args = { 'zsh', '-l' },
-  })
-
-  add_if_exists(launch_menu, 'bash', {
-    label = 'Bash',
-    args = { 'bash', '-l' },
-  })
-
-  add_if_exists(launch_menu, 'fish', {
-    label = 'Fish',
-    args = { 'fish', '-l' },
-  })
-
-  add_if_exists(launch_menu, 'nu', {
-    label = 'Nushell',
-    args = { 'nu' },
-  })
+  add_unix_shells(launch_menu, { 'zsh', 'bash', 'fish', 'nu' })
 end
 
 --- @type ConfigModule
