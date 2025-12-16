@@ -51,7 +51,7 @@ end
 local linux_shell_order = { 'bash', 'zsh', 'fish', 'nu' }
 local mac_shell_order = { 'zsh', 'bash', 'fish', 'nu' }
 
---- @type SpawnCommand[]
+---@type SpawnCommand[]
 local launch_menu = {}
 
 if platform.is_win then
@@ -84,7 +84,7 @@ elseif platform.is_mac then
   add_unix_shells(launch_menu, mac_shell_order)
 end
 
---- @type ConfigModule
+---@type ConfigModule
 return {
   apply_to_config = function(config)
     if #launch_menu > 0 then

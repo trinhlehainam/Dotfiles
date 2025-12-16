@@ -1,4 +1,4 @@
-local wezterm = require('wezterm')
+local wezterm = require('wezterm') ---@type Wezterm
 local platform = require('utils.platform')
 local smart_splits = require('utils.smart_splits')
 

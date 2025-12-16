@@ -5,7 +5,7 @@ local font = wezterm.font_with_fallback({
   { family = 'JetBrainsMono Nerd Font', weight = 'Thin' },
 })
 
---- @type ConfigModule
+---@type ConfigModule
 return {
   apply_to_config = function(config)
     config.font = font
