@@ -2,7 +2,7 @@ local platform = require('utils.platform')
 
 --- @type ConfigModule
 return {
-  apply_to_module = function(config)
+  apply_to_config = function(config)
     config.use_fancy_tab_bar = false
     config.hide_tab_bar_if_only_one_tab = false
     config.tab_max_width = 25

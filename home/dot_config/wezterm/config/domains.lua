@@ -2,7 +2,10 @@ local platform = require('utils.platform')
 local wsl = require('utils.wsl')
 
 if not platform.is_win then
-  return function(_) end
+  --- @type ConfigModule
+  return {
+    apply_to_config = function(_) end,
+  }
 end
 
 local domains = wsl.domains()
