@@ -6,7 +6,7 @@ local act = wezterm.action ---@type Action
 
 local copy_destination = platform.is_linux and 'ClipboardAndPrimarySelection' or 'Clipboard'
 
---- @type Module
+--- @type ConfigModule
 return {
   apply_to_config = function(config)
     config.leader = { key = 'a', mods = 'CTRL', timeout_milliseconds = 1000 }

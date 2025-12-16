@@ -1,6 +1,6 @@
 local platform = require('utils.platform')
 
---- @type Module
+--- @type ConfigModule
 return {
   apply_to_module = function(config)
     config.use_fancy_tab_bar = false

@@ -1,4 +1,4 @@
---- @type Module
+--- @type ConfigModule
 return {
   apply_to_config = function(config)
     config.front_end = 'WebGpu'

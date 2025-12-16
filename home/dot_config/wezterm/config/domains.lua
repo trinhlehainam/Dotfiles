@@ -8,6 +8,7 @@ end
 local domains = wsl.domains()
 local default_domain = wsl.default_domain_name()
 
+--- @type ConfigModule
 return {
   apply_to_config = function(config)
     config.wsl_domains = domains

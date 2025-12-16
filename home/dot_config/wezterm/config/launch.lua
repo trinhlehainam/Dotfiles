@@ -16,7 +16,7 @@ if platform.is_win then
   end
 end
 
---- @type Module
+--- @type ConfigModule
 return {
   apply_to_module = function(config)
     config.launch_menu = launch_menu

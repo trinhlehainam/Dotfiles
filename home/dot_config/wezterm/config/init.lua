@@ -1,6 +1,7 @@
 local wezterm = require('wezterm') ---@type Wezterm
 
----@class Module
+---@class ConfigModule
+---@see https://wezterm.org/config/files.html#making-your-own-lua-modules
 ---@field apply_to_config fun(config: Config)
 
 ---@class ConfigBuilder
@@ -14,7 +15,7 @@ function ConfigBuilder:init()
   return builder
 end
 
----@param module Module
+---@param module ConfigModule
 ---@return ConfigBuilder
 function ConfigBuilder:load(module)
   module.apply_to_config(self.config)
