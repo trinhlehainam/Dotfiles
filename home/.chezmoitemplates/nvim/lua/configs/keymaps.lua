@@ -2,14 +2,13 @@
 -- NEOVIM KEYMAPS CONFIGURATION
 -- ============================================================================
 --
--- This file contains custom keybindings for enhanced Neovim workflow.
--- Includes vim-tmux-navigator integration for seamless pane navigation.
+-- This file contains custom keybindings for an enhanced Neovim workflow.
 --
 -- Key principles:
--- - Leader key is <Space> for ergonomic access to custom commands
--- - Alt key combinations for window/split management (consistent with tmux)
+-- - Leader key is <Space> for ergonomic custom commands
+-- - Consistent split navigation (normal/terminal) via `smart-splits` when available
 -- - Vi-like navigation patterns where possible
--- - Quick escape mechanisms for insert mode
+-- - Quick escape mechanisms for insert/terminal modes
 --
 -- ============================================================================
 
@@ -88,22 +87,23 @@ vim.keymap.set('i', 'jk', '<Esc>', opts.nore)
 vim.keymap.set('i', '<C-e>', '<Esc>%%a', opts.nore)
 
 -- ----------------------------------------------------------------------------
--- Terminal Mode Navigation & Vim-Tmux Navigator Integration
+-- Terminal Mode Navigation (smart-splits aware)
 -- ----------------------------------------------------------------------------
 --
--- This section configures terminal mode keybindings with intelligent handling
--- for vim-tmux-navigator integration. The setup provides seamless navigation
--- between Neovim splits, terminal buffers, and tmux panes.
+-- Terminal buffers run in "terminal-mode", so most normal-mode mappings don't
+-- apply. Here we add a small, consistent set of terminal mappings and (when
+-- installed) hand off split movement to `smart-splits`.
 --
 -- Integration Points:
--- 1. Works with toggleterm.nvim for floating/split terminals
--- 2. Integrates with vim-tmux-navigator plugin (see lua/plugins/vim-tmux-navigator.lua)
--- 3. Provides fallback navigation when plugin is not loaded
+-- 1. Works with Neovim's built-in terminal and toggleterm.nvim
+-- 2. Uses `smart-splits` when available for consistent split navigation
+--    (and optionally tmux-aware cursor moves, if configured there)
+-- 3. Falls back to plain Vim window navigation when `smart-splits` isn't loaded
 --
 -- Key Behaviors:
--- - jk: Quick escape from terminal to normal mode (consistent with insert mode)
--- - Ctrl-w: Access window commands from terminal mode
--- - Ctrl-h/j/k/l: Smart navigation that works across vim/tmux boundaries
+-- - jk: Leave terminal-mode (same "jk" escape as insert mode)
+-- - Ctrl-w: Enter window-command mode from terminal buffers
+-- - Ctrl-h/j/k/l: Move across splits, and possibly tmux panes via smart-splits
 --
 -- Reference: https://github.com/akinsho/toggleterm.nvim?tab=readme-ov-file#terminal-window-mappings
 -- ----------------------------------------------------------------------------
@@ -119,16 +119,8 @@ local function set_terminal_keymaps()
   -- Allows Ctrl-w followed by any window command (split, close, etc.)
   vim.keymap.set('t', '<C-w>', [[<C-\><C-n><C-w>]], terminal_opts)
 
-  -- Smart navigation with vim-tmux-navigator awareness
-  -- When plugin is loaded: Use TmuxNavigate commands for cross-boundary navigation
-  -- When plugin is not loaded: Use standard Vim window navigation as fallback
-  --
-  -- The plugin sets vim.g.loaded_tmux_navigator when it loads, allowing us to
-  -- conditionally set appropriate mappings. This ensures navigation works
-  -- whether or not the user has tmux running or the plugin installed.
-  --
-  -- Plugin source: https://github.com/christoomey/vim-tmux-navigator/blob/master/plugin/tmux_navigator.vim
-  if vim.g.loaded_tmux_navigator == nil then
+  local ok, smart_splits = pcall(require, 'smart-splits')
+  if not ok then
     -- Fallback: Standard Vim window navigation
     -- Exit terminal mode, then use standard window movement commands
     vim.keymap.set('t', '<C-h>', [[<C-\><C-n><C-w>h]], terminal_opts)
@@ -136,12 +128,13 @@ local function set_terminal_keymaps()
     vim.keymap.set('t', '<C-k>', [[<C-\><C-n><C-w>k]], terminal_opts)
     vim.keymap.set('t', '<C-l>', [[<C-\><C-n><C-w>l]], terminal_opts)
   else
-    -- Plugin active: Use tmux-aware navigation
-    -- These commands intelligently navigate between Vim splits and tmux panes
-    vim.keymap.set('t', '<C-h>', [[<cmd>TmuxNavigateLeft<CR>]], terminal_opts)
-    vim.keymap.set('t', '<C-j>', [[<cmd>TmuxNavigateDown<CR>]], terminal_opts)
-    vim.keymap.set('t', '<C-k>', [[<cmd>TmuxNavigateUp<CR>]], terminal_opts)
-    vim.keymap.set('t', '<C-l>', [[<cmd>TmuxNavigateRight<CR>]], terminal_opts)
+    -- `smart-splits` active: use its cursor movers.
+    -- If you've enabled tmux integration in smart-splits, these can also cross
+    -- tmux pane boundaries; otherwise they behave like split navigation.
+    vim.keymap.set('t', '<C-h>', smart_splits.move_cursor_left, terminal_opts)
+    vim.keymap.set('t', '<C-j>', smart_splits.move_cursor_down, terminal_opts)
+    vim.keymap.set('t', '<C-k>', smart_splits.move_cursor_up, terminal_opts)
+    vim.keymap.set('t', '<C-l>', smart_splits.move_cursor_right, terminal_opts)
   end
 end
 
@@ -204,9 +197,9 @@ vim.keymap.set('n', 'tl', ':tablast<CR>', opts.nore) -- Go to last tab
 -- Terminal Integration
 -- ----------------------------------------------------------------------------
 
--- Prevent accidental terminal suspension
--- Map Ctrl-c to Esc to avoid breaking out of Neovim
--- Useful when running in terminal multiplexers like tmux
+-- Prevent accidental terminal interruption.
+-- Map Ctrl-c to Esc so you don't send SIGINT to Neovim by mistake.
+-- Handy when your muscle memory is Ctrl-c (and when running inside terminal multiplexers).
 vim.keymap.set('n', '<C-c>', '<Esc>', opts.nore)
 
 -- ============================================================================
