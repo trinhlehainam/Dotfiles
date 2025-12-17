@@ -3,6 +3,31 @@ return {
   'mrjones2014/smart-splits.nvim',
   lazy = false,
   config = function()
+    -- WezTerm user var used by WezTerm config/keybindings to detect when
+    -- the foreground program is Neovim.
+    -- Reference (OSC 1337 `SetUserVar` / `__wezterm_set_user_var`):
+    -- https://wezterm.org/config/lua/pane/get_user_vars.html
+    local common = require('utils.common')
+
+    local wezterm_group = vim.api.nvim_create_augroup('wezterm_user_vars', { clear = true })
+    vim.api.nvim_create_autocmd('VimEnter', {
+      group = wezterm_group,
+      callback = function()
+        common.wezterm_set_user_var('IS_NVIM', 'true')
+      end,
+    })
+
+    vim.api.nvim_create_autocmd('VimLeavePre', {
+      group = wezterm_group,
+      callback = function()
+        common.wezterm_set_user_var('IS_NVIM', '')
+      end,
+    })
+
+    if vim.v.vim_did_enter == 1 then
+      common.wezterm_set_user_var('IS_NVIM', 'true')
+    end
+
     require('smart-splits.api')
     local smart_splits = require('smart-splits')
     -- https://github.com/mrjones2014/smart-splits.nvim?tab=readme-ov-file#configuration
