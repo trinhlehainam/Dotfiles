@@ -12,7 +12,7 @@ function M.move(key, direction, opts)
   local options = opts or {}
   local mods = options.mods or 'CTRL'
 
-  local act = wezterm.action
+  local act = wezterm.action ---@type Action
 
   return {
     key = key,
@@ -33,7 +33,7 @@ function M.resize(key, direction, opts)
   local mods = options.mods or 'META'
   local amount = options.amount or 3
 
-  local act = wezterm.action
+  local act = wezterm.action ---@type Action
 
   return {
     key = key,
