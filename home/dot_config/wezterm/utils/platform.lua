@@ -1,6 +1,6 @@
 local wezterm = require('wezterm') ---@type Wezterm
 
-local function is_found(str, pattern)
+local function contains(str, pattern)
   return string.find(str, pattern) ~= nil
 end
 
@@ -8,9 +8,9 @@ end
 
 ---@return {os: PlatformType, is_win: boolean, is_linux: boolean, is_mac: boolean}
 local function platform()
-  local is_win = is_found(wezterm.target_triple, 'windows')
-  local is_linux = is_found(wezterm.target_triple, 'linux')
-  local is_mac = is_found(wezterm.target_triple, 'apple')
+  local is_win = contains(wezterm.target_triple, 'windows')
+  local is_linux = contains(wezterm.target_triple, 'linux')
+  local is_mac = contains(wezterm.target_triple, 'apple')
   local os
 
   if is_win then

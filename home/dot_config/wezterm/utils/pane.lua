@@ -7,8 +7,8 @@ end
 
 ---@param pane Pane
 function M.is_tmux(pane)
-  local process_name = pane:get_foreground_process_name() or ''
-  return process_name:match('tmux') ~= nil
+  local user_vars = pane:get_user_vars()
+  return user_vars and user_vars.IS_TMUX == 'true'
 end
 
 return M

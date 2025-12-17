@@ -1,6 +1,6 @@
 local wezterm = require('wezterm') ---@type Wezterm
 local platform = require('utils.platform')
-local smart_splits = require('utils.smart_splits')
+local navigation = require('utils.navigation')
 
 local act = wezterm.action ---@type Action
 
@@ -14,15 +14,15 @@ return {
       { key = 'C', mods = 'CTRL|SHIFT', action = act.CopyTo(copy_destination) },
       { key = 'V', mods = 'CTRL|SHIFT', action = act.PasteFrom('Clipboard') },
 
-      smart_splits.nav('move', 'h', 'Left'),
-      smart_splits.nav('move', 'j', 'Down'),
-      smart_splits.nav('move', 'k', 'Up'),
-      smart_splits.nav('move', 'l', 'Right'),
+      navigation.move('h', 'Left'),
+      navigation.move('j', 'Down'),
+      navigation.move('k', 'Up'),
+      navigation.move('l', 'Right'),
 
-      smart_splits.nav('resize', ',', 'Left'),
-      smart_splits.nav('resize', 'd', 'Down'),
-      smart_splits.nav('resize', 'u', 'Up'),
-      smart_splits.nav('resize', '.', 'Right'),
+      navigation.resize(',', 'Left', { tmux_key = 'h', tmux_key_mods = 'SHIFT' }),
+      navigation.resize('d', 'Down', { tmux_key = 'j', tmux_key_mods = 'SHIFT' }),
+      navigation.resize('u', 'Up', { tmux_key = 'k', tmux_key_mods = 'SHIFT' }),
+      navigation.resize('.', 'Right', { tmux_key = 'l', tmux_key_mods = 'SHIFT' }),
 
       {
         key = 'l',
