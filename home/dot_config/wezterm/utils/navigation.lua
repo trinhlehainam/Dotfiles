@@ -2,6 +2,31 @@ local wezterm = require('wezterm')
 
 local pane = require('utils.pane')
 
+---Helpers for "smart" pane navigation/resizing.
+---
+---When the active pane is running Neovim (or when there is only a single pane),
+---the key binding is forwarded into the application instead of being handled by
+---WezTerm. This enables Neovim-side plugins/mappings to implement split
+---navigation and resizing with the same key chords.
+---
+---This approach is inspired by (and conceptually similar to) smart-splits.nvim:
+---https://github.com/mrjones2014/smart-splits.nvim
+---
+---Usage (example):
+---
+---```lua
+---local nav = require('utils.navigation')
+---return {
+---  -- Navigate between WezTerm panes, unless Neovim wants it.
+---  nav.move('h', 'Left'),
+---  nav.move('j', 'Down'),
+---  nav.move('k', 'Up'),
+---  nav.move('l', 'Right'),
+---
+---  -- Resize panes, unless Neovim wants it.
+---  nav.resize('h', 'Left', { mods = 'META', amount = 3 }),
+---}
+---```
 local M = {}
 
 local function should_passthrough(win, current_pane)

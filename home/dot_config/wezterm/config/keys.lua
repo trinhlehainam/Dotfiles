@@ -5,8 +5,18 @@ local navigation = require('utils.navigation')
 
 local act = wezterm.action ---@type Action
 
+---Destination for `CopyTo()` bindings.
+---
+---On Linux, prefer copying to both the clipboard and the X11 primary selection
+---(middle-click paste). On other platforms, fall back to the regular clipboard.
 local copy_destination = platform.is_linux and 'ClipboardAndPrimarySelection' or 'Clipboard'
 
+---WezTerm config module that installs key-tables and key bindings.
+---
+---Notable behaviors:
+---- `CTRL-a` acts like a tmux prefix (passthrough to tmux if detected,
+---   otherwise activates the local `tmux` key-table).
+---- Smart pane navigation/resizing comes from `utils.navigation`.
 --- @type ConfigModule
 return {
   apply_to_config = function(config)
