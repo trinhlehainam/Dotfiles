@@ -20,6 +20,12 @@ local wezterm = require('wezterm') ---@type Wezterm
 local ConfigBuilder = {}
 ConfigBuilder.__index = ConfigBuilder
 
+---Finalize and return the assembled config.
+---@return Config
+function ConfigBuilder:build()
+  return self.config
+end
+
 ---Create a fresh builder with a default/validated config table.
 ---@return ConfigBuilder
 function ConfigBuilder:init()
