@@ -19,10 +19,10 @@ return {
       navigation.move('k', 'Up'),
       navigation.move('l', 'Right'),
 
-      navigation.resize(',', 'Left', { tmux_key = 'h', tmux_key_mods = 'SHIFT' }),
-      navigation.resize('d', 'Down', { tmux_key = 'j', tmux_key_mods = 'SHIFT' }),
-      navigation.resize('u', 'Up', { tmux_key = 'k', tmux_key_mods = 'SHIFT' }),
-      navigation.resize('.', 'Right', { tmux_key = 'l', tmux_key_mods = 'SHIFT' }),
+      navigation.resize(',', 'Left'),
+      navigation.resize('d', 'Down'),
+      navigation.resize('u', 'Up'),
+      navigation.resize('.', 'Right'),
 
       {
         key = 'l',
