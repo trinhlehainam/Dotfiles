@@ -34,6 +34,19 @@ return {
     }
 
     config.keys = {
+      -- misc/useful
+      { key = 'F1', mods = 'NONE', action = 'ActivateCopyMode' },
+      { key = 'F2', mods = 'NONE', action = act.ActivateCommandPalette },
+      { key = 'F3', mods = 'NONE', action = act.ShowLauncher },
+      { key = 'F4', mods = 'NONE', action = act.ShowLauncherArgs({ flags = 'FUZZY|TABS' }) },
+      {
+        key = 'F5',
+        mods = 'NONE',
+        action = act.ShowLauncherArgs({ flags = 'FUZZY|WORKSPACES' }),
+      },
+      { key = 'F11', mods = 'NONE', action = act.ToggleFullScreen },
+      { key = 'F12', mods = 'NONE', action = act.ShowDebugOverlay },
+
       { key = 'C', mods = 'CTRL|SHIFT', action = act.CopyTo(copy_destination) },
       { key = 'V', mods = 'CTRL|SHIFT', action = act.PasteFrom('Clipboard') },
 
