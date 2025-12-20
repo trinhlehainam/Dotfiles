@@ -21,7 +21,7 @@ local unix_shells = {
   nu = { exe = 'nu', label = 'Nushell', args = { 'nu' } },
 }
 
----@param launch_menu SpawnCommand
+---@param launch_menu SpawnCommand[]
 ---@param shell_order string[]
 local function add_unix_shells(launch_menu, shell_order)
   for _, name in ipairs(shell_order) do
@@ -51,42 +51,45 @@ end
 local linux_shell_order = { 'bash', 'zsh', 'fish', 'nu' }
 local mac_shell_order = { 'zsh', 'bash', 'fish', 'nu' }
 
----@type SpawnCommand[]
-local launch_menu = {}
-
-if platform.is_win then
-  add_if_exists(launch_menu, 'pwsh.exe', {
-    label = 'PowerShell 7',
-    args = { 'pwsh.exe', '-NoLogo' },
-  })
-
-  add_if_exists(launch_menu, 'powershell.exe', {
-    label = 'PowerShell 5',
-    args = { 'powershell.exe', '-NoLogo' },
-  })
-
-  add_if_exists(launch_menu, 'cmd.exe', {
-    label = 'Command Prompt',
-    args = { 'cmd.exe' },
-  })
-
-  if executable.exists('wsl.exe') then
-    for _, domain in ipairs(wsl.domains()) do
-      table.insert(launch_menu, {
-        label = domain.distribution,
-        args = { 'wsl.exe', '-d', domain.distribution },
-      })
-    end
-  end
-elseif platform.is_linux then
-  add_unix_shells(launch_menu, linux_shell_order)
-elseif platform.is_mac then
-  add_unix_shells(launch_menu, mac_shell_order)
-end
-
 ---@type ConfigModule
 return {
+  -- Note: `executable.exists()` uses `wezterm.run_child_process`, which must not be
+  -- invoked during module load (`require`). Build `launch_menu` inside this callback.
+  -- Ref: https://github.com/wezterm/wezterm/issues/6226
   apply_to_config = function(config)
+    ---@type SpawnCommand[]
+    local launch_menu = {}
+
+    if platform.is_win then
+      add_if_exists(launch_menu, 'pwsh.exe', {
+        label = 'PowerShell 7',
+        args = { 'pwsh.exe', '-NoLogo' },
+      })
+
+      add_if_exists(launch_menu, 'powershell.exe', {
+        label = 'PowerShell 5',
+        args = { 'powershell.exe', '-NoLogo' },
+      })
+
+      add_if_exists(launch_menu, 'cmd.exe', {
+        label = 'Command Prompt',
+        args = { 'cmd.exe' },
+      })
+
+      if executable.exists('wsl.exe') then
+        for _, domain in ipairs(wsl.domains()) do
+          table.insert(launch_menu, {
+            label = domain.distribution,
+            args = { 'wsl.exe', '-d', domain.distribution },
+          })
+        end
+      end
+    elseif platform.is_linux then
+      add_unix_shells(launch_menu, linux_shell_order)
+    elseif platform.is_mac then
+      add_unix_shells(launch_menu, mac_shell_order)
+    end
+
     if #launch_menu > 0 then
       config.launch_menu = launch_menu
     end

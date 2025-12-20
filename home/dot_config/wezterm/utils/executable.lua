@@ -8,17 +8,20 @@
 ---
 ---Implementation notes:
 --- - Uses `wezterm.run_child_process` so checks are silent/non-interactive.
+--- - `wezterm.run_child_process` is not safe to call during module load (`require`).
+---   Only call `M.exists()`/`M.first()` from `apply_to_config`, event handlers,
+---   or other runtime callbacks.
+---   Ref: https://github.com/wezterm/wezterm/issues/6226
 --- - Caches results per executable name to avoid repeating process spawns.
 ---
 ---References:
 --- - https://github.com/pasanec/wezterm_win/blob/main/wezterm.lua
 --- - https://github.com/wezterm/wezterm/issues/5963#issuecomment-2533250740
 ---
-local wezterm = require('wezterm') ---@type Wezterm
-
-local platform = require('utils.platform')
-
 local M = {}
+
+local wezterm = require('wezterm') ---@type Wezterm
+local platform = require('utils.platform')
 
 ---@type table<string, boolean>
 local cache = {}
@@ -36,7 +39,7 @@ function M.exists(executable)
     return cache[executable]
   end
 
-  local args
+  local args = {}
   if platform.is_win then
     args = { 'where.exe', '/Q', executable }
   else
@@ -44,8 +47,11 @@ function M.exists(executable)
   end
 
   local ok, success = pcall(wezterm.run_child_process, args)
-  local exists = ok and success == true
+  if not ok then
+    return false
+  end
 
+  local exists = success == true
   cache[executable] = exists
   return exists
 end
