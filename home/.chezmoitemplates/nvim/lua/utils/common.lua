@@ -1,10 +1,10 @@
 local M = {}
 
-M.OS = vim.loop.os_uname().sysname
+M.OS = vim.uv.os_uname().sysname
 M.IS_MAC = M.OS == 'Darwin'
 M.IS_LINUX = M.OS == 'Linux'
 M.IS_WINDOWS = M.OS:find('Windows') and true or false
-M.IS_WSL = M.IS_LINUX and vim.loop.os_uname().release:find('Microsoft') and true or false
+M.IS_WSL = M.IS_LINUX and vim.uv.os_uname().release:find('Microsoft') and true or false
 
 ---@param bufnr number
 ---@return fun(keys: string, func: function, desc: string)
