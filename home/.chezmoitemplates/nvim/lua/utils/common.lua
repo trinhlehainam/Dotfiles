@@ -128,10 +128,6 @@ end
 ---@param value string
 ---@return boolean sent
 function M.wezterm_set_user_var(name, value)
-  if vim.env.WEZTERM_PANE == nil then
-    return false
-  end
-
   if #vim.api.nvim_list_uis() == 0 then
     return false
   end
