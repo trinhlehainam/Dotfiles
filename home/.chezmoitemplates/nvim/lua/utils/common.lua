@@ -127,9 +127,16 @@ end
 --- Encodes data to a base64 string.
 ---
 --- This function is a stable wrapper. On the first call it selects an
---- implementation (stored in `impl`) and caches it. Both the wrapper and the
---- cached `impl` share the same signature: `fun(data: string): string`.
---- Subsequent calls route directly to `impl` to avoid repeated feature checks.
+--- implementation (stored in `impl`) and caches it.
+---
+--- Note: `impl` is a *lexically scoped upvalue* captured by the wrapper (closure),
+--- so it persists across calls without becoming a module global.
+--- Reference: Programming in Lua, 6.1 “Lexical Scoping”
+--- https://www.lua.org/pil/6.1.html
+---
+--- Both the wrapper and the cached `impl` share the same signature:
+--- `fun(data: string): string`. Subsequent calls route directly to `impl` to
+--- avoid repeated feature checks.
 ---
 --- Selection order:
 ---   1. `vim.base64.encode` (Neovim 0.9+)
