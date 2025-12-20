@@ -51,6 +51,27 @@ end
 local linux_shell_order = { 'bash', 'zsh', 'fish', 'nu' }
 local mac_shell_order = { 'zsh', 'bash', 'fish', 'nu' }
 
+---@type {exe: string, label: string, args: string[]}[]
+local win_shells = {
+  { exe = 'pwsh.exe', label = 'PowerShell 7', args = { 'pwsh.exe', '-NoLogo' } },
+  { exe = 'powershell.exe', label = 'PowerShell 5', args = { 'powershell.exe', '-NoLogo' } },
+  { exe = 'cmd.exe', label = 'Command Prompt', args = { 'cmd.exe' } },
+}
+
+---@param config Config
+local function set_default_win_prog(config)
+  if config.default_prog ~= nil then
+    return
+  end
+
+  for _, shell in ipairs(win_shells) do
+    if executable.exists(shell.exe) then
+      config.default_prog = shell.args
+      return
+    end
+  end
+end
+
 ---@type ConfigModule
 return {
   -- Note: `executable.exists()` uses `wezterm.run_child_process`, which must not be
@@ -61,20 +82,9 @@ return {
     local launch_menu = {}
 
     if platform.is_win then
-      add_if_exists(launch_menu, 'pwsh.exe', {
-        label = 'PowerShell 7',
-        args = { 'pwsh.exe', '-NoLogo' },
-      })
-
-      add_if_exists(launch_menu, 'powershell.exe', {
-        label = 'PowerShell 5',
-        args = { 'powershell.exe', '-NoLogo' },
-      })
-
-      add_if_exists(launch_menu, 'cmd.exe', {
-        label = 'Command Prompt',
-        args = { 'cmd.exe' },
-      })
+      for _, shell in ipairs(win_shells) do
+        add_if_exists(launch_menu, shell.exe, { label = shell.label, args = shell.args })
+      end
 
       if executable.exists('wsl.exe') then
         for _, domain in ipairs(wsl.domains()) do
@@ -94,7 +104,9 @@ return {
       config.launch_menu = launch_menu
     end
 
-    if platform.is_linux then
+    if platform.is_win then
+      set_default_win_prog(config)
+    elseif platform.is_linux then
       set_default_unix_prog(config, linux_shell_order)
     elseif platform.is_mac then
       set_default_unix_prog(config, mac_shell_order)
