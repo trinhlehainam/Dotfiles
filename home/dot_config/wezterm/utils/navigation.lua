@@ -83,14 +83,14 @@ end
 ---@param key string Key (e.g. `'h'`).
 ---@param direction NavigationDirection Direction to move/activate.
 ---@param opts? NavigationMoveOpts Optional overrides.
----@return KeyBinding
+---@return Key
 function M.move(key, direction, opts)
   local options = opts or {}
   local mods = options.mods or 'CTRL'
 
   local act = wezterm.action ---@type Action
 
-  ---@type KeyBinding
+  ---@type Key
   return {
     key = key,
     mods = mods,
@@ -116,7 +116,7 @@ end
 ---@param key string Key (e.g. `','`).
 ---@param direction NavigationDirection Direction to resize toward.
 ---@param opts? NavigationResizeOpts Optional overrides.
----@return KeyBinding
+---@return Key
 function M.resize(key, direction, opts)
   local options = opts or {}
   local mods = options.mods or 'META'
@@ -124,7 +124,7 @@ function M.resize(key, direction, opts)
 
   local act = wezterm.action ---@type Action
 
-  ---@type KeyBinding
+  ---@type Key
   return {
     key = key,
     mods = mods,
