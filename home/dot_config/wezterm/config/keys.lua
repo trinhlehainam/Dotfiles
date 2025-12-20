@@ -24,7 +24,20 @@ return {
     config.key_tables = {
       tmux = {
         { key = '-', action = act.SplitVertical({ domain = 'CurrentPaneDomain' }) },
-        { key = '|', action = act.SplitHorizontal({ domain = 'CurrentPaneDomain' }) },
+        -- `|` is typically produced by holding SHIFT (eg: SHIFT+\\ on US layout),
+        -- so the binding needs to include the modifier.
+        {
+          key = 'mapped:|',
+          mods = 'SHIFT',
+          action = act.SplitHorizontal({ domain = 'CurrentPaneDomain' }),
+        },
+        -- Some layouts produce `|` via AltGr, which is reported
+        -- as `CTRL|ALT` on Linux.
+        {
+          key = 'mapped:|',
+          mods = 'CTRL|ALT',
+          action = act.SplitHorizontal({ domain = 'CurrentPaneDomain' }),
+        },
         { key = 'c', action = act.SpawnTab('CurrentPaneDomain') },
         { key = 'n', action = act.ActivateTabRelative(1) },
         { key = 'p', action = act.ActivateTabRelative(-1) },
