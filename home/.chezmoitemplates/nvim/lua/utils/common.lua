@@ -1,33 +1,40 @@
 local M = {}
 
+local log = require('utils.log')
+
 M.OS = vim.uv.os_uname().sysname
 M.IS_MAC = M.OS == 'Darwin'
 M.IS_LINUX = M.OS == 'Linux'
 M.IS_WINDOWS = M.OS:find('Windows') and true or false
-M.IS_WSL = M.IS_LINUX and vim.uv.os_uname().release:find('Microsoft') and true or false
+M.IS_WSL = M.IS_LINUX
+  and (vim.uv.os_uname().release:lower():find('microsoft') ~= nil
+    or vim.uv.os_uname().release:lower():find('wsl') ~= nil)
 
+---@param mode string|string[]
 ---@param bufnr number
----@return fun(keys: string, func: function, desc: string)
-function M.create_nmap(bufnr)
+---@param prefix? string
+---@return fun(keys: string, func: function|string, desc?: string)
+function M.create_map(mode, bufnr, prefix)
   return function(keys, func, desc)
-    if desc then
-      desc = 'LSP: ' .. desc
-    end
-
-    vim.keymap.set('n', keys, func, { buffer = bufnr, desc = desc })
+    vim.keymap.set(mode, keys, func, {
+      buffer = bufnr,
+      desc = (prefix and desc) and (prefix .. ': ' .. desc) or desc,
+    })
   end
 end
 
 ---@param bufnr number
----@return fun(keys: string, func: function, desc: string)
-function M.create_vmap(bufnr)
-  return function(keys, func, desc)
-    if desc then
-      desc = 'LSP: ' .. desc
-    end
+---@param prefix? string
+---@return fun(keys: string, func: function|string, desc?: string)
+function M.create_nmap(bufnr, prefix)
+  return M.create_map('n', bufnr, prefix or 'LSP')
+end
 
-    vim.keymap.set('v', keys, func, { buffer = bufnr, desc = desc })
-  end
+---@param bufnr number
+---@param prefix? string
+---@return fun(keys: string, func: function|string, desc?: string)
+function M.create_vmap(bufnr, prefix)
+  return M.create_map('v', bufnr, prefix or 'LSP')
 end
 
 ---@param modname string
@@ -37,48 +44,83 @@ function M.modname_to_dir_path(modname)
   return vim.fn.stdpath('config') .. '/lua/' .. path
 end
 
----@param directory string
----@param ignore_mods string[]
----@return table<string, any>
+--- Loads all Lua modules from a directory.
+--- Only loads `.lua` files directly in the directory (not subdirectories or init.lua patterns).
+--- Each module is keyed by its filename without the `.lua` extension.
+---@param directory string Absolute path to a directory inside `/lua/`
+---@param ignore_mods? string[] List of module names (without `.lua`) to skip
+---@return table<string, any> Map of module name to loaded module
 function M.load_mods_in_dir(directory, ignore_mods)
   local mods = {}
-  local mods_dirname = string.match(directory, '/lua/(.-)/?$')
-  for _, filename in ipairs(vim.fn.readdir(directory)) do
-    if filename:match('%.lua$') then
-      local modname = filename:match('^(.-)%.lua$')
-      if not ignore_mods or not vim.tbl_contains(ignore_mods, modname) then
-        mods[modname] = require(mods_dirname .. '.' .. modname)
+  local mods_dirname = directory:match('/lua/(.-)/?$')
+
+  if not mods_dirname then
+    log.error('load_mods_in_dir: could not extract module path from: ' .. directory)
+    return mods
+  end
+
+  local ok, files = pcall(vim.fn.readdir, directory)
+  if not ok or not files then
+    log.warn('load_mods_in_dir: could not read directory: ' .. directory)
+    return mods
+  end
+
+  -- Build ignore set for O(1) lookup
+  local ignore_set = {}
+  if ignore_mods then
+    for _, m in ipairs(ignore_mods) do
+      ignore_set[m] = true
+    end
+  end
+
+  for _, filename in ipairs(files) do
+    local modname = filename:match('^(.+)%.lua$')
+    if modname and not ignore_set[modname] then
+      local full_modname = mods_dirname:gsub('/', '.') .. '.' .. modname
+      local success, mod = pcall(require, full_modname)
+      if success then
+        mods[modname] = mod
+      else
+        log.warn('load_mods_in_dir: failed to load ' .. full_modname .. ': ' .. tostring(mod))
       end
     end
   end
+
   return mods
 end
 
 ---@param modname string
----@param ignore_mods string[]
+---@param ignore_mods? string[]
 ---@return table<string, any>
 function M.load_mods(modname, ignore_mods)
   local mods_dir = M.modname_to_dir_path(modname)
   return M.load_mods_in_dir(mods_dir, ignore_mods)
 end
 
--- Function to create a temporary file with a specific extension
---- @param extension string?
---- @return string
+---@param extension? string
+---@return string
 function M.create_temp_file(extension)
-  -- Generate a temporary filename
   local temp_file = os.tmpname()
 
-  if type(extension) == 'nil' then
+  if not extension or extension == '' then
     return temp_file
   end
 
-  -- Rename the file to have the desired extension
   local temp_file_with_extension = temp_file .. '.' .. extension
-  os.rename(temp_file, temp_file_with_extension)
+  local success, err = os.rename(temp_file, temp_file_with_extension)
+  if not success then
+    log.warn('create_temp_file: failed to rename temp file: ' .. tostring(err))
+    return temp_file
+  end
+
   return temp_file_with_extension
 end
 
+--- Encodes data to base64 string.
+--- Fallback order:
+---   1. vim.base64.encode (Neovim 0.9+, fastest)
+---   2. External `base64` command (slower, spawns process)
+---   3. LuaJIT bit library implementation (pure Lua fallback)
 ---@param data string
 ---@return string
 local function base64_encode(data)
