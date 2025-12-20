@@ -3,19 +3,28 @@ local platform = require('utils.platform')
 ---@type ConfigModule
 return {
   apply_to_config = function(config)
+    config.max_fps = 120
+    config.front_end = 'WebGpu'
+    config.webgpu_power_preference = 'HighPerformance'
+
+    -- cursor
+    config.animation_fps = 60
+
+    -- color scheme
+    config.color_scheme = 'Gruvbox dark, hard (base16)'
+
+    -- tab bar
     config.use_fancy_tab_bar = false
     config.hide_tab_bar_if_only_one_tab = false
     config.tab_max_width = 25
 
+    -- window
     config.window_padding = {
       left = 8,
       right = 8,
       top = 8,
       bottom = 8,
     }
-
-    config.initial_cols = 120
-    config.initial_rows = 30
 
     if platform.is_win then
       config.win32_system_backdrop = 'Disable'

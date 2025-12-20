@@ -1,6 +1,7 @@
 local Config = require('config')
 
 return Config:init()
+  :event(require('events.gui_startup'))
   :event(require('events.open_uri'))
   :load(require('config.general'))
   :load(require('config.fonts'))

@@ -2,11 +2,6 @@
 
 A small, modular WezTerm config written in Lua.
 
-- Entry point: `wezterm.lua`
-- Config fragments: `config/*.lua` (each exports `apply_to_config(config)`)
-- Event handlers: `events/*.lua`
-- Helper modules: `utils/*.lua`
-
 ## References / inspiration
 
 This configuration borrows ideas and small implementation details from:
