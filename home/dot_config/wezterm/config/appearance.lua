@@ -11,7 +11,7 @@ return {
     config.animation_fps = 120
 
     -- color scheme
-    config.color_scheme = 'Gruvbox dark, hard (base16)'
+    config.color_scheme = 'Catppuccin Mocha'
 
     -- tab bar
     config.use_fancy_tab_bar = false
