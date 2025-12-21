@@ -83,15 +83,15 @@ return {
       end
     end
 
-    -- Normal-mode: accept NES if pending, otherwise fallback to default <C-y>
+    -- Normal-mode: accept NES if pending
     vim.keymap.set('n', '<C-y>', function()
       if has_nes() then
         apply_nes()
       end
     end, { desc = 'Accept Copilot NES', silent = true })
 
-    -- Insert-mode: accept suggestion or NES, otherwise fallback to default <C-y>
-    -- Priority: 1) inline suggestion  2) NES  3) default <C-y>
+    -- Insert-mode: accept suggestion or NES
+    -- Priority: 1) inline suggestion  2) NES
     vim.keymap.set('i', '<C-y>', function()
       -- 1) Inline suggestion from copilot.lua
       local ok, suggestion = pcall(require, 'copilot.suggestion')
