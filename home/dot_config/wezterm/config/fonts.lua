@@ -1,14 +1,21 @@
-local wezterm = require("wezterm")
-local platform = require("utils.platform")
+local wezterm = require('wezterm') ---@type Wezterm
 
-local font = "JetBrainsMono Nerd Font"
-local font_size = platform().is_mac and 12 or 12
+---@type Fonts
+local font = wezterm.font_with_fallback({
+  { family = 'JetBrainsMono Nerd Font', weight = 'Thin' },
+})
 
+---@type ConfigModule
 return {
-	font = wezterm.font(font),
-	font_size = font_size,
+  apply_to_config = function(config)
+    config.font = font
+    config.font_size = 12.0
+    config.line_height = 1
+    config.cell_width = 1
+    config.use_cap_height_to_scale_fallback_fonts = true
+    config.allow_square_glyphs_to_overflow_width = 'WhenFollowedBySpace'
 
-	--ref: https://wezfurlong.org/wezterm/config/lua/config/freetype_pcf_long_family_names.html#why-doesnt-wezterm-use-the-distro-freetype-or-match-its-configuration
-	freetype_load_target = "Normal", ---@type 'Normal'|'Light'|'Mono'|'HorizontalLcd'
-	freetype_render_target = "Normal", ---@type 'Normal'|'Light'|'Mono'|'HorizontalLcd'
+    config.freetype_load_target = 'Light'
+    config.freetype_render_target = 'HorizontalLcd'
+  end,
 }

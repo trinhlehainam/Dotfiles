@@ -19,9 +19,8 @@ end
 ---@param level number
 ---@return fun(message: string)
 local notify_fn = function(level)
-  return
   ---@param message string
-  function(message)
+  return function(message)
     -- Use vim.schedule for non-blocking execution on next event loop iteration
     vim.schedule(function()
       local notify = get_notify()

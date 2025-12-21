@@ -1,60 +1,36 @@
-local wezterm = require("wezterm")
--- local gpu_adapters = require("utils.gpu_adapter")
+local platform = require('utils.platform')
 
+---@type ConfigModule
 return {
-	animation_fps = 60,
-	max_fps = 60,
-	-- NOTE: WebGPU is unstable in this wezterm version
-	-- front_end = "WebGpu",
-	-- webgpu_power_preference = "HighPerformance",
-	-- webgpu_preferred_adapter = gpu_adapters:pick_best(),
+  apply_to_config = function(config)
+    config.max_fps = 120
+    config.front_end = 'WebGpu'
+    config.webgpu_power_preference = 'HighPerformance'
 
-	-- color scheme
-	-- https://wezfurlong.org/wezterm/colorschemes/index.html
-	color_scheme = "Gruvbox dark, hard (base16)",
+    -- cursor
+    config.animation_fps = 120
 
-	-- background
-	-- background = {
-	--    {
-	--       source = { File = wezterm.GLOBAL.background },
-	--       horizontal_align = 'Center',
-	--    },
-	--    {
-	--       source = { Color = colors.background },
-	--       height = '100%',
-	--       width = '100%',
-	--       opacity = 0.96,
-	--    },
-	-- },
+    -- color scheme
+    config.color_scheme = 'Catppuccin Mocha'
 
-	window_background_opacity = 0.8,
+    -- tab bar
+    config.use_fancy_tab_bar = false
+    config.hide_tab_bar_if_only_one_tab = false
+    config.tab_max_width = 25
 
-	-- scrollbar
-	enable_scroll_bar = true,
+    -- window
+    config.window_padding = {
+      left = 8,
+      right = 8,
+      top = 8,
+      bottom = 8,
+    }
 
-	-- tab bar
-	enable_tab_bar = true,
-	hide_tab_bar_if_only_one_tab = false,
-	use_fancy_tab_bar = true,
-	tab_max_width = 25,
-	show_tab_index_in_tab_bar = false,
-	switch_to_last_active_tab_when_closing_tab = true,
-
-	-- window
-	window_padding = {
-		left = 5,
-		right = 10,
-		top = 12,
-		bottom = 7,
-	},
-	window_close_confirmation = "NeverPrompt",
-	window_frame = {
-		active_titlebar_bg = "#090909",
-		-- font = fonts.font,
-		-- font_size = fonts.font_size,
-	},
-	inactive_pane_hsb = {
-		saturation = 0.9,
-		brightness = 0.65,
-	},
+    if platform.is_win then
+      config.win32_system_backdrop = 'Disable'
+      config.window_background_opacity = 0.6
+      config.window_decorations = 'INTEGRATED_BUTTONS|RESIZE'
+      config.integrated_title_button_style = 'Windows'
+    end
+  end,
 }
