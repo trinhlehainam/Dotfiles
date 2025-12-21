@@ -24,10 +24,6 @@ return {
       end,
     })
 
-    if vim.v.vim_did_enter == 1 then
-      common.wezterm_set_user_var('IS_NVIM', 'true')
-    end
-
     require('smart-splits.api')
     local smart_splits = require('smart-splits')
     -- https://github.com/mrjones2014/smart-splits.nvim?tab=readme-ov-file#configuration

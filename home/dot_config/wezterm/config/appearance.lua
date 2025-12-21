@@ -8,7 +8,7 @@ return {
     config.webgpu_power_preference = 'HighPerformance'
 
     -- cursor
-    config.animation_fps = 60
+    config.animation_fps = 120
 
     -- color scheme
     config.color_scheme = 'Gruvbox dark, hard (base16)'
