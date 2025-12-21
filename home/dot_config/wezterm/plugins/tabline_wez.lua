@@ -4,7 +4,7 @@ local tabline = wezterm.plugin.require('https://github.com/michaelbrusegard/tabl
 tabline.setup({
   options = {
     icons_enabled = true,
-    theme = 'Gruvbox dark, hard (base16)',
+    theme = 'Catppuccin Mocha',
     tabs_enabled = true,
     theme_overrides = {},
     section_separators = {
