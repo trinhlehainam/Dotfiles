@@ -63,55 +63,48 @@ return {
       require('copilot.suggestion').toggle_auto_trigger()
     end, { desc = '[T]oggle [C]opilot suggestions' })
 
-    -- Normal-mode: keep a dedicated key for NES acceptance.
-    -- If there's an NES pending, accept/apply it; otherwise preserve the default
-    -- `<C-y>` behavior (scroll up).
-    vim.keymap.set('n', '<C-y>', function()
-      local bufnr = vim.api.nvim_get_current_buf()
-      local nes_ok, nes = pcall(require, 'copilot-lsp.nes')
+    --- Check if NES is available in current buffer.
+    --- @return boolean
+    local function has_nes()
+      return vim.b[vim.api.nvim_get_current_buf()].nes_state ~= nil
+    end
 
-      if nes_ok and vim.b[bufnr].nes_state then
-        local _ = nes.walk_cursor_start_edit()
-          or (nes.apply_pending_nes() and nes.walk_cursor_end_edit())
-        return ''
+    --- Apply pending NES edit. Must be called from normal mode.
+    --- Jumps to edit start first; if already there, applies and jumps to end.
+    local function apply_nes()
+      local ok, nes = pcall(require, 'copilot-lsp.nes')
+      if not ok then
+        return
       end
+      if not nes.walk_cursor_start_edit() then
+        if nes.apply_pending_nes() then
+          nes.walk_cursor_end_edit()
+        end
+      end
+    end
 
-      return '<C-i>'
-    end, { desc = 'Accept Copilot NES (fallback: <C-y>)', expr = true, silent = true })
+    -- Normal-mode: accept NES if pending, otherwise fallback to default <C-y>
+    vim.keymap.set('n', '<C-y>', function()
+      if has_nes() then
+        apply_nes()
+      end
+    end, { desc = 'Accept Copilot NES', silent = true })
 
-    -- One key to accept "the thing Copilot is offering".
-    -- Priority:
-    --   1) `copilot.lua` inline suggestion (ghost text)
-    --   2) `copilot-lsp` NES (next edit suggestion)
-    --   3) fallback to default <C-y>
+    -- Insert-mode: accept suggestion or NES, otherwise fallback to default <C-y>
+    -- Priority: 1) inline suggestion  2) NES  3) default <C-y>
     vim.keymap.set('i', '<C-y>', function()
-      local suggestion_ok, suggestion = pcall(require, 'copilot.suggestion')
-      if suggestion_ok and suggestion.is_visible() then
+      -- 1) Inline suggestion from copilot.lua
+      local ok, suggestion = pcall(require, 'copilot.suggestion')
+      if ok and suggestion.is_visible() then
         suggestion.accept()
         return
       end
 
-      local bufnr = vim.api.nvim_get_current_buf()
-      local nes_ok, nes = pcall(require, 'copilot-lsp.nes')
-      if nes_ok and vim.b[bufnr].nes_state then
-        -- NES is applied from normal-mode; briefly exit insert-mode, apply,
-        -- then return to insert-mode.
-        vim.api.nvim_feedkeys(
-          vim.api.nvim_replace_termcodes('<Esc>', true, false, true),
-          'n',
-          false
-        )
-        vim.schedule(function()
-          nes.walk_cursor_start_edit()
-          if nes.apply_pending_nes() then
-            nes.walk_cursor_end_edit()
-          end
-          vim.cmd('startinsert')
-        end)
-        return
+      -- 2) NES from copilot-lsp (needs normal mode to apply)
+      if has_nes() then
+        vim.cmd('stopinsert')
+        apply_nes()
       end
-
-      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<C-y>', true, false, true), 'n', false)
     end, { desc = 'Accept Copilot suggestion/NES', silent = true })
   end,
 }
