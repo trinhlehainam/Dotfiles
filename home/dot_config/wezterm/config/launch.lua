@@ -14,7 +14,11 @@ local unix = {
 -- Windows shells
 local win = {
   pwsh = { exe = 'pwsh.exe', label = 'PowerShell 7', args = { 'pwsh.exe', '-NoLogo' } },
-  powershell = { exe = 'powershell.exe', label = 'PowerShell 5', args = { 'powershell.exe', '-NoLogo' } },
+  powershell = {
+    exe = 'powershell.exe',
+    label = 'PowerShell 5',
+    args = { 'powershell.exe', '-NoLogo' },
+  },
   cmd = { exe = 'cmd.exe', label = 'Command Prompt', args = { 'cmd.exe' } },
 }
 
@@ -25,22 +29,22 @@ local shells = {
   windows = { win.pwsh, win.powershell, win.cmd },
 }
 
-local function add_shells(launch_menu)
-  for _, shell in ipairs(shells[platform.os] or {}) do
+-- Adds `launch_menu` entries, and sets `default_prog` (if unset).
+--- @param config Config
+--- @param launch_menu SpawnCommand[]
+local function add_shells(config, launch_menu)
+  local platform_shells = shells[platform.os] or {}
+  if platform.is_win then
+    config.default_prog = nil
+  end
+
+  for _, shell in ipairs(platform_shells) do
     if executable.exists(shell.exe) then
       table.insert(launch_menu, { label = shell.label, args = shell.args })
-    end
-  end
-end
 
-local function set_default_prog(config)
-  if config.default_prog then
-    return
-  end
-  for _, shell in ipairs(shells[platform.os] or {}) do
-    if executable.exists(shell.exe) then
-      config.default_prog = shell.args
-      return
+      if config.default_prog == nil then
+        config.default_prog = shell.args
+      end
     end
   end
 end
@@ -49,19 +53,29 @@ local function add_wsl_distributions(launch_menu)
   if not executable.exists('wsl.exe') then
     return
   end
+
   for _, domain in ipairs(wsl.domains()) do
-    table.insert(launch_menu, {
-      label = domain.distribution,
-      args = { 'wsl.exe', '-d', domain.distribution },
-    })
+    local distro = (domain.distribution or domain.name)
+    if distro then
+      distro = distro:gsub('^WSL:', '')
+      table.insert(launch_menu, {
+        label = distro,
+        args = { 'wsl.exe', '-d', distro },
+      })
+    end
   end
 end
 
+--- @type ConfigModule
 return {
+  -- Note: `executable.exists()` uses `wezterm.run_child_process`, which must not be
+  -- invoked during module load (`require`). Only call it from this callback.
+  -- Ref: https://github.com/wezterm/wezterm/issues/6226
   apply_to_config = function(config)
+    --- @type SpawnCommand[]
     local launch_menu = {}
 
-    add_shells(launch_menu)
+    add_shells(config, launch_menu)
 
     if platform.is_win then
       add_wsl_distributions(launch_menu)
@@ -70,7 +84,5 @@ return {
     if #launch_menu > 0 then
       config.launch_menu = launch_menu
     end
-
-    set_default_prog(config)
   end,
 }
