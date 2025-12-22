@@ -11,6 +11,16 @@ local act = wezterm.action ---@type Action
 ---(middle-click paste). On other platforms, fall back to the regular clipboard.
 local copy_destination = platform.is_linux and 'ClipboardAndPrimarySelection' or 'Clipboard'
 
+--- @type MouseBindingBase[]
+local mouse_bindings = {
+  -- Ctrl-click will open the link under the mouse cursor
+  {
+    event = { Up = { streak = 1, button = 'Left' } },
+    mods = 'CTRL',
+    action = act.OpenLinkAtMouseCursor,
+  },
+}
+
 ---WezTerm config module that installs key-tables and key bindings.
 ---
 ---Notable behaviors:
@@ -73,5 +83,7 @@ return {
       navigation.resize('u', 'Up'),
       navigation.resize('.', 'Right'),
     }
+
+    config.mouse_bindings = mouse_bindings
   end,
 }
