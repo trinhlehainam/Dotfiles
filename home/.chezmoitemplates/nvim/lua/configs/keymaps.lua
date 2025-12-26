@@ -150,25 +150,8 @@ vim.api.nvim_create_autocmd('TermOpen', {
 })
 
 -- ============================================================================
--- BUFFER & TAB MANAGEMENT
+-- TAB MANAGEMENT
 -- ============================================================================
-
--- ----------------------------------------------------------------------------
--- Buffer Navigation
--- ----------------------------------------------------------------------------
-
--- Efficient buffer navigation using 'b' prefix
--- Mnemonic: b + direction/action
--- bh: Buffer home (first buffer)
--- bl: Buffer last (last buffer)
--- bj: Buffer previous (j for down/back in list)
--- bk: Buffer next (k for up/forward in list)
--- bc: Buffer close (close current buffer)
-vim.keymap.set('n', 'bh', ':bfirst<CR>', opts.nore) -- Go to first buffer
-vim.keymap.set('n', 'bl', ':blast<CR>', opts.nore) -- Go to last buffer
-vim.keymap.set('n', 'bj', ':bprevious<CR>', opts.nore) -- Go to previous buffer
-vim.keymap.set('n', 'bk', ':bnext<CR>', opts.nore) -- Go to next buffer
-vim.keymap.set('n', 'bc', ':bd<CR>', opts.nore) -- Close current buffer
 
 -- ----------------------------------------------------------------------------
 -- Tab Navigation
