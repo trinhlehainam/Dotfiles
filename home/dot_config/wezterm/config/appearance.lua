@@ -11,7 +11,7 @@ return {
     config.animation_fps = 120
 
     -- color scheme
-    config.color_scheme = 'Catppuccin Mocha'
+    config.color_scheme = 'Kanagawa (Gogh)'
 
     -- tab bar
     config.use_fancy_tab_bar = false
