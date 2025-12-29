@@ -12,10 +12,6 @@ return {
   {
     'f4z3r/gruvbox-material.nvim',
     name = 'gruvbox-material',
-    -- https://github.com/f4z3r/gruvbox-material.nvim?tab=readme-ov-file#usage-and-configuration
-    opts = {
-      constrast = 'hard',
-    },
   },
   {
     'catppuccin/nvim',
