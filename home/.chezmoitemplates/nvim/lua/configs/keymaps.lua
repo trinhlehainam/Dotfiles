@@ -115,10 +115,6 @@ local function set_terminal_keymaps()
   -- Quick escape from terminal mode using 'jk' (matches insert mode escape)
   vim.keymap.set('t', 'jk', [[<C-\><C-n>]], terminal_opts)
 
-  -- Enable window commands in terminal mode
-  -- Allows Ctrl-w followed by any window command (split, close, etc.)
-  vim.keymap.set('t', '<C-w>', [[<C-\><C-n><C-w>]], terminal_opts)
-
   local ok, smart_splits = pcall(require, 'smart-splits')
   if not ok then
     -- Fallback: Standard Vim window navigation
