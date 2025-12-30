@@ -12,13 +12,20 @@ local act = wezterm.action ---@type Action
 local copy_destination = platform.is_linux and 'ClipboardAndPrimarySelection' or 'Clipboard'
 
 -------------------------------------------------------------------------------
--- CSI u Escape Sequences
+-- CSI u Escape Sequences (tmux + TUI compatibility)
 -------------------------------------------------------------------------------
+-- Some TUIs (notably opencode) only recognize certain modified keys when they
+-- arrive in "CSI u" form.
+--
 -- Format: ESC [ <keycode> ; <modifier> u
--- Modifiers: 2=Shift, 5=Ctrl, 6=Ctrl+Shift
--- Reference: https://sw.kovidgoyal.net/kitty/keyboard-protocol/
+-- Enter/CR keycode: 13
+-- Modifiers used here: 2=Shift, 5=Ctrl, 6=Ctrl+Shift
+--
+-- References:
+-- - https://sw.kovidgoyal.net/kitty/keyboard-protocol/
+-- - https://github.com/sst/opencode/issues/1505#issuecomment-3411334883
 -------------------------------------------------------------------------------
-local CSI_U_ENTER = {
+local CSI_U = {
   SHIFT = '\x1b[13;2u',
   CTRL = '\x1b[13;5u',
   ['CTRL|SHIFT'] = '\x1b[13;6u',
@@ -28,27 +35,34 @@ local CSI_U_ENTER = {
 -- Conditional Action Helper
 -------------------------------------------------------------------------------
 
----Dispatch action based on pane predicate.
+---Dispatch action based on a pane predicate.
 ---@param predicate fun(pane: Pane): boolean
 ---@param on_true Action
 ---@param on_false Action
 ---@return Action
 local function when(predicate, on_true, on_false)
-  return wezterm.action_callback(function(win, p)
-    win:perform_action(predicate(p) and on_true or on_false, p)
+  return wezterm.action_callback(function(win, current_pane)
+    win:perform_action(predicate(current_pane) and on_true or on_false, current_pane)
   end)
 end
 
----Modifier+Enter binding: CSI u sequence in tmux, normal key otherwise.
----@param mods 'SHIFT'|'CTRL'|'CTRL|SHIFT'
+---@alias EnterMods 'SHIFT'|'CTRL'|'CTRL|SHIFT'
+
+---Modifier+Enter binding.
+---
+---In tmux: send CSI u so TUIs can distinguish modifier+Enter.
+---Outside tmux: send the normal key event.
+---@param mods EnterMods
 ---@return Key
-local function tmux_mods_enter(mods)
+local function tmux_mod_enter(mods)
+  local tmux_sequence = assert(CSI_U[mods], 'Missing CSI u sequence for mods: ' .. mods)
+
   return {
     key = 'Enter',
     mods = mods,
     action = when(
       pane.is_tmux,
-      act.SendString(CSI_U_ENTER[mods]),
+      act.SendString(tmux_sequence),
       act.SendKey({ key = 'Enter', mods = mods })
     ),
   }
@@ -101,9 +115,9 @@ return {
       { key = 'V', mods = 'CTRL|SHIFT', action = act.PasteFrom('Clipboard') },
 
       -- Modifier+Enter: CSI u in tmux, normal key otherwise
-      tmux_mods_enter('SHIFT'),
-      tmux_mods_enter('CTRL'),
-      tmux_mods_enter('CTRL|SHIFT'),
+      tmux_mod_enter('SHIFT'),
+      tmux_mod_enter('CTRL'),
+      tmux_mod_enter('CTRL|SHIFT'),
 
       -- Ctrl+a: passthrough in tmux, activate key-table otherwise
       {
