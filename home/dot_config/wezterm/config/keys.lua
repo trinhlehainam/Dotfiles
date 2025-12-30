@@ -12,16 +12,18 @@ local act = wezterm.action ---@type Action
 local copy_destination = platform.is_linux and 'ClipboardAndPrimarySelection' or 'Clipboard'
 
 -------------------------------------------------------------------------------
--- CSI u Escape Sequences (tmux + TUI compatibility)
+-- CSI u escape sequences
 -------------------------------------------------------------------------------
--- Some TUIs (notably opencode) only recognize certain modified keys when they
--- arrive in "CSI u" form.
+-- `\x1b` is ESC (0x1b). It starts terminal escape sequences.
 --
--- Format: ESC [ <keycode> ; <modifier> u
--- Enter/CR keycode: 13
--- Modifiers used here: 2=Shift, 5=Ctrl, 6=Ctrl+Shift
+-- CSI u format:
+--   ESC [ <keycode> ; <modifier> u
 --
--- References:
+-- Example (Ctrl+Enter):
+--   '\x1b[13;5u'   -- 13=Enter, 5=Ctrl
+--
+-- Refs:
+-- - https://wezterm.org/config/lua/keyassignment/SendString.html
 -- - https://sw.kovidgoyal.net/kitty/keyboard-protocol/
 -- - https://github.com/sst/opencode/issues/1505#issuecomment-3411334883
 -------------------------------------------------------------------------------
