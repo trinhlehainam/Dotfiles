@@ -11,6 +11,75 @@ local act = wezterm.action ---@type Action
 ---(middle-click paste). On other platforms, fall back to the regular clipboard.
 local copy_destination = platform.is_linux and 'ClipboardAndPrimarySelection' or 'Clipboard'
 
+-------------------------------------------------------------------------------
+-- CSI u escape sequences
+-------------------------------------------------------------------------------
+-- `\x1b` is ESC (0x1b). It starts terminal escape sequences.
+--
+-- CSI u format:
+--   ESC [ <keycode> ; <modifier> u
+--
+-- Example (Ctrl+Enter):
+--   '\x1b[13;5u'   -- 13=Enter, 5=Ctrl
+--
+-- Refs:
+-- - https://wezterm.org/config/lua/keyassignment/SendString.html
+-- - https://sw.kovidgoyal.net/kitty/keyboard-protocol/
+-- - https://github.com/sst/opencode/issues/1505#issuecomment-3411334883
+-------------------------------------------------------------------------------
+local CSI_U = {
+  SHIFT = '\x1b[13;2u',
+  CTRL = '\x1b[13;5u',
+  ['CTRL|SHIFT'] = '\x1b[13;6u',
+}
+
+-------------------------------------------------------------------------------
+-- Conditional Action Helper
+-------------------------------------------------------------------------------
+
+---Dispatch action based on a pane predicate.
+---@param predicate fun(pane: Pane): boolean
+---@param on_true ActionClass|ActionFuncClass
+---@param on_false ActionClass|ActionFuncClass
+---@return Action
+local function when(predicate, on_true, on_false)
+  return wezterm.action_callback(function(win, current_pane)
+    win:perform_action(predicate(current_pane) and on_true or on_false, current_pane)
+  end)
+end
+
+---@alias EnterMods 'SHIFT'|'CTRL'|'CTRL|SHIFT'
+
+---Modifier+Enter binding.
+---
+---In tmux: send CSI u so TUIs can distinguish modifier+Enter.
+---Outside tmux: send the normal key event.
+---@param mods EnterMods
+---@return Key
+local function tmux_mod_enter(mods)
+  local tmux_sequence = assert(CSI_U[mods], 'Missing CSI u sequence for mods: ' .. mods)
+
+  return {
+    key = 'Enter',
+    mods = mods,
+    action = when(
+      pane.is_tmux,
+      act.SendString(tmux_sequence),
+      act.SendKey({ key = 'Enter', mods = mods })
+    ),
+  }
+end
+
+--- @type MouseBindingBase[]
+local mouse_bindings = {
+  -- Ctrl-click will open the link under the mouse cursor
+  {
+    event = { Up = { streak = 1, button = 'Left' } },
+    mods = 'CTRL',
+    action = act.OpenLinkAtMouseCursor,
+  },
+}
+
 ---WezTerm config module that installs key-tables and key bindings.
 ---
 ---Notable behaviors:
@@ -47,20 +116,20 @@ return {
       { key = 'C', mods = 'CTRL|SHIFT', action = act.CopyTo(copy_destination) },
       { key = 'V', mods = 'CTRL|SHIFT', action = act.PasteFrom('Clipboard') },
 
+      -- Modifier+Enter: CSI u in tmux, normal key otherwise
+      tmux_mod_enter('SHIFT'),
+      tmux_mod_enter('CTRL'),
+      tmux_mod_enter('CTRL|SHIFT'),
+
+      -- Ctrl+a: passthrough in tmux, activate key-table otherwise
       {
         key = 'a',
         mods = 'CTRL',
-        action = wezterm.action_callback(function(win, current_pane)
-          if pane.is_tmux(current_pane) then
-            win:perform_action(act.SendKey({ key = 'a', mods = 'CTRL' }), current_pane)
-            return
-          end
-
-          win:perform_action(
-            act.ActivateKeyTable({ name = 'tmux', one_shot = true, timeout_milliseconds = 1000 }),
-            current_pane
-          )
-        end),
+        action = when(
+          pane.is_tmux,
+          act.SendKey({ key = 'a', mods = 'CTRL' }),
+          act.ActivateKeyTable({ name = 'tmux', one_shot = true, timeout_milliseconds = 1000 })
+        ),
       },
 
       navigation.move('h', 'Left'),
@@ -73,5 +142,7 @@ return {
       navigation.resize('u', 'Up'),
       navigation.resize('.', 'Right'),
     }
+
+    config.mouse_bindings = mouse_bindings
   end,
 }

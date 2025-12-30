@@ -55,6 +55,12 @@ return {
         vim.keymap.set('t', '<C-A-u>', function()
           send_to_terminal('\x1b\x15')
         end, opts)
+
+        -- Ctrl-W (0x17) for delete word backward
+        -- Bypasses Neovim's window command prefix
+        vim.keymap.set('t', '<C-w>', function()
+          send_to_terminal('\x17')
+        end, opts)
       end,
     })
   end,

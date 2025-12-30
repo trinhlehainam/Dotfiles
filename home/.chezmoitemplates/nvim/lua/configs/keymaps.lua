@@ -102,7 +102,6 @@ vim.keymap.set('i', '<C-e>', '<Esc>%%a', opts.nore)
 --
 -- Key Behaviors:
 -- - jk: Leave terminal-mode (same "jk" escape as insert mode)
--- - Ctrl-w: Enter window-command mode from terminal buffers
 -- - Ctrl-h/j/k/l: Move across splits, and possibly tmux panes via smart-splits
 --
 -- Reference: https://github.com/akinsho/toggleterm.nvim?tab=readme-ov-file#terminal-window-mappings
@@ -114,10 +113,6 @@ local function set_terminal_keymaps()
 
   -- Quick escape from terminal mode using 'jk' (matches insert mode escape)
   vim.keymap.set('t', 'jk', [[<C-\><C-n>]], terminal_opts)
-
-  -- Enable window commands in terminal mode
-  -- Allows Ctrl-w followed by any window command (split, close, etc.)
-  vim.keymap.set('t', '<C-w>', [[<C-\><C-n><C-w>]], terminal_opts)
 
   local ok, smart_splits = pcall(require, 'smart-splits')
   if not ok then
@@ -150,25 +145,8 @@ vim.api.nvim_create_autocmd('TermOpen', {
 })
 
 -- ============================================================================
--- BUFFER & TAB MANAGEMENT
+-- TAB MANAGEMENT
 -- ============================================================================
-
--- ----------------------------------------------------------------------------
--- Buffer Navigation
--- ----------------------------------------------------------------------------
-
--- Efficient buffer navigation using 'b' prefix
--- Mnemonic: b + direction/action
--- bh: Buffer home (first buffer)
--- bl: Buffer last (last buffer)
--- bj: Buffer previous (j for down/back in list)
--- bk: Buffer next (k for up/forward in list)
--- bc: Buffer close (close current buffer)
-vim.keymap.set('n', 'bh', ':bfirst<CR>', opts.nore) -- Go to first buffer
-vim.keymap.set('n', 'bl', ':blast<CR>', opts.nore) -- Go to last buffer
-vim.keymap.set('n', 'bj', ':bprevious<CR>', opts.nore) -- Go to previous buffer
-vim.keymap.set('n', 'bk', ':bnext<CR>', opts.nore) -- Go to next buffer
-vim.keymap.set('n', 'bc', ':bd<CR>', opts.nore) -- Close current buffer
 
 -- ----------------------------------------------------------------------------
 -- Tab Navigation
