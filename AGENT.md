@@ -1,97 +1,33 @@
-# AGENT.md
+# AGENT
 
-Chezmoi dotfiles for Windows/macOS/Linux. Neovim, WezTerm, Nushell, PowerShell configs.
+Chezmoi dotfiles (Win/macOS/Linux). Main areas: Neovim, WezTerm, shells.
 
-## Commands
+## Do / Don't
+
+- Neovim source of truth: `home/.chezmoitemplates/nvim/` (edit here)
+- Neovim generated templates: `home/dot_config/nvim/**.tmpl` (avoid hand-editing)
+- WezTerm: `home/dot_config/wezterm/` (edit directly)
+
+## Common Commands
 
 ```bash
-chezmoi apply          # Apply configs
-chezmoi apply -n -v    # Dry-run verbose
-chezmoi diff           # Preview changes
-chezmoi doctor         # Check issues
-stylua <path>          # Format Lua
+chezmoi diff
+chezmoi apply
+chezmoi apply -n -v
+chezmoi doctor
+stylua <path>
 ```
 
-## Structure
+## Neovim: Add Language Support
 
-```
-home/.chezmoitemplates/nvim/    # Neovim source (EDIT HERE)
-home/dot_config/nvim/*.tmpl     # Auto-generated (DO NOT EDIT)
-home/dot_config/wezterm/        # WezTerm (edit directly)
-home/AppData/                   # Windows configs
-```
+- Add module: `home/.chezmoitemplates/nvim/lua/configs/lsp/<lang>.lua`
+- Return `require('configs.lsp.base'):new()` with:
+  - `M.treesitter.filetypes = { ... }`
+  - `M.lspconfigs = { ... }` (use `require('configs.lsp.lspconfig'):new(server, mason_pkg)`)
+  - Optional: `M.formatterconfig`, `M.linterconfig`, `M.dapconfigs`, `M.neotest_adapter_setup`
 
-## Lua Style
+## Lua Conventions
 
-Config: 100 cols, 2-space indent, single quotes, Unix LF
-
-```lua
--- Module pattern
----@class custom.Name
-local M = {}
-function M:new() return setmetatable({}, { __index = M }) end
-return M
-
--- Optional require
-local ok, mod = pcall(require, 'module')
-if not ok then return end
-```
-
-Naming: `snake_case` functions/vars, `PascalCase` classes, `UPPER_CASE` constants
-
-Types: Use `---@param`, `---@return`, `---@class`, `---@type`
-
-## Neovim
-
-Stack: lazy.nvim, nvim-lspconfig, mason.nvim, blink.cmp, conform.nvim, nvim-lint, snacks.nvim
-
-### Add Language Support
-
-Create `home/.chezmoitemplates/nvim/lua/configs/lsp/<lang>.lua`:
-
-```lua
-local LspConfig = require('configs.lsp.lspconfig')
-local M = require('configs.lsp.base'):new()
-
-local lsp = LspConfig:new('server', 'mason-pkg')
-lsp.config = { settings = {} }
-table.insert(M.lspconfigs, lsp)
-
-M.treesitter.filetypes = { 'ft' }
-M.formatterconfig = { servers = { 'fmt' }, formatters_by_ft = { ft = { 'fmt' } } }
-
-return M
-```
-
-### Keys
-
-Leader=`<Space>`, `jk`=Esc, `<leader>sf`=files, `<leader>sg`=grep, `<leader>fm`=format
-
-## WezTerm
-
-Edit `home/dot_config/wezterm/`. Modules: `{ apply_to_config = function(c) ... end }`
-
-## Platform Detection
-
-```lua
--- Neovim
-local u = require('utils.common')
-if u.IS_WINDOWS then end
-
--- WezTerm
-local p = require('utils.platform')
-if p.is_win then end
-```
-
-## Paths
-
-| OS | Config |
-|----|--------|
-| Unix | `~/.config/` |
-| Win | `~/AppData/Local/` |
-
-## Shell
-
-Bash: 4+, `[[ ]]`, quote vars, shellcheck
-
-PowerShell: approved verbs, `Join-Path`
+- Formatting via `.stylua.toml` (2 spaces, ~100 cols)
+- Naming: `snake_case` vars/functions, `PascalCase` types, `UPPER_CASE` constants
+- Types: `---@param`, `---@return`, `---@class`, `---@type`
