@@ -38,7 +38,7 @@ roslyn.config = {
 }
 M.lspconfigs = { roslyn }
 
---- @see https://github.com/GustavEikaas/easy-dotnet.nvim/blob/main/docs/debugging.md
+--- @source https://github.com/GustavEikaas/easy-dotnet.nvim/blob/main/docs/debugging.md
 --- @type custom.DapConfig
 local coreclr = {
   type = 'coreclr',

@@ -70,6 +70,7 @@ local function tmux_mod_enter(mods)
   }
 end
 
+--- @source https://wezterm.org/config/lua/keyassignment/OpenLinkAtMouseCursor.html#openlinkatmousecursor
 --- @type MouseBindingBase[]
 local mouse_bindings = {
   -- Ctrl-click will open the link under the mouse cursor
