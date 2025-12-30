@@ -37,8 +37,8 @@ local CSI_U = {
 
 ---Dispatch action based on a pane predicate.
 ---@param predicate fun(pane: Pane): boolean
----@param on_true Action
----@param on_false Action
+---@param on_true ActionClass|ActionFuncClass
+---@param on_false ActionClass|ActionFuncClass
 ---@return Action
 local function when(predicate, on_true, on_false)
   return wezterm.action_callback(function(win, current_pane)
