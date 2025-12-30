@@ -102,7 +102,6 @@ vim.keymap.set('i', '<C-e>', '<Esc>%%a', opts.nore)
 --
 -- Key Behaviors:
 -- - jk: Leave terminal-mode (same "jk" escape as insert mode)
--- - Ctrl-w: Enter window-command mode from terminal buffers
 -- - Ctrl-h/j/k/l: Move across splits, and possibly tmux panes via smart-splits
 --
 -- Reference: https://github.com/akinsho/toggleterm.nvim?tab=readme-ov-file#terminal-window-mappings
