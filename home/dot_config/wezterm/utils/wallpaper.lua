@@ -20,7 +20,7 @@ local M = {}
 ---Wallpaper state persisted in `wezterm.GLOBAL.wallpaper`.
 ---@class WallpaperState
 ---@field image string|nil Current wallpaper image path, nil if disabled
----@field image_index number|nil Current image index for O(1) navigation
+
 ---@field brightness number Image HSB brightness (0.0-1.0), default 0.3
 ---@field base_window_background_opacity number|nil Cached original window_background_opacity from config
 
@@ -39,21 +39,21 @@ local M = {}
 ---@source https://wezterm.org/config/lua/config/background.html#source-definition
 ---Supports: PNG, JPEG, GIF, BMP, ICO, TIFF, PNM, DDS, TGA, farbfeld
 local IMAGE_EXTENSIONS = {
-  'png',
-  'jpg',
-  'jpeg',
-  'gif',
-  'bmp',
-  'ico',
-  'tiff',
-  'tif',
-  'pnm',
-  'pbm',
-  'pgm',
-  'ppm',
-  'dds',
-  'tga',
-  'ff', -- farbfeld
+  png = true,
+  jpg = true,
+  jpeg = true,
+  gif = true,
+  bmp = true,
+  ico = true,
+  tiff = true,
+  tif = true,
+  pnm = true,
+  pbm = true,
+  pgm = true,
+  ppm = true,
+  dds = true,
+  tga = true,
+  ff = true, -- farbfeld
 }
 
 ---Brightness preset values.
@@ -84,8 +84,14 @@ local function get_state()
   return wezterm.GLOBAL.wallpaper
 end
 
----Merge partial state into GLOBAL.wallpaper.
----@param partial WallpaperState
+---Partial state update for WallpaperState.
+---@class WallpaperStatePatch
+---@field image? string|nil
+---@field brightness? number
+---@field base_window_background_opacity? number|nil
+
+---Merge a partial state update into `wezterm.GLOBAL.wallpaper`.
+---@param partial WallpaperStatePatch
 local function set_state(partial)
   local state = get_state()
   for k, v in pairs(partial) do
@@ -104,21 +110,16 @@ local function get_wallpapers_dir()
   return wezterm.config_dir() .. '/assets/wallpapers'
 end
 
----Check if a filename has a supported image extension.
----@param filename string
+---Check if a path has a supported image extension.
+---@param path string
 ---@return boolean
-local function is_image(filename)
-  local ext = filename:match('%.([^%.]+)$')
+local function is_image(path)
+  local ext = path:match('%.([^%.]+)$')
   if not ext then
     return false
   end
   ext = ext:lower()
-  for _, supported in ipairs(IMAGE_EXTENSIONS) do
-    if ext == supported then
-      return true
-    end
-  end
-  return false
+  return IMAGE_EXTENSIONS[ext] == true
 end
 
 ---Get sorted list of image paths from the wallpapers directory.
@@ -174,7 +175,7 @@ local function make_layer(path, brightness)
   return {
     source = { File = path },
     opacity = 1.0,
-    hsb = { brightness = brightness },
+    hsb = { hue = 1.0, saturation = 1.0, brightness = brightness },
     width = '100%',
     height = '100%',
     vertical_align = 'Middle',
