@@ -3,7 +3,8 @@
 ---Images live in `assets/wallpapers/` (relative to `wezterm.config_dir()`).
 ---
 ---When enabled, applies window overrides:
---- - `background` image + color overlay layers
+--- - `background` image + adaptive color overlay layers
+---   Overlay uses your active `color_scheme` background
 --- - `window_background_opacity = 1.0`
 ---
 ---A keybinding is configured in `config/wallpaper.lua` (default: `CTRL+SHIFT+B`).
@@ -11,7 +12,6 @@
 ---@module utils.wallpaper
 ---@source https://wezterm.org/config/lua/config/background.html
 ---@source https://wezterm.org/config/lua/keyassignment/InputSelector.html
----@source https://github.com/sunbearc22/sb_show_wallpapers.wezterm/blob/main/plugin/init.lua
 ---@source https://github.com/KevinSilvester/wezterm-config/blob/master/utils/backdrops.lua
 
 local wezterm = require('wezterm') ---@type Wezterm
@@ -201,7 +201,7 @@ end
 ---@param path string
 ---@param brightness number
 ---@return table
-local function make_layer(path, brightness)
+local function make_image_layer(path, brightness)
   return {
     source = { File = path },
     opacity = 1.0,
@@ -217,7 +217,7 @@ end
 ---@param color string
 ---@param opacity number
 ---@return table
-local function make_overlay_layer(color, opacity)
+local function make_color_layer(color, opacity)
   return {
     source = { Color = color },
     opacity = opacity,
@@ -226,6 +226,24 @@ local function make_overlay_layer(color, opacity)
     horizontal_offset = '-10%',
     vertical_offset = '-10%',
   }
+end
+
+---Get background color from active color scheme.
+---@source https://wezterm.org/config/lua/wezterm/get_builtin_color_schemes.html
+---@param window Window
+---@return string Color hex (e.g., '#000000')
+local function get_scheme_background_color(window)
+  local scheme_name = window:effective_config().color_scheme
+  if not scheme_name then
+    return '#000000'
+  end
+
+  local scheme = wezterm.color.get_builtin_schemes()[scheme_name]
+  if not scheme then
+    return '#000000'
+  end
+
+  return scheme.background or '#000000'
 end
 
 -------------------------------------------------------------------------------
@@ -250,12 +268,11 @@ local function apply(window)
     end
 
     -- Set background layers and force full window opacity
-    local effective = window:effective_config()
-    local scheme_bg = (effective.colors and effective.colors.background) or '#000000'
+    local overlay_color = get_scheme_background_color(window)
 
     overrides.background = {
-      make_layer(state.image, state.brightness),
-      make_overlay_layer(scheme_bg, state.overlay_opacity),
+      make_image_layer(state.image, state.brightness),
+      make_color_layer(overlay_color, state.overlay_opacity),
     }
     overrides.window_background_opacity = 1.0
   else
