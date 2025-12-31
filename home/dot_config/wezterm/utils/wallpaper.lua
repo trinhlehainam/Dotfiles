@@ -372,10 +372,11 @@ end
 ---@param pane Pane
 function M.show_picker(window, pane)
   local state = get_state()
+  local overlay_opacity = state.overlay_opacity or DEFAULT_STATE.overlay_opacity
 
   -- Build dynamic labels showing current values
   local brightness_label = string.format('Brightness: %.0f%%', state.brightness * 100)
-  local overlay_label = string.format('Overlay: %.0f%%', state.overlay_opacity * 100)
+  local overlay_label = string.format('Overlay: %.0f%%', overlay_opacity * 100)
 
   local choices = {
     { label = 'Select image...', id = 'select' },
