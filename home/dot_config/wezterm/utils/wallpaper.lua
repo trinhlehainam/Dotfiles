@@ -114,10 +114,19 @@ end
 
 ---Get the wallpapers directory path.
 ---
----Directory is expected at: `${wezterm.config_dir()}/assets/wallpapers`.
+---Directory is expected at: `${wezterm.config_dir}/assets/wallpapers`.
+---
+---Note: depending on wezterm version, `wezterm.config_dir` may be either a
+---string or a function; this helper supports both.
 ---@return string
 local function get_wallpapers_dir()
-  return wezterm.config_dir() .. '/assets/wallpapers'
+  local config_dir = wezterm.config_dir
+  if type(config_dir) == 'function' then
+    config_dir = config_dir()
+  end
+
+  local sep = package.config:sub(1, 1)
+  return table.concat({ config_dir, 'assets', 'wallpapers' }, sep)
 end
 
 ---Check if a path has a supported image extension.
@@ -134,12 +143,13 @@ end
 
 ---Get sorted list of image paths from the wallpapers directory.
 ---
----This is a non-recursive scan of `${wezterm.config_dir()}/assets/wallpapers/*`.
+---This is a non-recursive scan of `assets/wallpapers/*`.
 ---Results are sorted for deterministic next/previous ordering.
 ---@return string[]
 local function get_images()
   local dir = get_wallpapers_dir()
-  local pattern = dir .. '/*'
+  local sep = package.config:sub(1, 1)
+  local pattern = dir .. sep .. '*'
   local files = wezterm.glob(pattern)
 
   local images = {}
