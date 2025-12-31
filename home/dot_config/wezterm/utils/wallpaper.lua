@@ -12,7 +12,7 @@
 ---@source https://wezterm.org/config/lua/config/background.html
 ---@source https://wezterm.org/config/lua/keyassignment/InputSelector.html
 ---@source https://github.com/sunbearc22/sb_show_wallpapers.wezterm/blob/main/plugin/init.lua
----@source https://github.com/KevinSilvester/wezterm-config/blob/master/utils/opts-validator.lua
+---@source https://github.com/KevinSilvester/wezterm-config/blob/master/utils/backdrops.lua
 
 local wezterm = require('wezterm') ---@type Wezterm
 local act = wezterm.action
