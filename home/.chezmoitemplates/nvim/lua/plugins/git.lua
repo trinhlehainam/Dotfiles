@@ -7,12 +7,18 @@ return {
     },
     config = function()
       local neogit = require('neogit')
+
+      --- @source https://github.com/NeogitOrg/neogit?tab=readme-ov-file#configuration
       neogit.setup({
         mappings = {
           -- Setting any of these to `false` will disable the mapping.
           popup = {},
           status = {},
         },
+        -- `graph_style = 'kitty'` renders the commit graph using Kitty-style glyphs.
+        -- This works best in kitty, but in other terminals you'll need a font that
+        -- provides those symbols (e.g. https://github.com/rbong/flog-symbols).
+        graph_style = 'kitty',
       })
 
       local diffview = require('diffview')
