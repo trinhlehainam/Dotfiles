@@ -1,34 +1,42 @@
 ---Wallpaper picker for WezTerm.
 ---
----Provides a simple menu to select, rotate, and configure background images.
----Uses `wezterm.GLOBAL` for state persistence and `InputSelector` for the UI.
+---Images live in `assets/wallpapers/` (relative to `wezterm.config_dir()`).
+---
+---When enabled, applies window overrides:
+--- - `background` image layer
+--- - `window_background_opacity = 1.0`
+---
+---A keybinding is configured in `config/wallpaper.lua` (default: `CTRL+SHIFT+B`).
 ---
 ---@module utils.wallpaper
 ---@source https://wezterm.org/config/lua/config/background.html
+---@source https://wezterm.org/config/lua/keyassignment/InputSelector.html
 ---@source https://github.com/sunbearc22/sb_show_wallpapers.wezterm/blob/main/plugin/init.lua
 ---@source https://github.com/KevinSilvester/wezterm-config/blob/master/utils/opts-validator.lua
 
 local wezterm = require('wezterm') ---@type Wezterm
 local act = wezterm.action
 
+---Module API.
+---@class WallpaperModule
+---@field show_picker fun(window: Window, pane: Pane) Opens the wallpaper menu
 local M = {}
 
 -------------------------------------------------------------------------------
 -- Types
 -------------------------------------------------------------------------------
 
----Wallpaper state persisted in `wezterm.GLOBAL.wallpaper`.
+---Wallpaper state stored in `wezterm.GLOBAL.wallpaper`.
 ---@class WallpaperState
----@field image string|nil Current wallpaper image path, nil if disabled
-
----@field brightness number Image HSB brightness (0.0-1.0), default 0.3
----@field base_window_background_opacity number|nil Cached original window_background_opacity from config
+---@field image string|nil Current wallpaper path; `nil` means disabled
+---@field brightness number Brightness multiplier (0.0-1.0)
+---@field base_window_background_opacity number|nil Cached baseline window opacity
 
 ---Options for the preset picker menu.
 ---@class PresetPickerOpts
 ---@field title string Menu title displayed in the picker
 ---@field presets number[] Array of preset values to choose from
----@field state_key string Key in WallpaperState to update on selection
+---@field state_key string Numeric key in WallpaperState to update (e.g., "brightness")
 ---@field format string Format string for displaying values (e.g., "%.0f%%")
 
 -------------------------------------------------------------------------------
@@ -105,6 +113,8 @@ end
 -------------------------------------------------------------------------------
 
 ---Get the wallpapers directory path.
+---
+---Directory is expected at: `${wezterm.config_dir()}/assets/wallpapers`.
 ---@return string
 local function get_wallpapers_dir()
   return wezterm.config_dir() .. '/assets/wallpapers'
@@ -123,6 +133,9 @@ local function is_image(path)
 end
 
 ---Get sorted list of image paths from the wallpapers directory.
+---
+---This is a non-recursive scan of `${wezterm.config_dir()}/assets/wallpapers/*`.
+---Results are sorted for deterministic next/previous ordering.
 ---@return string[]
 local function get_images()
   local dir = get_wallpapers_dir()
@@ -188,6 +201,10 @@ end
 -------------------------------------------------------------------------------
 
 ---Apply current wallpaper state to a window.
+---
+---Uses `window:set_config_overrides()` to set per-window overrides.
+---When enabled, forces `window_background_opacity=1.0` to avoid double-dimming
+---the wallpaper image (from both translucency and HSB brightness).
 ---@param window Window
 local function apply(window)
   local state = get_state()
@@ -311,6 +328,8 @@ local function disable_wallpaper(window)
 end
 
 ---Show the main wallpaper settings menu.
+---
+---Intended to be called from a keybinding action callback.
 ---@param window Window
 ---@param pane Pane
 function M.show_picker(window, pane)
