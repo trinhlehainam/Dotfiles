@@ -3,7 +3,7 @@
 ---Images live in `assets/wallpapers/` (relative to `wezterm.config_dir()`).
 ---
 ---When enabled, applies window overrides:
---- - `background` image layer
+--- - `background` image + color overlay layers
 --- - `window_background_opacity = 1.0`
 ---
 ---A keybinding is configured in `config/wallpaper.lua` (default: `CTRL+SHIFT+B`).
@@ -30,6 +30,7 @@ local M = {}
 ---@class WallpaperState
 ---@field image string|nil Current wallpaper path; `nil` means disabled
 ---@field brightness number Brightness multiplier (0.0-1.0)
+---@field overlay_opacity number Opacity of the color overlay (0.0-1.0)
 ---@field base_window_background_opacity number|nil Cached baseline window opacity
 
 ---Options for the preset picker menu.
@@ -67,6 +68,9 @@ local IMAGE_EXTENSIONS = {
 ---Brightness preset values.
 local BRIGHTNESS_PRESETS = { 0.1, 0.2, 0.3, 0.5 }
 
+---Overlay opacity preset values.
+local OVERLAY_OPACITY_PRESETS = { 0.85, 0.9, 0.95 }
+
 -------------------------------------------------------------------------------
 -- State Management
 -------------------------------------------------------------------------------
@@ -76,6 +80,7 @@ local BRIGHTNESS_PRESETS = { 0.1, 0.2, 0.3, 0.5 }
 local DEFAULT_STATE = {
   image = nil,
   brightness = 0.3,
+  overlay_opacity = 0.9,
   base_window_background_opacity = nil,
 }
 
@@ -86,6 +91,7 @@ local function get_state()
     wezterm.GLOBAL.wallpaper = {
       image = DEFAULT_STATE.image,
       brightness = DEFAULT_STATE.brightness,
+      overlay_opacity = DEFAULT_STATE.overlay_opacity,
       base_window_background_opacity = DEFAULT_STATE.base_window_background_opacity,
     }
   end
@@ -96,6 +102,7 @@ end
 ---@class WallpaperStatePatch
 ---@field image? string|nil
 ---@field brightness? number
+---@field overlay_opacity? number
 ---@field base_window_background_opacity? number|nil
 
 ---Merge a partial state update into `wezterm.GLOBAL.wallpaper`.
@@ -206,6 +213,21 @@ local function make_layer(path, brightness)
   }
 end
 
+---Build a color overlay layer that tints the wallpaper using the scheme background.
+---@param color string
+---@param opacity number
+---@return table
+local function make_overlay_layer(color, opacity)
+  return {
+    source = { Color = color },
+    opacity = opacity,
+    width = '120%',
+    height = '120%',
+    horizontal_offset = '-10%',
+    vertical_offset = '-10%',
+  }
+end
+
 -------------------------------------------------------------------------------
 -- Apply State to Window
 -------------------------------------------------------------------------------
@@ -224,11 +246,17 @@ local function apply(window)
     -- Capture baseline opacity on first wallpaper set (if not already captured)
     if state.base_window_background_opacity == nil then
       local effective = window:effective_config()
-      set_state({ base_window_background_opacity = effective.window_background_opacity or 1.0 })
+      set_state({ base_window_background_opacity = effective.window_background_opacity })
     end
 
-    -- Set background layer and force full window opacity
-    overrides.background = { make_layer(state.image, state.brightness) }
+    -- Set background layers and force full window opacity
+    local effective = window:effective_config()
+    local scheme_bg = (effective.colors and effective.colors.background) or '#000000'
+
+    overrides.background = {
+      make_layer(state.image, state.brightness),
+      make_overlay_layer(scheme_bg, state.overlay_opacity),
+    }
     overrides.window_background_opacity = 1.0
   else
     -- Disable wallpaper: clear background, restore original opacity
@@ -345,14 +373,16 @@ end
 function M.show_picker(window, pane)
   local state = get_state()
 
-  -- Build dynamic label showing current brightness
+  -- Build dynamic labels showing current values
   local brightness_label = string.format('Brightness: %.0f%%', state.brightness * 100)
+  local overlay_label = string.format('Overlay: %.0f%%', state.overlay_opacity * 100)
 
   local choices = {
     { label = 'Select image...', id = 'select' },
     { label = 'Next', id = 'next' },
     { label = 'Previous', id = 'prev' },
     { label = brightness_label, id = 'brightness' },
+    { label = overlay_label, id = 'overlay' },
     { label = 'Disable', id = 'disable' },
   }
 
@@ -376,6 +406,13 @@ function M.show_picker(window, pane)
             title = 'Brightness',
             presets = BRIGHTNESS_PRESETS,
             state_key = 'brightness',
+            format = '%.0f%%',
+          })
+        elseif id == 'overlay' then
+          show_preset_picker(win, p, {
+            title = 'Overlay Opacity',
+            presets = OVERLAY_OPACITY_PRESETS,
+            state_key = 'overlay_opacity',
             format = '%.0f%%',
           })
         elseif id == 'disable' then
