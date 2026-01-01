@@ -202,6 +202,7 @@ end
 ---@param brightness number
 ---@return BackgroundLayer
 local function make_image_layer(path, brightness)
+  ---@type BackgroundLayer
   return {
     source = { File = path },
     opacity = 1.0,
@@ -218,6 +219,7 @@ end
 ---@param opacity number
 ---@return BackgroundLayer
 local function make_color_layer(color, opacity)
+  ---@type BackgroundLayer
   return {
     source = { Color = color },
     opacity = opacity,
@@ -298,6 +300,9 @@ local function show_image_picker(window, pane)
     return
   end
 
+  local state = get_state()
+  local description = state.image ~= '' and ('Current: ' .. basename(state.image)) or nil
+
   local choices = {}
   for _, path in ipairs(images) do
     table.insert(choices, { label = basename(path), id = path })
@@ -306,6 +311,7 @@ local function show_image_picker(window, pane)
   window:perform_action(
     act.InputSelector({
       title = 'Select Wallpaper',
+      description = description,
       choices = choices,
       fuzzy = true,
       fuzzy_description = 'Search images: ',
@@ -394,7 +400,7 @@ function M.show_picker(window, pane)
   local overlay_label = string.format('Overlay: %.0f%%', overlay_opacity * 100)
 
   local choices = {
-    { label = 'Select image...', id = 'select' },
+    { label = 'Select image', id = 'select' },
     { label = 'Next', id = 'next' },
     { label = 'Previous', id = 'prev' },
     { label = brightness_label, id = 'brightness' },
