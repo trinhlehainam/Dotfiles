@@ -260,6 +260,9 @@ local function apply(window)
   local state = get_state()
   local overrides = window:get_config_overrides() or {}
 
+  -- Resolve scheme background once (used in both enabled/disabled cases)
+  local scheme_bg = get_scheme_background_color(window)
+
   if state.image then
     -- Capture baseline opacity on first wallpaper set (if not already captured)
     if state.base_window_background_opacity == nil then
@@ -267,19 +270,17 @@ local function apply(window)
       set_state({ base_window_background_opacity = effective.window_background_opacity })
     end
 
-    -- Set background layers and force full window opacity
-    local overlay_color = get_scheme_background_color(window)
-
+    -- Wallpaper enabled: image layer + color overlay for scheme blending
     overrides.background = {
       make_image_layer(state.image, state.brightness),
-      make_color_layer(overlay_color, state.overlay_opacity),
+      make_color_layer(scheme_bg, state.overlay_opacity),
     }
+    -- Force opaque window to avoid double-dimming from both HSB and translucency
     overrides.window_background_opacity = 1.0
   else
-    -- Disable wallpaper: clear background, restore original opacity
-    overrides.background = nil
-    local base = get_state().base_window_background_opacity
-    overrides.window_background_opacity = base
+    -- Wallpaper disabled: solid color matching scheme, restore window translucency
+    overrides.window_background_opacity = state.base_window_background_opacity
+    overrides.background = { make_color_layer(scheme_bg, state.base_window_background_opacity) }
   end
 
   window:set_config_overrides(overrides)
