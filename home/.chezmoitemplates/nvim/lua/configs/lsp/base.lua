@@ -17,6 +17,7 @@ function M:new()
     servers = nil,
     linters_by_ft = nil,
   }
+  t.neotest_adapter_setup = nil
   return t
 end
 
