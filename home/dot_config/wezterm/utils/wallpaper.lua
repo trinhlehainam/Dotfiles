@@ -6,8 +6,6 @@
 --- - `background` with image layer + adaptive color overlay
 ---   Overlay uses your active `color_scheme` background
 ---
----A keybinding is configured in `config/wallpaper.lua` (default: `CTRL+SHIFT+B`).
----
 ---@module utils.wallpaper
 ---@source https://wezterm.org/config/lua/config/background.html
 ---@source https://wezterm.org/config/lua/keyassignment/InputSelector.html
