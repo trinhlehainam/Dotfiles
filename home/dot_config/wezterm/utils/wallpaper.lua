@@ -351,7 +351,8 @@ local function show_numeric_input(window, pane, opts, error_msg)
           return
         end
 
-        set_state({ [opts.state_key] = num / 100 })
+        local rounded_percent = math.floor(num + 0.5)
+        set_state({ [opts.state_key] = rounded_percent / 100 })
         apply(win)
       end),
     }),
