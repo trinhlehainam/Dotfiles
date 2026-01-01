@@ -3,15 +3,15 @@
 ---Images live in `assets/wallpapers/` (relative to `wezterm.config_dir()`).
 ---
 ---When enabled, applies window overrides:
---- - `background` image + adaptive color overlay layers
+--- - `background` with image layer + adaptive color overlay
 ---   Overlay uses your active `color_scheme` background
---- - `window_background_opacity = 1.0`
 ---
 ---A keybinding is configured in `config/wallpaper.lua` (default: `CTRL+SHIFT+B`).
 ---
 ---@module utils.wallpaper
 ---@source https://wezterm.org/config/lua/config/background.html
 ---@source https://wezterm.org/config/lua/keyassignment/InputSelector.html
+---@source https://wezterm.org/config/lua/keyassignment/PromptInputLine.html
 ---@source https://github.com/KevinSilvester/wezterm-config/blob/master/utils/backdrops.lua
 
 local wezterm = require('wezterm') ---@type Wezterm
@@ -164,22 +164,6 @@ local function get_images()
   return images
 end
 
----Find index of a path in the images list.
----@param images string[]
----@param path string|nil
----@return number|nil
-local function find_index(images, path)
-  if not path then
-    return nil
-  end
-  for i, img in ipairs(images) do
-    if img == path then
-      return i
-    end
-  end
-  return nil
-end
-
 ---Extract filename from a full path.
 ---@param path string
 ---@return string
@@ -208,9 +192,9 @@ local function make_image_layer(path, brightness)
   }
 end
 
----Build a color overlay layer that tints the wallpaper using the scheme background.
----@param color string
----@param opacity number
+---Build a color layer for overlay or solid background.
+---@param color string Hex color (e.g., '#000000')
+---@param opacity number Layer opacity (0.0-1.0)
 ---@return BackgroundLayer
 local function make_color_layer(color, opacity)
   ---@type BackgroundLayer
@@ -247,32 +231,31 @@ end
 -------------------------------------------------------------------------------
 
 ---Apply current wallpaper state to a window.
----
----Uses `window:set_config_overrides()` to set per-window overrides.
----When enabled, forces `window_background_opacity=1.0` to avoid double-dimming
----the wallpaper image (from both translucency and HSB brightness).
+---Uses `window:set_config_overrides()` to set per-window background layers.
 ---@param window Window
 local function apply(window)
   local state = get_state()
   local overrides = window:get_config_overrides() or {}
 
+  -- Capture baseline opacity on first apply (if not already captured)
+  if state.base_window_background_opacity == nil then
+    local effective = window:effective_config()
+    local baseline = effective.window_background_opacity
+    set_state({ base_window_background_opacity = baseline })
+    state.base_window_background_opacity = baseline
+  end
+
   -- Resolve scheme background once (used in both enabled/disabled cases)
   local scheme_bg = get_scheme_background_color(window)
 
   if state.image ~= '' then
-    -- Capture baseline opacity on first wallpaper set (if not already captured)
-    if state.base_window_background_opacity == nil then
-      local effective = window:effective_config()
-      set_state({ base_window_background_opacity = effective.window_background_opacity })
-    end
-
     -- Wallpaper enabled: image layer + color overlay for scheme blending
     overrides.background = {
       make_image_layer(state.image, state.brightness),
       make_color_layer(scheme_bg, state.overlay_opacity),
     }
   else
-    -- Wallpaper disabled: solid color matching scheme, restore window translucency
+    -- Wallpaper disabled: solid color matching scheme
     overrides.background = { make_color_layer(scheme_bg, state.base_window_background_opacity) }
   end
 
@@ -389,11 +372,10 @@ end
 ---@param pane Pane
 function M.show_picker(window, pane)
   local state = get_state()
-  local overlay_opacity = state.overlay_opacity or DEFAULT_STATE.overlay_opacity
 
   -- Build dynamic labels showing current values
   local brightness_label = string.format('Brightness: %.0f%%', state.brightness * 100)
-  local overlay_label = string.format('Overlay: %.0f%%', overlay_opacity * 100)
+  local overlay_label = string.format('Overlay: %.0f%%', state.overlay_opacity * 100)
 
   local choices = {
     { label = 'Select image', id = 'select' },
