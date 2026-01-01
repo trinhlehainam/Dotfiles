@@ -158,22 +158,26 @@ vim.diagnostic.config({
   } or {},
   virtual_text = false,
   virtual_lines = false,
-  jump = {
-    ---@param diagnostic? vim.Diagnostic
-    ---@param bufnr number
-    on_jump = function(diagnostic, bufnr)
-      if not diagnostic then
-        return
-      end
+  jump = (function()
+    if vim.fn.has('nvim-0.12') == 1 then
+      return {
+        ---@param diagnostic? vim.Diagnostic
+        ---@param bufnr number
+        on_jump = function(diagnostic, bufnr)
+          if not diagnostic then
+            return
+          end
 
-      vim.diagnostic.show(
-        diagnostic_jump_ns,
-        bufnr,
-        { diagnostic },
-        { virtual_lines = false, virtual_text = false }
-      )
-    end,
-  },
+          vim.diagnostic.show(
+            diagnostic_jump_ns,
+            bufnr,
+            { diagnostic },
+            { virtual_lines = false, virtual_text = false }
+          )
+        end,
+      }
+    end
+  end)(),
 })
 
 -- Diagnostic keymaps
