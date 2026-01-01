@@ -17,6 +17,7 @@ Documents/PowerShell
 .chezmoiscripts/unix
 .config/nvim
 .config/yazi
+.config/smug
 .zshrc
 .bashrc
 .bash_aliases
