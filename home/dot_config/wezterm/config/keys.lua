@@ -108,7 +108,6 @@ return {
       -- misc/useful
       { key = 'F3', mods = 'NONE', action = act.ShowLauncher },
       { key = 'F4', mods = 'NONE', action = act.ShowLauncherArgs({ flags = 'FUZZY|TABS' }) },
-      { key = 'F5', mods = 'NONE', action = act.ShowLauncherArgs({ flags = 'FUZZY|WORKSPACES' }) },
       { key = 'F11', mods = 'NONE', action = act.ToggleFullScreen },
 
       {
