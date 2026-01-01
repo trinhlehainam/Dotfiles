@@ -3,6 +3,7 @@ local wezterm = require('wezterm') ---@type Wezterm
 ---@type Fonts
 local font = wezterm.font_with_fallback({
   { family = 'JetBrainsMono Nerd Font', weight = 'Thin' },
+  'Flog Symbols',
 })
 
 ---@type ConfigModule

@@ -26,7 +26,7 @@
 
 --- Neotest adapter factory function type
 --- Creates and configures a neotest adapter for a specific testing framework
---- @see https://github.com/nvim-neotest/neotest#supported-runners
+--- @source https://github.com/nvim-neotest/neotest#supported-runners
 ---@alias custom.NeotestAdapterSetup fun(): neotest.Adapter
 
 --- TreeSitter parser configuration
@@ -47,10 +47,10 @@
 ---
 ---@class custom.LspConfig
 --- The name of the LSP server used by Neovim's LSP client to identify and enable the server
---- @see https://github.com/neovim/nvim-lspconfig/blob/master/doc/configs.md#lsp-configs
+--- @source https://github.com/neovim/nvim-lspconfig/blob/master/doc/configs.md#lsp-configs
 ---@field server string?
 --- The package name registered in Mason, used to tell Mason which LSP server binary to install
---- @see https://mason-registry.dev/registry/list
+--- @source https://mason-registry.dev/registry/list
 ---@field mason_package string?
 ---@field config table Configuration table passed to the LSP server setup function
 ---@field setup function? Custom setup function for advanced LSP server configuration
@@ -61,11 +61,11 @@
 ---@class custom.DapConfig
 --- Debug adapter type identifier (e.g., "python", "node2", "coreclr")
 --- Must match available adapters in mason-nvim-dap registry
---- @see https://github.com/jay-babu/mason-nvim-dap.nvim/blob/main/lua/mason-nvim-dap/mappings/source.lua
+--- @source https://github.com/jay-babu/mason-nvim-dap.nvim/blob/main/lua/mason-nvim-dap/mappings/source.lua
 ---@field type? string
 --- Custom setup function for advanced DAP configuration
 --- Called after mason-nvim-dap installs the debug adapter
---- @see https://github.com/jay-babu/mason-nvim-dap.nvim?tab=readme-ov-file#advanced-customization
+--- @source https://github.com/jay-babu/mason-nvim-dap.nvim?tab=readme-ov-file#advanced-customization
 ---@field setup? fun()
 --- Whether to use mason-nvim-dap's default setup handlers
 --- Set to false if you want complete custom control via the setup function
@@ -74,7 +74,7 @@
 --- Code formatter configuration via conform.nvim
 --- Manages code formatting tools that are automatically installed by Mason
 --- and configured through conform.nvim for consistent code styling
---- @see https://github.com/stevearc/conform.nvim?tab=readme-ov-file#formatters
+--- @source https://github.com/stevearc/conform.nvim?tab=readme-ov-file#formatters
 ---@class custom.FormatterConfig
 --- List of formatter packages to install via Mason
 --- Example: {"prettier", "black", "stylua"}
@@ -88,7 +88,7 @@
 --- Code linter configuration via nvim-lint
 --- Manages linting tools that are automatically installed by Mason
 --- and configured through nvim-lint for code quality and error detection
---- @see https://github.com/mfussenegger/nvim-lint?tab=readme-ov-file#available-linters
+--- @source https://github.com/mfussenegger/nvim-lint?tab=readme-ov-file#available-linters
 ---@class custom.LinterConfig
 --- List of linter packages to install via Mason
 --- Example: {"eslint_d", "flake8", "luacheck"}
@@ -115,7 +115,7 @@
 --- Code linter configuration for quality and error detection
 ---@field linterconfig custom.LinterConfig
 --- Optional neotest adapter factory for testing framework integration
---- @see https://github.com/nvim-neotest/neotest?tab=readme-ov-file#supported-runners
+--- @source https://github.com/nvim-neotest/neotest?tab=readme-ov-file#supported-runners
 ---@field neotest_adapter_setup? custom.NeotestAdapterSetup
 
 --- Main LSP configuration aggregator

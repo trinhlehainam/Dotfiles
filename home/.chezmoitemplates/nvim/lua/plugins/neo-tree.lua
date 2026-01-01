@@ -1,6 +1,6 @@
 --- @param state neotree.StateWithTree
---- @see https://github.com/nvim-neo-tree/neo-tree.nvim/discussions/370#discussioncomment-8303412
---- @see https://github.com/nvim-neo-tree/neo-tree.nvim/discussions/370#discussioncomment-14442475
+--- @source https://github.com/nvim-neo-tree/neo-tree.nvim/discussions/370#discussioncomment-8303412
+--- @source https://github.com/nvim-neo-tree/neo-tree.nvim/discussions/370#discussioncomment-14442475
 local function copy_path(state)
   -- NeoTree is based on [NuiTree](https://github.com/MunifTanjim/nui.nvim/tree/main/lua/nui/tree)
   -- The node is based on [NuiNode](https://github.com/MunifTanjim/nui.nvim/tree/main/lua/nui/tree#nuitreenode)

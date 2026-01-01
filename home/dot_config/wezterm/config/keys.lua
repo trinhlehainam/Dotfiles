@@ -2,6 +2,7 @@ local wezterm = require('wezterm') ---@type Wezterm
 local platform = require('utils.platform')
 local pane = require('utils.pane')
 local navigation = require('utils.navigation')
+local wallpaper = require('utils.wallpaper')
 
 local act = wezterm.action ---@type Action
 
@@ -70,6 +71,7 @@ local function tmux_mod_enter(mods)
   }
 end
 
+--- @source https://wezterm.org/config/lua/keyassignment/OpenLinkAtMouseCursor.html#openlinkatmousecursor
 --- @type MouseBindingBase[]
 local mouse_bindings = {
   -- Ctrl-click will open the link under the mouse cursor
@@ -112,6 +114,13 @@ return {
         action = act.ShowLauncherArgs({ flags = 'FUZZY|WORKSPACES' }),
       },
       { key = 'F11', mods = 'NONE', action = act.ToggleFullScreen },
+      {
+        key = 'B',
+        mods = 'CTRL|SHIFT',
+        action = wezterm.action_callback(function(window, pane)
+          wallpaper.show_picker(window, pane)
+        end),
+      },
 
       { key = 'C', mods = 'CTRL|SHIFT', action = act.CopyTo(copy_destination) },
       { key = 'V', mods = 'CTRL|SHIFT', action = act.PasteFrom('Clipboard') },

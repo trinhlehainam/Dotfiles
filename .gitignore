@@ -5,3 +5,15 @@ home/AppData/Local/nvim
 home/dot_config/nvim
 
 worktrees
+
+# Environment files (never commit secrets)
+.env
+.env.*
+*.env
+
+# Allow templates (safe to commit)
+!.env.example
+!.env.sample
+!.env.template
+!.env.dist
+!.env.defaults
