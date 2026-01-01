@@ -33,12 +33,12 @@ local M = {}
 ---@field overlay_opacity number Opacity of the color overlay (0.0-1.0)
 ---@field base_window_background_opacity number|nil Cached baseline window opacity
 
----Options for the preset picker menu.
----@class PresetPickerOpts
----@field title string Menu title displayed in the picker
----@field presets number[] Array of preset values to choose from
----@field state_key string Numeric key in WallpaperState to update (e.g., "brightness")
----@field format string Format string for displaying values (e.g., "%.0f%%")
+---Options for numeric input prompt.
+---@class NumericInputOpts
+---@field title string Prompt title
+---@field state_key string State key to update
+---@field min number Minimum percentage value
+---@field max number Maximum percentage value
 
 -------------------------------------------------------------------------------
 -- Constants
@@ -64,12 +64,6 @@ local IMAGE_EXTENSIONS = {
   tga = true,
   ff = true, -- farbfeld
 }
-
----Brightness preset values.
-local BRIGHTNESS_PRESETS = { 0.1, 0.2, 0.3, 0.5 }
-
----Overlay opacity preset values.
-local OVERLAY_OPACITY_PRESETS = { 0.85, 0.9, 0.95 }
 
 -------------------------------------------------------------------------------
 -- State Management
@@ -322,35 +316,43 @@ local function show_image_picker(window, pane)
   )
 end
 
----Show a preset picker for numeric values (e.g., brightness).
----
----Displays an InputSelector menu with preset values. The current value
----is marked with "(current)" suffix. On selection, updates the specified
----state key and re-applies the wallpaper.
----@param window Window WezTerm window object
----@param pane Pane WezTerm pane object
----@param opts PresetPickerOpts Picker configuration options
-local function show_preset_picker(window, pane, opts)
+---Show numeric input prompt with validation.
+---User enters percentage, stored as decimal (value / 100).
+---@param window Window
+---@param pane Pane
+---@param opts NumericInputOpts
+---@param error_msg string|nil
+local function show_numeric_input(window, pane, opts, error_msg)
   local state = get_state()
-  local choices = {}
+  local current_percent = math.floor(state[opts.state_key] * 100)
 
-  for _, value in ipairs(opts.presets) do
-    local label = string.format(opts.format, value * 100)
-    if state[opts.state_key] == value then
-      label = label .. ' (current)'
-    end
-    table.insert(choices, { label = label, id = tostring(value) })
+  local description = string.format('%s (current: %d%%, range: %d-%d%%)', opts.title, current_percent, opts.min, opts.max)
+  if error_msg then
+    description = description .. '\n' .. wezterm.format({
+      { Foreground = { AnsiColor = 'Red' } },
+      { Text = error_msg },
+    })
   end
 
   window:perform_action(
-    act.InputSelector({
-      title = opts.title,
-      choices = choices,
-      action = wezterm.action_callback(function(win, _, id, _)
-        if id then
-          set_state({ [opts.state_key] = tonumber(id) })
-          apply(win)
+    act.PromptInputLine({
+      description = description,
+      action = wezterm.action_callback(function(win, p, line)
+        if not line or line == '' then return end
+
+        local num = tonumber(line)
+        if not num then
+          show_numeric_input(win, p, opts, 'Invalid: enter a number')
+          return
         end
+
+        if num < opts.min or num > opts.max then
+          show_numeric_input(win, p, opts, string.format('Invalid: must be %d-%d', opts.min, opts.max))
+          return
+        end
+
+        set_state({ [opts.state_key] = num / 100 })
+        apply(win)
       end),
     }),
     pane
@@ -420,19 +422,9 @@ function M.show_picker(window, pane)
         elseif id == 'prev' then
           rotate_image(win, -1)
         elseif id == 'brightness' then
-          show_preset_picker(win, p, {
-            title = 'Brightness',
-            presets = BRIGHTNESS_PRESETS,
-            state_key = 'brightness',
-            format = '%.0f%%',
-          })
+          show_numeric_input(win, p, { title = 'Brightness', state_key = 'brightness', min = 0, max = 100 })
         elseif id == 'overlay' then
-          show_preset_picker(win, p, {
-            title = 'Overlay Opacity',
-            presets = OVERLAY_OPACITY_PRESETS,
-            state_key = 'overlay_opacity',
-            format = '%.0f%%',
-          })
+          show_numeric_input(win, p, { title = 'Overlay', state_key = 'overlay_opacity', min = 0, max = 100 })
         elseif id == 'disable' then
           disable_wallpaper(win)
         end
