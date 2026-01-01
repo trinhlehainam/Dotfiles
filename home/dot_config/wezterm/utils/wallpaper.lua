@@ -63,6 +63,9 @@ local IMAGE_EXTENSIONS = {
   ff = true, -- farbfeld
 }
 
+---Default fallback background color when color scheme lookup fails.
+local DEFAULT_BACKGROUND_COLOR = '#000000'
+
 -------------------------------------------------------------------------------
 -- State Management
 -------------------------------------------------------------------------------
@@ -213,15 +216,15 @@ end
 local function get_scheme_background_color(window)
   local scheme_name = window:effective_config().color_scheme
   if not scheme_name then
-    return '#000000'
+    return DEFAULT_BACKGROUND_COLOR
   end
 
   local scheme = wezterm.color.get_builtin_schemes()[scheme_name]
   if not scheme then
-    return '#000000'
+    return DEFAULT_BACKGROUND_COLOR
   end
 
-  return scheme.background or '#000000'
+  return scheme.background or DEFAULT_BACKGROUND_COLOR
 end
 
 -------------------------------------------------------------------------------
@@ -238,7 +241,7 @@ local function apply(window)
   -- Capture baseline opacity on first apply (if not already captured)
   if state.base_window_background_opacity == nil then
     local effective = window:effective_config()
-    local baseline = effective.window_background_opacity
+    local baseline = effective.window_background_opacity or 1.0
     set_state({ base_window_background_opacity = baseline })
     state.base_window_background_opacity = baseline
   end
@@ -254,7 +257,7 @@ local function apply(window)
     }
   else
     -- Wallpaper disabled: solid color matching scheme
-    overrides.background = { make_color_layer(scheme_bg, state.base_window_background_opacity) }
+    overrides.background = { make_color_layer(scheme_bg, state.base_window_background_opacity or 1.0) }
   end
 
   window:set_config_overrides(overrides)
