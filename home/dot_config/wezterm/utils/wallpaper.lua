@@ -28,7 +28,7 @@ local M = {}
 
 ---Wallpaper state stored in `wezterm.GLOBAL.wallpaper`.
 ---@class WallpaperState
----@field image string|nil Current wallpaper path; `nil` means disabled
+---@field image string Current wallpaper path; empty string means disabled
 ---@field brightness number Brightness multiplier (0.0-1.0)
 ---@field overlay_opacity number Opacity of the color overlay (0.0-1.0)
 ---@field base_window_background_opacity number|nil Cached baseline window opacity
@@ -78,7 +78,7 @@ local OVERLAY_OPACITY_PRESETS = { 0.85, 0.9, 0.95 }
 ---Default wallpaper state values.
 ---@type WallpaperState
 local DEFAULT_STATE = {
-  image = nil,
+  image = '',
   brightness = 0.3,
   overlay_opacity = 0.9,
   base_window_background_opacity = nil,
@@ -100,7 +100,7 @@ end
 
 ---Partial state update for WallpaperState.
 ---@class WallpaperStatePatch
----@field image? string|nil
+---@field image? string
 ---@field brightness? number
 ---@field overlay_opacity? number
 ---@field base_window_background_opacity? number|nil
@@ -200,7 +200,7 @@ end
 ---Build a background layer table for the given image.
 ---@param path string
 ---@param brightness number
----@return table
+---@return BackgroundLayer
 local function make_image_layer(path, brightness)
   return {
     source = { File = path },
@@ -216,7 +216,7 @@ end
 ---Build a color overlay layer that tints the wallpaper using the scheme background.
 ---@param color string
 ---@param opacity number
----@return table
+---@return BackgroundLayer
 local function make_color_layer(color, opacity)
   return {
     source = { Color = color },
@@ -263,7 +263,7 @@ local function apply(window)
   -- Resolve scheme background once (used in both enabled/disabled cases)
   local scheme_bg = get_scheme_background_color(window)
 
-  if state.image then
+  if state.image ~= '' then
     -- Capture baseline opacity on first wallpaper set (if not already captured)
     if state.base_window_background_opacity == nil then
       local effective = window:effective_config()
@@ -275,11 +275,8 @@ local function apply(window)
       make_image_layer(state.image, state.brightness),
       make_color_layer(scheme_bg, state.overlay_opacity),
     }
-    -- Force opaque window to avoid double-dimming from both HSB and translucency
-    overrides.window_background_opacity = 1.0
   else
     -- Wallpaper disabled: solid color matching scheme, restore window translucency
-    overrides.window_background_opacity = state.base_window_background_opacity
     overrides.background = { make_color_layer(scheme_bg, state.base_window_background_opacity) }
   end
 
@@ -379,7 +376,7 @@ end
 ---Disable wallpaper and restore original background.
 ---@param window Window
 local function disable_wallpaper(window)
-  set_state({ image = nil })
+  set_state({ image = '' })
   apply(window)
 end
 
