@@ -157,12 +157,14 @@ vim.diagnostic.config({
     },
   } or {},
   virtual_text = false,
-  virtual_lines = false,
+  virtual_lines = {
+    current_line = true,
+  },
+  -- NOTE: `vim.diagnostic.config({ jump = { on_jump = ... } })` is only available starting in Neovim 0.12.
+  -- Reference: https://github.com/neovim/neovim/issues/33154
   jump = (function()
     if vim.fn.has('nvim-0.12') == 1 then
       return {
-        ---@param diagnostic? vim.Diagnostic
-        ---@param bufnr number
         on_jump = function(diagnostic, bufnr)
           if not diagnostic then
             return
@@ -187,6 +189,17 @@ vim.keymap.set('n', 'gK', function()
   local new_config = not vim.diagnostic.config().virtual_lines
   vim.diagnostic.config({ virtual_lines = new_config })
 end, { desc = 'Toggle diagnostic virtual_lines' })
+
+vim.keymap.set('n', 'gk', function()
+  local current = vim.diagnostic.config().virtual_lines
+  if not current then
+    vim.notify('diagnostic virtual_lines is disabled (toggle with gK)', vim.log.levels.WARN)
+    return
+  end
+
+  local current_line = type(current) == 'table' and current.current_line or false
+  vim.diagnostic.config({ virtual_lines = { current_line = not current_line } })
+end, { desc = 'Toggle diagnostic virtual_lines current_line' })
 
 vim.keymap.set('n', '[d', function()
   vim.diagnostic.jump({ count = -1, float = true })
