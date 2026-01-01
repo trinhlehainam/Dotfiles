@@ -29,8 +29,7 @@ local lspconfigs = lsp_config.lspconfigs or {}
 -- Formatter Configuration Aggregation
 -- ========================================
 -- Build list of formatter servers to ensure are installed
--- Default includes stylua for Lua formatting
-local ensure_installed_formatters = { 'stylua' }
+local ensure_installed_formatters = {}
 
 -- Iterate through formatter configurations and extract server names
 -- Each formatter config may specify multiple servers in a 'servers' field
@@ -41,8 +40,7 @@ for _, formatter in ipairs(formatters) do
 end
 
 -- Build mapping of file types to formatters
--- Default includes stylua for Lua files
-local formatters_by_ft = { lua = { 'stylua' } }
+local formatters_by_ft = {}
 
 -- Aggregate formatter-to-filetype mappings from configurations
 -- Uses 'keep' strategy to preserve existing mappings (first one wins)
@@ -83,8 +81,7 @@ end
 -- LSP Configuration Aggregation
 -- ========================================
 -- Build list of LSP servers to ensure are installed
--- Default includes lua-language-server for Lua development
-local ensure_installed_lsps = { 'lua-language-server' }
+local ensure_installed_lsps = {}
 
 -- Iterate through LSP configurations and extract Mason package names
 -- Each LSP config specifies its Mason package name in 'mason_package' field

@@ -48,7 +48,7 @@ M.dapconfigs = { delve }
 M.neotest_adapter_setup = function()
   local has_gotest, gotest = pcall(require, 'neotest-golang')
   if not has_gotest then
-    return {}
+    return nil
   end
   return gotest
 end

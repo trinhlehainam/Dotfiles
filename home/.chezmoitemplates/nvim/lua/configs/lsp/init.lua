@@ -38,7 +38,9 @@ M.get_neotest_adapters = function()
 
   for _, setup in ipairs(neotest_adapter_setups) do
     local adapter = setup()
-    table.insert(neotest_adapters, adapter)
+    if adapter then
+      table.insert(neotest_adapters, adapter)
+    end
   end
   return neotest_adapters
 end

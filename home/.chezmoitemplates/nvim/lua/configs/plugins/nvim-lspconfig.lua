@@ -40,14 +40,6 @@ vim.api.nvim_create_autocmd('LspAttach', {
       vim.keymap.set(mode, keys, func, { buffer = event.buf, desc = 'LSP: ' .. desc })
     end
 
-    -- Rename the variable under your cursor.
-    --  Most Language Servers support renaming across files, etc.
-    map('grn', vim.lsp.buf.rename, '[R]e[n]ame')
-
-    -- Execute a code action, usually your cursor needs to be on top of an error
-    -- or a suggestion from your LSP for this to activate.
-    map('gra', vim.lsp.buf.code_action, '[G]oto Code [A]ction', { 'n', 'x' })
-
     -- Find references for the word under your cursor.
     map('grr', function()
       Snacks.picker.lsp_references()
@@ -89,17 +81,12 @@ vim.api.nvim_create_autocmd('LspAttach', {
       Snacks.picker.lsp_type_definitions()
     end, '[G]oto [T]ype Definition')
 
-    -- This function resolves a difference between neovim nightly (version 0.11) and stable (version 0.10)
     ---@param client vim.lsp.Client
     ---@param method vim.lsp.protocol.Method
     ---@param bufnr? integer some lsp support methods only in specific files
     ---@return boolean
     local function client_supports_method(client, method, bufnr)
-      if vim.fn.has('nvim-0.11') == 1 then
-        return client:supports_method(method, bufnr)
-      else
-        return client.supports_method(method, { bufnr = bufnr })
-      end
+      return client:supports_method(method, bufnr)
     end
 
     -- The following two autocommands are used to highlight references of the
@@ -171,6 +158,10 @@ vim.diagnostic.config({
   virtual_text = {
     source = 'if_many',
     spacing = 2,
+    current_line = true,
+  },
+  virtual_lines = {
+    current_line = true,
   },
 })
 
@@ -198,22 +189,7 @@ vim.keymap.set(
 --  - settings (table): Override the default settings passed when initializing the server.
 --        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
 --- @type table<string, vim.lsp.Config>
-local servers = {
-  lua_ls = {
-    -- cmd = { ... },
-    -- filetypes = { ... },
-    -- capabilities = {},
-    settings = {
-      Lua = {
-        completion = {
-          callSnippet = 'Replace',
-        },
-        -- You can toggle below to ignore Lua_LS's noisy `missing-fields` warnings
-        -- diagnostics = { disable = { 'missing-fields' } },
-      },
-    },
-  },
-}
+local servers = {}
 
 -- Safely load LSP configurations
 local log = require('utils.log')

@@ -7,11 +7,6 @@ function M:new()
   t.treesitter = {
     filetypes = nil,
   }
-  t.lspconfig = {
-    server = nil,
-    mason_package = nil,
-    config = {},
-  }
   t.lspconfigs = {}
   t.dapconfigs = {}
   t.formatterconfig = {

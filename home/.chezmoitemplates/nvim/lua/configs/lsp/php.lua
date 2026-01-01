@@ -27,7 +27,7 @@ M.dapconfigs = { php_dap }
 M.neotest_adapter_setup = function()
   local has_phpunit, phpunit = pcall(require, 'neotest-phpunit')
   if not has_phpunit then
-    return {}
+    return nil
   end
   return phpunit
 end
