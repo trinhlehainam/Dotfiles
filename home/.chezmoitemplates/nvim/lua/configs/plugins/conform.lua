@@ -9,7 +9,7 @@ end
 
 local formatters = lsp_config.formatters or {}
 
-local formatters_by_ft = { lua = { 'stylua' } }
+local formatters_by_ft = {}
 
 for _, formatter in ipairs(formatters) do
   if type(formatter.formatters_by_ft) == 'table' then

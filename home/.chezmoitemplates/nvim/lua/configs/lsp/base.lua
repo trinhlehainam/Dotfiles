@@ -7,11 +7,6 @@ function M:new()
   t.treesitter = {
     filetypes = nil,
   }
-  t.lspconfig = {
-    server = nil,
-    mason_package = nil,
-    config = {},
-  }
   t.lspconfigs = {}
   t.dapconfigs = {}
   t.formatterconfig = {
@@ -22,6 +17,7 @@ function M:new()
     servers = nil,
     linters_by_ft = nil,
   }
+  t.neotest_adapter_setup = nil
   return t
 end
 

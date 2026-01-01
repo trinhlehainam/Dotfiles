@@ -33,20 +33,12 @@ pyright.config = {
 local ruff = LspConfig:new('ruff', 'ruff')
 -- Ruff configuration for Neovim
 -- INFO: https://docs.astral.sh/ruff/editors/setup/#neovim
-vim.api.nvim_create_autocmd('LspAttach', {
-  group = vim.api.nvim_create_augroup('lsp_attach_disable_ruff_hover', { clear = true }),
-  callback = function(args)
-    local client = vim.lsp.get_client_by_id(args.data.client_id)
-    if client == nil then
-      return
-    end
-    if client.name == 'ruff' then
-      -- Disable hover in favor of Pyright
-      client.server_capabilities.hoverProvider = false
-    end
+ruff.config = {
+  on_attach = function(client, _)
+    -- Disable hover in favor of Pyright
+    client.server_capabilities.hoverProvider = false
   end,
-  desc = 'LSP: Disable hover capability from Ruff',
-})
+}
 
 M.lspconfigs = { pyright, ruff }
 
@@ -60,7 +52,7 @@ M.dapconfigs = { python_dap }
 M.neotest_adapter_setup = function()
   local has_pytest, pytest = pcall(require, 'neotest-python')
   if not has_pytest then
-    return {}
+    return nil
   end
   -- NOTE: When encounter no tests found, just add any Python config file in the root directory
   -- INFO: https://github.com/nvim-neotest/neotest-python/issues/40#issuecomment-1336947205

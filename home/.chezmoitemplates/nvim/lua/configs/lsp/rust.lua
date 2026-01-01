@@ -28,13 +28,13 @@ M.dapconfigs = { codelldb }
 
 M.neotest_adapter_setup = function()
   if not has_rustceanvim() then
-    return {}
+    return nil
   end
 
   local has_neotest_rust, neotest_rust = pcall(require, 'rustaceanvim.neotest')
   if not has_neotest_rust then
     log.info('rustaceanvim.neotest is not installed')
-    return {}
+    return nil
   end
   return neotest_rust
 end
