@@ -1,0 +1,17 @@
+session: dotfiles
+root: ~/.local/share/chezmoi
+attach: true
+
+windows:
+  - name: root
+    selected: true
+    commands:
+      - nvim
+  - name: nvim
+    root: home/.chezmoitemplates/nvim
+    commands:
+      - nvim
+  - name: wezterm
+    root: home/dot_config/wezterm
+    commands:
+      - nvim
