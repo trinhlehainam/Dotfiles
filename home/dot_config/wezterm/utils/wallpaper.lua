@@ -107,7 +107,6 @@ local function set_state(partial)
   for k, v in pairs(partial) do
     state[k] = v
   end
-  wezterm.GLOBAL.wallpaper = state
 end
 
 -------------------------------------------------------------------------------
