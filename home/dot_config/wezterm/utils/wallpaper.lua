@@ -300,9 +300,6 @@ local function show_image_picker(window, pane)
     return
   end
 
-  local state = get_state()
-  local description = state.image ~= '' and ('Current: ' .. basename(state.image)) or nil
-
   local choices = {}
   for _, path in ipairs(images) do
     table.insert(choices, { label = basename(path), id = path })
@@ -311,7 +308,6 @@ local function show_image_picker(window, pane)
   window:perform_action(
     act.InputSelector({
       title = 'Select Wallpaper',
-      description = description,
       choices = choices,
       fuzzy = true,
       fuzzy_description = 'Search images: ',
