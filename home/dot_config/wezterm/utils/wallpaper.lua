@@ -326,19 +326,29 @@ local function show_numeric_input(window, pane, opts, error_msg)
   local state = get_state()
   local current_percent = math.floor(state[opts.state_key] * 100)
 
-  local description = string.format('%s (current: %d%%, range: %d-%d%%)', opts.title, current_percent, opts.min, opts.max)
+  local description = string.format(
+    '%s (current: %d%%, range: %d-%d%%)',
+    opts.title,
+    current_percent,
+    opts.min,
+    opts.max
+  )
   if error_msg then
-    description = description .. '\n' .. wezterm.format({
-      { Foreground = { AnsiColor = 'Red' } },
-      { Text = error_msg },
-    })
+    description = description
+      .. '\n'
+      .. wezterm.format({
+        { Foreground = { AnsiColor = 'Red' } },
+        { Text = error_msg },
+      })
   end
 
   window:perform_action(
     act.PromptInputLine({
       description = description,
       action = wezterm.action_callback(function(win, p, line)
-        if not line or line == '' then return end
+        if not line or line == '' then
+          return
+        end
 
         local num = tonumber(line)
         if not num then
@@ -347,7 +357,12 @@ local function show_numeric_input(window, pane, opts, error_msg)
         end
 
         if num < opts.min or num > opts.max then
-          show_numeric_input(win, p, opts, string.format('Invalid: must be %d-%d', opts.min, opts.max))
+          show_numeric_input(
+            win,
+            p,
+            opts,
+            string.format('Invalid: must be %d-%d', opts.min, opts.max)
+          )
           return
         end
 
@@ -358,24 +373,6 @@ local function show_numeric_input(window, pane, opts, error_msg)
     }),
     pane
   )
-end
-
----Rotate to next or previous image.
----@param window Window
----@param direction number 1 for next, -1 for previous
-local function rotate_image(window, direction)
-  local images = get_images()
-  if #images == 0 then
-    wezterm.log_warn('No images found in ' .. get_wallpapers_dir())
-    return
-  end
-
-  local state = get_state()
-  local current_idx = find_index(images, state.image) or 0
-  local new_idx = ((current_idx - 1 + direction) % #images) + 1
-
-  set_state({ image = images[new_idx] })
-  apply(window)
 end
 
 ---Disable wallpaper and restore original background.
@@ -400,8 +397,6 @@ function M.show_picker(window, pane)
 
   local choices = {
     { label = 'Select image', id = 'select' },
-    { label = 'Next', id = 'next' },
-    { label = 'Previous', id = 'prev' },
     { label = brightness_label, id = 'brightness' },
     { label = overlay_label, id = 'overlay' },
     { label = 'Disable', id = 'disable' },
@@ -418,14 +413,18 @@ function M.show_picker(window, pane)
 
         if id == 'select' then
           show_image_picker(win, p)
-        elseif id == 'next' then
-          rotate_image(win, 1)
-        elseif id == 'prev' then
-          rotate_image(win, -1)
         elseif id == 'brightness' then
-          show_numeric_input(win, p, { title = 'Brightness', state_key = 'brightness', min = 0, max = 100 })
+          show_numeric_input(
+            win,
+            p,
+            { title = 'Brightness', state_key = 'brightness', min = 0, max = 100 }
+          )
         elseif id == 'overlay' then
-          show_numeric_input(win, p, { title = 'Overlay', state_key = 'overlay_opacity', min = 0, max = 100 })
+          show_numeric_input(
+            win,
+            p,
+            { title = 'Overlay', state_key = 'overlay_opacity', min = 0, max = 100 }
+          )
         elseif id == 'disable' then
           disable_wallpaper(win)
         end
