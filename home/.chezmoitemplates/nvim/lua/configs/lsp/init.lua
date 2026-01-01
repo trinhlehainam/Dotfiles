@@ -18,7 +18,7 @@ local language_settings = require('utils.common').load_mods('configs.lsp', ignor
 ---@type custom.NeotestAdapterSetup[]
 local neotest_adapter_setups = {}
 
-for lang, settings in pairs(language_settings) do
+for _, settings in pairs(language_settings) do
   table.insert(M.treesitters, settings.treesitter)
   -- Collect all dapconfigs into a flat array
   if settings.dapconfigs and #settings.dapconfigs > 0 then

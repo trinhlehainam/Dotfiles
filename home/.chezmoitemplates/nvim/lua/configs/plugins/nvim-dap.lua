@@ -69,22 +69,24 @@ local daptypes = {}
 --- @type table<function>
 local setup_handlers = {}
 
-for _, dapconfig in ipairs(dapconfigs) do
-  local daptype = dapconfig.type
-  if type(daptype) == 'string' and daptype ~= '' then
-    table.insert(daptypes, daptype)
+---@source https://github.com/jay-babu/mason-nvim-dap.nvim?tab=readme-ov-file#handlers-usage-automatic-setup
+---@class custom.HandlerConfig
+---@field name boolean -- adapter name
+--- -- All the items below are looked up by the adapter name.
+---@field adapters table -- https://github.com/jay-babu/mason-nvim-dap.nvim/blob/main/lua/mason-nvim-dap/mappings/adapters
+---@field configurations table -- https://github.com/jay-babu/mason-nvim-dap.nvim/blob/main/lua/mason-nvim-dap/mappings/configurations.lua
+---@field filetype string -- https://github.com/jay-babu/mason-nvim-dap.nvim/blob/main/lua/mason-nvim-dap/mappings/filetypes.lua
 
-    -- https://github.com/jay-babu/mason-nvim-dap.nvim?tab=readme-ov-file#handlers-usage-automatic-setup
-    ---@class custom.HandlerConfig
-    ---@field name boolean -- adapter name
-    ---
-    ---	-- All the items below are looked up by the adapter name.
-    ---@field adapters table -- https://github.com/jay-babu/mason-nvim-dap.nvim/blob/main/lua/mason-nvim-dap/mappings/adapters
-    ---@field configurations table -- https://github.com/jay-babu/mason-nvim-dap.nvim/blob/main/lua/mason-nvim-dap/mappings/configurations.lua
-    ---@field filetype string -- https://github.com/jay-babu/mason-nvim-dap.nvim/blob/main/lua/mason-nvim-dap/mappings/filetypes.lua
+vim
+  .iter(dapconfigs)
+  :filter(function(dapconfig)
+    return type(dapconfig.type) == 'string' and dapconfig.type ~= ''
+  end)
+  :each(function(dapconfig)
+    table.insert(daptypes, dapconfig.type)
 
     ---@param config custom.HandlerConfig
-    setup_handlers[daptype] = function(config)
+    setup_handlers[dapconfig.type] = function(config)
       if type(dapconfig.setup) == 'function' then
         dapconfig.setup()
       end
@@ -93,8 +95,7 @@ for _, dapconfig in ipairs(dapconfigs) do
         require('mason-nvim-dap').default_setup(config)
       end
     end
-  end
-end
+  end)
 
 require('mason-nvim-dap').setup({
   -- A list of adapters to install if they're not already installed.
