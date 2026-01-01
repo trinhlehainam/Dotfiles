@@ -143,6 +143,7 @@ vim.api.nvim_create_autocmd('LspAttach', {
 
 -- Diagnostic Config
 -- See :help vim.diagnostic.Opts
+local diagnostic_jump_ns = vim.api.nvim_create_namespace('on_diagnostic_jump')
 vim.diagnostic.config({
   severity_sort = true,
   float = { border = 'rounded', source = 'if_many' },
@@ -155,17 +156,34 @@ vim.diagnostic.config({
       [vim.diagnostic.severity.HINT] = '󰌶 ',
     },
   } or {},
-  virtual_text = {
-    source = 'if_many',
-    spacing = 2,
-    current_line = true,
-  },
-  virtual_lines = {
-    current_line = true,
+  virtual_text = false,
+  virtual_lines = false,
+  jump = {
+    ---@param diagnostic? vim.Diagnostic
+    ---@param bufnr number
+    on_jump = function(diagnostic, bufnr)
+      if not diagnostic then
+        return
+      end
+
+      vim.diagnostic.show(
+        diagnostic_jump_ns,
+        bufnr,
+        { diagnostic },
+        { virtual_lines = false, virtual_text = false }
+      )
+    end,
   },
 })
 
 -- Diagnostic keymaps
+
+-- Diagnostic handlers can be toggled. Follow `:help diagnostic-toggle-virtual-lines-example`.
+vim.keymap.set('n', 'gK', function()
+  local new_config = not vim.diagnostic.config().virtual_lines
+  vim.diagnostic.config({ virtual_lines = new_config })
+end, { desc = 'Toggle diagnostic virtual_lines' })
+
 vim.keymap.set('n', '[d', function()
   vim.diagnostic.jump({ count = -1, float = true })
 end, { desc = 'Go to previous diagnostic message' })
