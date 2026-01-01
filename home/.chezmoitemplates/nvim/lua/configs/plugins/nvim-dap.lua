@@ -71,7 +71,7 @@ local setup_handlers = {}
 
 ---@source https://github.com/jay-babu/mason-nvim-dap.nvim?tab=readme-ov-file#handlers-usage-automatic-setup
 ---@class custom.HandlerConfig
----@field name boolean -- adapter name
+---@field name string -- adapter name
 --- -- All the items below are looked up by the adapter name.
 ---@field adapters table -- https://github.com/jay-babu/mason-nvim-dap.nvim/blob/main/lua/mason-nvim-dap/mappings/adapters
 ---@field configurations table -- https://github.com/jay-babu/mason-nvim-dap.nvim/blob/main/lua/mason-nvim-dap/mappings/configurations.lua
