@@ -12,7 +12,11 @@
 -- └─────────────────────────────────────────────────────────────────────────┘
 -- ============================================================================
 
-local textobjects = require('nvim-treesitter-textobjects')
+local ok, textobjects = pcall(require, 'nvim-treesitter-textobjects')
+if not ok then
+  require('utils.log').warn('nvim-treesitter-textobjects not found')
+  return
+end
 
 -- ── Setup ───────────────────────────────────────────────────────────────────
 

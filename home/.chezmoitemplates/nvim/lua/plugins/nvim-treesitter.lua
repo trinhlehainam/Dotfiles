@@ -21,11 +21,11 @@ return { -- Highlight, edit, and navigate code
         -- vim.g.no_go_maps = true
       end,
     },
-    'nvim-treesitter/nvim-treesitter-context',
+    { 'nvim-treesitter/nvim-treesitter-context', opts = {} },
     { 'nushell/tree-sitter-nu' },
   },
   config = function()
-    require('configs.plugins.nvim-treesitter-textobjects')
     require('configs.plugins.nvim-treesitter')
+    require('configs.plugins.nvim-treesitter-textobjects')
   end,
 }
