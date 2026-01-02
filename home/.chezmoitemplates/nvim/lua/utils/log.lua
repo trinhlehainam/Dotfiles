@@ -26,6 +26,7 @@ do
 end
 
 ---@param level number
+---@return fun(msg: string, title?: string)
 local function notify_fn(level)
   ---@param msg string
   ---@param title? string
