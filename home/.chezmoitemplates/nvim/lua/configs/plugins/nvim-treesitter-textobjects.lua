@@ -5,9 +5,9 @@
 --
 -- KEYMAPS SUMMARY:
 -- ┌─────────────────────────────────────────────────────────────────────────┐
--- │ SELECT (x,o)   │ af/if=func  ac/ic=class  ai/ii=if  as=scope            │
--- │ SWAP (n)       │ <leader>a=next param  <leader>A=prev param             │
--- │ GOTO (n,x,o)   │ ]f/[f=func  ]]/[[=class  ]i/[i=if  ]o/[o=loop          │
+-- │ SELECT (x,o)   │ af/if=func  ac/ic=class  ai/ii=if  ao/io=loop  as=scope │
+-- │ SWAP (n)       │ <leader>a=next param  <leader>A=prev param              │
+-- │ GOTO (n,x,o)   │ ]f/[f=func  ]]/[[=class  ]i/[i=if  ]o/[o=loop           │
 -- │ REPEAT (n,x,o) │ ;=forward  ,=backward  f/F/t/T=enhanced find           │
 -- └─────────────────────────────────────────────────────────────────────────┘
 -- ============================================================================
@@ -62,6 +62,15 @@ end, { desc = 'Select outer conditional' })
 vim.keymap.set({ 'x', 'o' }, 'ii', function()
   select.select_textobject('@conditional.inner', 'textobjects')
 end, { desc = 'Select inner conditional' })
+
+-- Loop text objects
+vim.keymap.set({ 'x', 'o' }, 'ao', function()
+  select.select_textobject('@loop.outer', 'textobjects')
+end, { desc = 'Select outer loop' })
+
+vim.keymap.set({ 'x', 'o' }, 'io', function()
+  select.select_textobject('@loop.inner', 'textobjects')
+end, { desc = 'Select inner loop' })
 
 -- Scope text object (locals.scm)
 vim.keymap.set({ 'x', 'o' }, 'as', function()
@@ -128,12 +137,20 @@ end, { desc = 'Prev class end' })
 -- ── Loop Navigation ─────────────────────────────────────────────────────────
 
 vim.keymap.set({ 'n', 'x', 'o' }, ']o', function()
-  move.goto_next_start({ '@loop.inner', '@loop.outer' }, 'textobjects')
-end, { desc = 'Next loop' })
+  move.goto_next_start('@loop.outer', 'textobjects')
+end, { desc = 'Next loop start' })
 
 vim.keymap.set({ 'n', 'x', 'o' }, '[o', function()
-  move.goto_previous_start({ '@loop.inner', '@loop.outer' }, 'textobjects')
-end, { desc = 'Prev loop' })
+  move.goto_previous_start('@loop.outer', 'textobjects')
+end, { desc = 'Prev loop start' })
+
+vim.keymap.set({ 'n', 'x', 'o' }, ']O', function()
+  move.goto_next_end('@loop.outer', 'textobjects')
+end, { desc = 'Next loop end' })
+
+vim.keymap.set({ 'n', 'x', 'o' }, '[O', function()
+  move.goto_previous_end('@loop.outer', 'textobjects')
+end, { desc = 'Prev loop end' })
 
 -- ── Conditional Navigation ──────────────────────────────────────────────────
 -- NOTE: Uses ]i/[i (not ]d/[d which conflicts with LSP diagnostic jump)
