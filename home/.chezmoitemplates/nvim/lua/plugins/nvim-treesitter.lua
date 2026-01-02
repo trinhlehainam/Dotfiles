@@ -5,13 +5,27 @@ return { -- Highlight, edit, and navigate code
   branch = 'main',
   build = ':TSUpdate',
   dependencies = {
-    -- 'nvim-treesitter/nvim-treesitter-textobjects',
-    -- { 'nvim-treesitter/nvim-treesitter-context', opts = {} },
+    {
+      -- https://github.com/nvim-treesitter/nvim-treesitter-textobjects/tree/main
+      'nvim-treesitter/nvim-treesitter-textobjects',
+      branch = 'main',
+      init = function()
+        -- Disable entire built-in ftplugin mappings to avoid conflicts.
+        -- See https://github.com/neovim/neovim/tree/master/runtime/ftplugin for built-in ftplugins.
+        vim.g.no_plugin_maps = true
+
+        -- Or, disable per filetype (add as you like)
+        -- vim.g.no_python_maps = true
+        -- vim.g.no_ruby_maps = true
+        -- vim.g.no_rust_maps = true
+        -- vim.g.no_go_maps = true
+      end,
+    },
+    'nvim-treesitter/nvim-treesitter-context',
     { 'nushell/tree-sitter-nu' },
-    -- TODO: some tree-sitter extension require manually install
-    -- { "EmranMR/tree-sitter-blade" },
   },
   config = function()
+    require('configs.plugins.nvim-treesitter-textobjects')
     require('configs.plugins.nvim-treesitter')
   end,
 }
