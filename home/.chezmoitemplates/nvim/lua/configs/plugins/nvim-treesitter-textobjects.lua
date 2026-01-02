@@ -5,9 +5,9 @@
 --
 -- KEYMAPS SUMMARY:
 -- ┌─────────────────────────────────────────────────────────────────────────┐
--- │ SELECT (x,o)   │ am/im=function  ac/ic=class  as=scope                  │
+-- │ SELECT (x,o)   │ af/if=function  ac/ic=class  as=scope                  │
 -- │ SWAP (n)       │ <leader>a=next param  <leader>A=prev param             │
--- │ GOTO (n,x,o)   │ ]m/[m=func  ]]/[[=class  ]o/[o=loop  ]i/[i=if          │
+-- │ GOTO (n,x,o)   │ ]f/[f=func  ]]/[[=class  ]o/[o=loop  ]i/[i=if          │
 -- │ REPEAT (n,x,o) │ ;=forward  ,=backward  f/F/t/T=enhanced find           │
 -- └─────────────────────────────────────────────────────────────────────────┘
 -- ============================================================================
@@ -37,11 +37,11 @@ textobjects.setup({
 local select = require('nvim-treesitter-textobjects.select')
 
 -- Function text objects
-vim.keymap.set({ 'x', 'o' }, 'am', function()
+vim.keymap.set({ 'x', 'o' }, 'af', function()
   select.select_textobject('@function.outer', 'textobjects')
 end, { desc = 'Select outer function' })
 
-vim.keymap.set({ 'x', 'o' }, 'im', function()
+vim.keymap.set({ 'x', 'o' }, 'if', function()
   select.select_textobject('@function.inner', 'textobjects')
 end, { desc = 'Select inner function' })
 
@@ -81,19 +81,19 @@ local move = require('nvim-treesitter-textobjects.move')
 
 -- ── Function Navigation ─────────────────────────────────────────────────────
 
-vim.keymap.set({ 'n', 'x', 'o' }, ']m', function()
+vim.keymap.set({ 'n', 'x', 'o' }, ']f', function()
   move.goto_next_start('@function.outer', 'textobjects')
 end, { desc = 'Next function start' })
 
-vim.keymap.set({ 'n', 'x', 'o' }, '[m', function()
+vim.keymap.set({ 'n', 'x', 'o' }, '[f', function()
   move.goto_previous_start('@function.outer', 'textobjects')
 end, { desc = 'Prev function start' })
 
-vim.keymap.set({ 'n', 'x', 'o' }, ']M', function()
+vim.keymap.set({ 'n', 'x', 'o' }, ']F', function()
   move.goto_next_end('@function.outer', 'textobjects')
 end, { desc = 'Next function end' })
 
-vim.keymap.set({ 'n', 'x', 'o' }, '[M', function()
+vim.keymap.set({ 'n', 'x', 'o' }, '[F', function()
   move.goto_previous_end('@function.outer', 'textobjects')
 end, { desc = 'Prev function end' })
 
