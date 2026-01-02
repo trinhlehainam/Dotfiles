@@ -6,6 +6,10 @@
 -- Set to true if you have a Nerd Font installed and selected in the terminal
 vim.g.have_nerd_font = true
 
+-- Reduce "Press ENTER" prompts during startup
+-- See: `:help hit-enter`
+vim.opt.cmdheight = 2 -- more space in the command line for displaying messages
+
 -- Make line numbers default
 vim.o.number = true
 -- You can also add relative line numbers, to help with jumping.

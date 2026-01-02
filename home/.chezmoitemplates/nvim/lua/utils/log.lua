@@ -17,11 +17,7 @@ local function log(level, msg, title)
       return
     end
 
-    if level == levels.ERROR then
-      vim.notify(('[%s] %s'):format(title, msg), level)
-    else
-      vim.print(('[%s] %s'):format(title, msg))
-    end
+    vim.notify(('[%s] %s'):format(title, msg), level)
   end)
 end
 
