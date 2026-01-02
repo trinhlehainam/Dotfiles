@@ -6,7 +6,7 @@
 -- KEYMAPS SUMMARY:
 -- ┌─────────────────────────────────────────────────────────────────────────┐
 -- │ SELECT (x,o)   │ af/if=func  ac/ic=class  ai/ii=if  ao/io=loop  as=scope │
--- │ SWAP (n)       │ <leader>a=next param  <leader>A=prev param              │
+-- │ SWAP (n)       │ <A-l>=swap right  <A-h>=swap left                        │
 -- │ GOTO (n,x,o)   │ ]f/[f=func  ]]/[[=class  ]i/[i=if  ]o/[o=loop           │
 -- │ REPEAT (n,x,o) │ ;=forward  ,=backward  f/F/t/T=enhanced find           │
 -- └─────────────────────────────────────────────────────────────────────────┘
@@ -83,13 +83,14 @@ end, { desc = 'Select scope' })
 
 local swap = require('nvim-treesitter-textobjects.swap')
 
-vim.keymap.set('n', '<leader>a', function()
+-- Swap arguments horizontally (complements <A-j>/<A-k> line movement)
+vim.keymap.set('n', '<A-l>', function()
   swap.swap_next('@parameter.inner')
-end, { desc = 'Swap next parameter' })
+end, { desc = 'Swap argument right' })
 
-vim.keymap.set('n', '<leader>A', function()
-  swap.swap_previous('@parameter.outer')
-end, { desc = 'Swap previous parameter' })
+vim.keymap.set('n', '<A-h>', function()
+  swap.swap_previous('@parameter.inner')
+end, { desc = 'Swap argument left' })
 
 -- ============================================================================
 -- GOTO MOTIONS (normal/visual/operator-pending modes)
