@@ -17,7 +17,6 @@ local function get_notify()
   local ok, notify = pcall(require, 'notify')
   if ok then
     notify_plugin = notify
-    vim.notify = notify_plugin
     return notify_plugin
   end
 
