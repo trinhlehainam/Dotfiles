@@ -5,9 +5,9 @@
 --
 -- KEYMAPS SUMMARY:
 -- ┌─────────────────────────────────────────────────────────────────────────┐
--- │ SELECT (x,o)   │ af/if=function  ac/ic=class  as=scope                  │
+-- │ SELECT (x,o)   │ af/if=func  ac/ic=class  ai/ii=if  as=scope            │
 -- │ SWAP (n)       │ <leader>a=next param  <leader>A=prev param             │
--- │ GOTO (n,x,o)   │ ]f/[f=func  ]]/[[=class  ]o/[o=loop  ]i/[i=if          │
+-- │ GOTO (n,x,o)   │ ]f/[f=func  ]]/[[=class  ]i/[i=if  ]o/[o=loop          │
 -- │ REPEAT (n,x,o) │ ;=forward  ,=backward  f/F/t/T=enhanced find           │
 -- └─────────────────────────────────────────────────────────────────────────┘
 -- ============================================================================
@@ -53,6 +53,15 @@ end, { desc = 'Select outer class' })
 vim.keymap.set({ 'x', 'o' }, 'ic', function()
   select.select_textobject('@class.inner', 'textobjects')
 end, { desc = 'Select inner class' })
+
+-- Conditional text objects
+vim.keymap.set({ 'x', 'o' }, 'ai', function()
+  select.select_textobject('@conditional.outer', 'textobjects')
+end, { desc = 'Select outer conditional' })
+
+vim.keymap.set({ 'x', 'o' }, 'ii', function()
+  select.select_textobject('@conditional.inner', 'textobjects')
+end, { desc = 'Select inner conditional' })
 
 -- Scope text object (locals.scm)
 vim.keymap.set({ 'x', 'o' }, 'as', function()
@@ -130,12 +139,20 @@ end, { desc = 'Prev loop' })
 -- NOTE: Uses ]i/[i (not ]d/[d which conflicts with LSP diagnostic jump)
 
 vim.keymap.set({ 'n', 'x', 'o' }, ']i', function()
-  move.goto_next('@conditional.outer', 'textobjects')
-end, { desc = 'Next conditional (if)' })
+  move.goto_next_start('@conditional.outer', 'textobjects')
+end, { desc = 'Next conditional start' })
 
 vim.keymap.set({ 'n', 'x', 'o' }, '[i', function()
-  move.goto_previous('@conditional.outer', 'textobjects')
-end, { desc = 'Prev conditional (if)' })
+  move.goto_previous_start('@conditional.outer', 'textobjects')
+end, { desc = 'Prev conditional start' })
+
+vim.keymap.set({ 'n', 'x', 'o' }, ']I', function()
+  move.goto_next_end('@conditional.outer', 'textobjects')
+end, { desc = 'Next conditional end' })
+
+vim.keymap.set({ 'n', 'x', 'o' }, '[I', function()
+  move.goto_previous_end('@conditional.outer', 'textobjects')
+end, { desc = 'Prev conditional end' })
 
 -- ── Scope Navigation ────────────────────────────────────────────────────────
 -- NOTE: Uses ]S/[S (not ]s/[s which conflicts with Vim spell navigation)
