@@ -1,129 +1,207 @@
+-- ============================================================================
+-- TREESITTER TEXTOBJECTS
+-- ============================================================================
+-- Syntax-aware text objects and motions using treesitter queries.
+--
+-- KEYMAPS SUMMARY:
+-- ┌─────────────────────────────────────────────────────────────────────────┐
+-- │ SELECT (x,o)   │ am/im=function  ac/ic=class  as=scope                  │
+-- │ SWAP (n)       │ <leader>a=next param  <leader>A=prev param             │
+-- │ GOTO (n,x,o)   │ ]m/[m=func  ]]/[[=class  ]o/[o=loop  ]i/[i=if          │
+-- │ REPEAT (n,x,o) │ ;=forward  ,=backward  f/F/t/T=enhanced find           │
+-- └─────────────────────────────────────────────────────────────────────────┘
+-- ============================================================================
+
 local textobjects = require('nvim-treesitter-textobjects')
+
+-- ── Setup ───────────────────────────────────────────────────────────────────
 
 textobjects.setup({
   select = {
-    -- Automatically jump forward to textobj, similar to targets.vim
-    lookahead = true,
-    -- You can choose the select mode (default is charwise 'v')
-    --
-    -- Can also be a function which gets passed a table with the keys
-    -- * query_string: eg '@function.inner'
-    -- * method: eg 'v' or 'o'
-    -- and should return the mode ('v', 'V', or '<c-v>') or a table
-    -- mapping query_strings to modes.
+    lookahead = true, -- Jump forward to textobj (like targets.vim)
     selection_modes = {
       ['@parameter.outer'] = 'v', -- charwise
       ['@function.outer'] = 'V', -- linewise
-      -- ['@class.outer'] = '<c-v>', -- blockwise
     },
-    -- If you set this to `true` (default is `false`) then any textobject is
-    -- extended to include preceding or succeeding whitespace. Succeeding
-    -- whitespace has priority in order to act similarly to eg the built-in
-    -- `ap`.
-    --
-    -- Can also be a function which gets passed a table with the keys
-    -- * query_string: eg '@function.inner'
-    -- * selection_mode: eg 'v'
-    -- and should return true of false
     include_surrounding_whitespace = false,
   },
   move = {
-    -- whether to set jumps in the jumplist
-    set_jumps = true,
+    set_jumps = true, -- Add to jumplist
   },
 })
 
--- keymaps
--- Text objects: select
+-- ============================================================================
+-- SELECT TEXT OBJECTS (visual/operator-pending modes)
+-- ============================================================================
+
 local select = require('nvim-treesitter-textobjects.select')
--- You can use the capture groups defined in `textobjects.scm`
+
+-- Function text objects
 vim.keymap.set({ 'x', 'o' }, 'am', function()
   select.select_textobject('@function.outer', 'textobjects')
-end)
+end, { desc = 'Select outer function' })
+
 vim.keymap.set({ 'x', 'o' }, 'im', function()
   select.select_textobject('@function.inner', 'textobjects')
-end)
+end, { desc = 'Select inner function' })
+
+-- Class text objects
 vim.keymap.set({ 'x', 'o' }, 'ac', function()
   select.select_textobject('@class.outer', 'textobjects')
-end)
+end, { desc = 'Select outer class' })
+
 vim.keymap.set({ 'x', 'o' }, 'ic', function()
   select.select_textobject('@class.inner', 'textobjects')
-end)
--- You can also use captures from other query groups like `locals.scm`
+end, { desc = 'Select inner class' })
+
+-- Scope text object (locals.scm)
 vim.keymap.set({ 'x', 'o' }, 'as', function()
   select.select_textobject('@local.scope', 'locals')
-end)
---- Text objects: swap
+end, { desc = 'Select scope' })
+
+-- ============================================================================
+-- SWAP PARAMETERS (normal mode)
+-- ============================================================================
+
 local swap = require('nvim-treesitter-textobjects.swap')
+
 vim.keymap.set('n', '<leader>a', function()
   swap.swap_next('@parameter.inner')
-end)
+end, { desc = 'Swap next parameter' })
+
 vim.keymap.set('n', '<leader>A', function()
   swap.swap_previous('@parameter.outer')
-end)
--- Text objects: move
+end, { desc = 'Swap previous parameter' })
+
+-- ============================================================================
+-- GOTO MOTIONS (normal/visual/operator-pending modes)
+-- ============================================================================
+
 local move = require('nvim-treesitter-textobjects.move')
--- You can use the capture groups defined in `textobjects.scm`
+
+-- ── Function Navigation ─────────────────────────────────────────────────────
+
 vim.keymap.set({ 'n', 'x', 'o' }, ']m', function()
   move.goto_next_start('@function.outer', 'textobjects')
-end)
-vim.keymap.set({ 'n', 'x', 'o' }, ']]', function()
-  move.goto_next_start('@class.outer', 'textobjects')
-end)
--- You can also pass a list to group multiple queries.
-vim.keymap.set({ 'n', 'x', 'o' }, ']o', function()
-  move.goto_next_start({ '@loop.inner', '@loop.outer' }, 'textobjects')
-end)
--- You can also use captures from other query groups like `locals.scm` or `folds.scm`
-vim.keymap.set({ 'n', 'x', 'o' }, ']s', function()
-  move.goto_next_start('@local.scope', 'locals')
-end)
-vim.keymap.set({ 'n', 'x', 'o' }, ']z', function()
-  move.goto_next_start('@fold', 'folds')
-end)
-
-vim.keymap.set({ 'n', 'x', 'o' }, ']M', function()
-  move.goto_next_end('@function.outer', 'textobjects')
-end)
-vim.keymap.set({ 'n', 'x', 'o' }, '][', function()
-  move.goto_next_end('@class.outer', 'textobjects')
-end)
+end, { desc = 'Next function start' })
 
 vim.keymap.set({ 'n', 'x', 'o' }, '[m', function()
   move.goto_previous_start('@function.outer', 'textobjects')
-end)
-vim.keymap.set({ 'n', 'x', 'o' }, '[[', function()
-  move.goto_previous_start('@class.outer', 'textobjects')
-end)
+end, { desc = 'Prev function start' })
+
+vim.keymap.set({ 'n', 'x', 'o' }, ']M', function()
+  move.goto_next_end('@function.outer', 'textobjects')
+end, { desc = 'Next function end' })
 
 vim.keymap.set({ 'n', 'x', 'o' }, '[M', function()
   move.goto_previous_end('@function.outer', 'textobjects')
-end)
+end, { desc = 'Prev function end' })
+
+-- ── Class Navigation ────────────────────────────────────────────────────────
+-- NOTE: Overrides Vim's builtin section motions (intentional)
+
+vim.keymap.set({ 'n', 'x', 'o' }, ']]', function()
+  move.goto_next_start('@class.outer', 'textobjects')
+end, { desc = 'Next class start' })
+
+vim.keymap.set({ 'n', 'x', 'o' }, '[[', function()
+  move.goto_previous_start('@class.outer', 'textobjects')
+end, { desc = 'Prev class start' })
+
+vim.keymap.set({ 'n', 'x', 'o' }, '][', function()
+  move.goto_next_end('@class.outer', 'textobjects')
+end, { desc = 'Next class end' })
+
 vim.keymap.set({ 'n', 'x', 'o' }, '[]', function()
   move.goto_previous_end('@class.outer', 'textobjects')
-end)
+end, { desc = 'Prev class end' })
 
--- Go to either the start or the end, whichever is closer.
--- Use if you want more granular movements
-vim.keymap.set({ 'n', 'x', 'o' }, ']d', function()
+-- ── Loop Navigation ─────────────────────────────────────────────────────────
+
+vim.keymap.set({ 'n', 'x', 'o' }, ']o', function()
+  move.goto_next_start({ '@loop.inner', '@loop.outer' }, 'textobjects')
+end, { desc = 'Next loop' })
+
+vim.keymap.set({ 'n', 'x', 'o' }, '[o', function()
+  move.goto_previous_start({ '@loop.inner', '@loop.outer' }, 'textobjects')
+end, { desc = 'Prev loop' })
+
+-- ── Conditional Navigation ──────────────────────────────────────────────────
+-- NOTE: Uses ]i/[i (not ]d/[d which conflicts with LSP diagnostic jump)
+
+vim.keymap.set({ 'n', 'x', 'o' }, ']i', function()
   move.goto_next('@conditional.outer', 'textobjects')
-end)
-vim.keymap.set({ 'n', 'x', 'o' }, '[d', function()
+end, { desc = 'Next conditional (if)' })
+
+vim.keymap.set({ 'n', 'x', 'o' }, '[i', function()
   move.goto_previous('@conditional.outer', 'textobjects')
-end)
+end, { desc = 'Prev conditional (if)' })
 
--- Repeat movement with ; and ,
+-- ── Scope Navigation ────────────────────────────────────────────────────────
+-- NOTE: Uses ]S/[S (not ]s/[s which conflicts with Vim spell navigation)
+
+vim.keymap.set({ 'n', 'x', 'o' }, ']S', function()
+  move.goto_next_start('@local.scope', 'locals')
+end, { desc = 'Next scope' })
+
+vim.keymap.set({ 'n', 'x', 'o' }, '[S', function()
+  move.goto_previous_start('@local.scope', 'locals')
+end, { desc = 'Prev scope' })
+
+-- ── Fold Navigation ─────────────────────────────────────────────────────────
+
+vim.keymap.set({ 'n', 'x', 'o' }, ']z', function()
+  move.goto_next_start('@fold', 'folds')
+end, { desc = 'Next fold' })
+
+vim.keymap.set({ 'n', 'x', 'o' }, '[z', function()
+  move.goto_previous_start('@fold', 'folds')
+end, { desc = 'Prev fold' })
+
+-- ============================================================================
+-- REPEATABLE MOTIONS
+-- ============================================================================
+-- Makes all treesitter motions repeatable with ; and ,
+-- Also enhances builtin f/F/t/T to be repeatable
+
 local repeatable_move = require('nvim-treesitter-textobjects.repeatable_move')
--- ensure ; goes forward and , goes backward regardless of the last direction
-vim.keymap.set({ 'n', 'x', 'o' }, ';', repeatable_move.repeat_last_move_next)
-vim.keymap.set({ 'n', 'x', 'o' }, ',', repeatable_move.repeat_last_move_previous)
 
--- vim way: ; goes to the direction you were moving.
--- vim.keymap.set({ "n", "x", "o" }, ";", repeatable_move.repeat_last_move)
--- vim.keymap.set({ "n", "x", "o" }, ",", repeatable_move.repeat_last_move_opposite)
+-- ; always goes forward, , always goes backward
+vim.keymap.set(
+  { 'n', 'x', 'o' },
+  ';',
+  repeatable_move.repeat_last_move_next,
+  { desc = 'Repeat move forward' }
+)
+vim.keymap.set(
+  { 'n', 'x', 'o' },
+  ',',
+  repeatable_move.repeat_last_move_previous,
+  { desc = 'Repeat move backward' }
+)
 
--- Optionally, make builtin f, F, t, T also repeatable with ; and ,
-vim.keymap.set({ 'n', 'x', 'o' }, 'f', repeatable_move.builtin_f_expr, { expr = true })
-vim.keymap.set({ 'n', 'x', 'o' }, 'F', repeatable_move.builtin_F_expr, { expr = true })
-vim.keymap.set({ 'n', 'x', 'o' }, 't', repeatable_move.builtin_t_expr, { expr = true })
-vim.keymap.set({ 'n', 'x', 'o' }, 'T', repeatable_move.builtin_T_expr, { expr = true })
+-- Make builtin f/F/t/T repeatable with ; and ,
+vim.keymap.set(
+  { 'n', 'x', 'o' },
+  'f',
+  repeatable_move.builtin_f_expr,
+  { expr = true, desc = 'Find char forward' }
+)
+vim.keymap.set(
+  { 'n', 'x', 'o' },
+  'F',
+  repeatable_move.builtin_F_expr,
+  { expr = true, desc = 'Find char backward' }
+)
+vim.keymap.set(
+  { 'n', 'x', 'o' },
+  't',
+  repeatable_move.builtin_t_expr,
+  { expr = true, desc = 'Till char forward' }
+)
+vim.keymap.set(
+  { 'n', 'x', 'o' },
+  'T',
+  repeatable_move.builtin_T_expr,
+  { expr = true, desc = 'Till char backward' }
+)
