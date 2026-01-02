@@ -113,8 +113,8 @@ return {
       {
         key = 'B',
         mods = 'CTRL|SHIFT',
-        action = wezterm.action_callback(function(window, pane)
-          wallpaper.show_picker(window, pane)
+        action = wezterm.action_callback(function(w, p)
+          wallpaper.show_picker(w, p)
         end),
       },
 

@@ -1,43 +1,51 @@
 local levels = vim.log.levels
 
--- Cache for notify plugin availability
-local notify_plugin = nil
-local notify_checked = false
+local TITLE = 'Nvim Dotfiles'
 
--- Check and cache notify plugin availability
-local function get_notify()
-  if not notify_checked then
-    notify_checked = true
+local get_notify = nil
+do
+  -- Cached nvim-notify module, nil until first successful load
+  local _notify = nil
+
+  --- Get nvim-notify module with caching
+  --- Fetches and caches the notify implementation for use by callers.
+  ---@return notify|nil
+  get_notify = function()
+    if _notify then
+      return _notify
+    end
+
     local ok, notify = pcall(require, 'notify')
     if ok then
-      notify_plugin = notify
+      _notify = notify
+      return _notify
     end
+
+    return nil
   end
-  return notify_plugin
 end
 
 ---@param level number
----@return fun(message: string)
-local notify_fn = function(level)
-  ---@param message string
-  return function(message)
-    -- Use vim.schedule for non-blocking execution on next event loop iteration
+---@return fun(msg: string, title?: string)
+local function notify_fn(level)
+  ---@param msg string
+  ---@param title? string
+  return function(msg, title)
+    title = title or TITLE
     vim.schedule(function()
       local notify = get_notify()
       if notify then
-        notify(message, level, { title = 'Nvim Dotfiles' })
+        notify(msg, level, { title = title })
       else
-        -- Fallback to built-in vim.notify
-        vim.notify(message, level)
+        vim.notify(('[%s] %s'):format(title, msg), level)
       end
     end)
   end
 end
 
-local M = {}
-M.debug = notify_fn(levels.DEBUG)
-M.info = notify_fn(levels.INFO)
-M.warn = notify_fn(levels.WARN)
-M.error = notify_fn(levels.ERROR)
-
-return M
+return {
+  debug = notify_fn(levels.DEBUG),
+  info = notify_fn(levels.INFO),
+  warn = notify_fn(levels.WARN),
+  error = notify_fn(levels.ERROR),
+}
