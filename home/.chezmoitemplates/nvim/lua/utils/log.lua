@@ -30,8 +30,9 @@ end
 local function log(level, msg, title)
   title = title or TITLE
   vim.schedule(function()
-    if get_notify() then
-      vim.notify(msg, level, { title = title })
+    local notify = get_notify()
+    if notify then
+      notify(msg, level, { title = title })
     else
       vim.notify(('[%s] %s'):format(title, msg), level)
     end
