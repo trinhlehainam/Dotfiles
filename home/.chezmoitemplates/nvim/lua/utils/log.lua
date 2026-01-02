@@ -2,25 +2,28 @@ local levels = vim.log.levels
 
 local TITLE = 'Nvim Dotfiles'
 
--- Cached nvim-notify module, nil until first successful load
-local notify_plugin = nil
+local get_notify = nil
+do
+  -- Cached nvim-notify module, nil until first successful load
+  local _notify = nil
 
---- Get nvim-notify module with caching
---- On first successful load, overrides vim.notify immediately since
---- module load timing may differ from nvim-notify's own override timing
----@return notify|nil
-local function get_notify()
-  if notify_plugin then
-    return notify_plugin
+  --- Get nvim-notify module with caching
+  --- On first successful load, overrides vim.notify immediately since
+  --- module load timing may differ from nvim-notify's own override timing
+  ---@return notify|nil
+  get_notify = function()
+    if _notify then
+      return _notify
+    end
+
+    local ok, notify = pcall(require, 'notify')
+    if ok then
+      _notify = notify
+      return _notify
+    end
+
+    return nil
   end
-
-  local ok, notify = pcall(require, 'notify')
-  if ok then
-    notify_plugin = notify
-    return notify_plugin
-  end
-
-  return nil
 end
 
 ---@param level number
