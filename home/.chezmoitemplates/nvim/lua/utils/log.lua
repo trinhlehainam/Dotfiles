@@ -8,7 +8,7 @@ local notify_plugin = nil
 --- Get nvim-notify module with caching
 --- On first successful load, overrides vim.notify immediately since
 --- module load timing may differ from nvim-notify's own override timing
----@return table|nil
+---@return notify|nil
 local function get_notify()
   if notify_plugin then
     return notify_plugin
