@@ -25,31 +25,25 @@ local function get_notify()
 end
 
 ---@param level number
----@param msg string
----@param title? string
-local function log(level, msg, title)
-  title = title or TITLE
-  vim.schedule(function()
-    local notify = get_notify()
-    if notify then
-      notify(msg, level, { title = title })
-    else
-      vim.notify(('[%s] %s'):format(title, msg), level)
-    end
-  end)
+local function notify_fn(level)
+  ---@param msg string
+  ---@param title? string
+  return function(msg, title)
+    title = title or TITLE
+    vim.schedule(function()
+      local notify = get_notify()
+      if notify then
+        notify(msg, level, { title = title })
+      else
+        vim.notify(('[%s] %s'):format(title, msg), level)
+      end
+    end)
+  end
 end
 
 return {
-  debug = function(msg, title)
-    log(levels.DEBUG, msg, title)
-  end,
-  info = function(msg, title)
-    log(levels.INFO, msg, title)
-  end,
-  warn = function(msg, title)
-    log(levels.WARN, msg, title)
-  end,
-  error = function(msg, title)
-    log(levels.ERROR, msg, title)
-  end,
+  debug = notify_fn(levels.DEBUG),
+  info = notify_fn(levels.INFO),
+  warn = notify_fn(levels.WARN),
+  error = notify_fn(levels.ERROR),
 }
