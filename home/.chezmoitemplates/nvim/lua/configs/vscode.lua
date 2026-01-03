@@ -5,8 +5,8 @@
 -- https://stackoverflow.com/a/64786469
 -- https://code.visualstudio.com/docs/getstarted/keybindings
 
-vim.opt.spelllang = 'en_us'
-vim.opt.spell = false
+vim.o.spelllang = 'en_us'
+vim.o.spell = false
 
 local opts = {}
 

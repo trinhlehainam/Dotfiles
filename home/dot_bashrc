@@ -208,21 +208,21 @@ fi
 # WezTerm: set per-pane user vars (OSC 1337)
 # Ref: https://wezterm.org/config/lua/pane/get_user_vars.html
 __wezterm_set_user_var() {
-  if hash base64 2>/dev/null ; then
-    if [[ -z "$TMUX" ]] ; then
-      printf "\033]1337;SetUserVar=%s=%s\007" "$1" "$(echo -n "$2" | base64)"
-    else
-      # <https://github.com/tmux/tmux/wiki/FAQ#what-is-the-passthrough-escape-sequence-and-how-do-i-use-it>
-      # Note that you ALSO need to add "set -g allow-passthrough on" to your tmux.conf
-      printf "\033Ptmux;\033\033]1337;SetUserVar=%s=%s\007\033\\" "$1" "$(echo -n "$2" | base64)"
-    fi
-  fi
+	if hash base64 2>/dev/null ; then
+		if [[ -z "$TMUX" ]] ; then
+			printf "\033]1337;SetUserVar=%s=%s\007" "$1" "$(echo -n "$2" | base64)"
+		else
+			# <https://github.com/tmux/tmux/wiki/FAQ#what-is-the-passthrough-escape-sequence-and-how-do-i-use-it>
+			# Note that you ALSO need to add "set -g allow-passthrough on" to your tmux.conf
+			printf "\033Ptmux;\033\033]1337;SetUserVar=%s=%s\007\033\\" "$1" "$(echo -n "$2" | base64)"
+		fi
+	fi
 }
 
 # Mark this terminal pane as "in tmux".
 # Works locally and over SSH: the OSC sequence is forwarded to WezTerm.
 if [[ -n "${TMUX-}" ]]; then
-  __wezterm_set_user_var "IS_TMUX" "true"
+	__wezterm_set_user_var "IS_TMUX" "true"
 fi
 
 eval "$(zoxide init bash)"
@@ -237,8 +237,8 @@ fi
 # pnpm
 export PNPM_HOME="$HOME/.local/share/pnpm"
 case ":$PATH:" in
-  *":$PNPM_HOME:"*) ;;
-  *) export PATH="$PNPM_HOME:$PATH" ;;
+	*":$PNPM_HOME:"*) ;;
+	*) export PATH="$PNPM_HOME:$PATH" ;;
 esac
 # pnpm end
 
