@@ -99,8 +99,8 @@ vim.o.colorcolumn = '80'
 -- Since version 0.9.0 Neovim has built-in secure, see https://neovim.io/doc/user/lua.html#vim.secure
 vim.o.exrc = true
 
-vim.opt.spelllang = 'en_us'
-vim.opt.spell = false
+vim.o.spelllang = 'en_us'
+vim.o.spell = false
 
 -- Highlight when yanking (copying) text
 --  Try it with `yap` in normal mode
