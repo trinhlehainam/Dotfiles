@@ -256,7 +256,8 @@ local function apply(window)
     }
   else
     -- Wallpaper disabled: solid color matching scheme
-    overrides.background = { make_color_layer(scheme_bg, state.base_window_background_opacity or 1.0) }
+    overrides.background =
+      { make_color_layer(scheme_bg, state.base_window_background_opacity or 1.0) }
   end
 
   window:set_config_overrides(overrides)

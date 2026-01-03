@@ -64,12 +64,12 @@ if (Test-Command yazi)
 	# INFO: https://yazi-rs.github.io/docs/quick-start#shell-wrapper
 	function y
 	{
-		$tmp = [System.IO.Path]::GetTempFileName()
-		yazi $args --cwd-file="$tmp"
+		$tmp = (New-TemporaryFile).FullName
+		yazi.exe $args --cwd-file="$tmp"
 		$cwd = Get-Content -Path $tmp -Encoding UTF8
 		if (-not [String]::IsNullOrEmpty($cwd) -and $cwd -ne $PWD.Path)
 		{
-			Set-Location -LiteralPath ([System.IO.Path]::GetFullPath($cwd))
+			Set-Location -LiteralPath (Resolve-Path -LiteralPath $cwd).Path
 		}
 		Remove-Item -Path $tmp
 	}
