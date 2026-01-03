@@ -325,5 +325,19 @@ vim.keymap.set('v', '>', '>gv=gv', opts.nore) -- Indent right and maintain selec
 vim.keymap.set('v', '<', '<gv=gv', opts.nore) -- Indent left and maintain selection
 
 -- ============================================================================
+-- TOGGLE OPTIONS
+-- ============================================================================
+
+-- ----------------------------------------------------------------------------
+-- Spell Check Toggle
+-- ----------------------------------------------------------------------------
+
+-- Toggle spell checking on/off
+-- <leader>ts: Toggle spell (mnemonic: t = toggle, s = spell)
+vim.keymap.set('n', '<leader>ts', function()
+  vim.o.spell = not vim.o.spell
+end, { noremap = true, silent = true, desc = 'Toggle spell check' })
+
+-- ============================================================================
 -- END OF KEYMAPS CONFIGURATION
 -- ============================================================================
