@@ -1,6 +1,3 @@
--- OpenCode: AI assistant integration with terminal, prompts, and context management
--- Terminal: 40% width, right-side split, auto-focus on open
--- Filetype: opencode_terminal (for autocmd targeting)
 return {
   'NickvanDyke/opencode.nvim',
   dependencies = {
@@ -15,8 +12,6 @@ return {
     vim.g.opencode_opts = {
       provider = {
         snacks = {
-          ---@module "snacks"
-          ---@type snacks.win.Config|{}
           win = {
             width = 0.4, -- 40% width (matches claudecode)
             enter = true, -- Focus terminal when opened (consistent with claudecode)
