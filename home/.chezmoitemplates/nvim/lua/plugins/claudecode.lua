@@ -1,6 +1,7 @@
 return {
   'coder/claudecode.nvim',
   dependencies = { 'folke/snacks.nvim' },
+  -- https://github.com/coder/claudecode.nvim?tab=readme-ov-file#advanced-configuration
   opts = {
     terminal = {
       ---@module "snacks"
@@ -14,6 +15,9 @@ return {
           filetype = 'claudecode_terminal', -- Custom filetype for autocmd targeting
         },
       },
+    },
+    diff_opts = {
+      open_in_current_tab = false,
     },
   },
   config = true,
