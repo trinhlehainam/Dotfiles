@@ -1,4 +1,4 @@
-name: Claude Auto Review
+name: Claude PR Review
 
 # =============================================================================
 # Uses z.ai GLM-4.7 instead of Claude Code subscription ($3/mo vs $20/mo)
@@ -17,7 +17,7 @@ on:
     types: [opened]
 
 jobs:
-  auto-review:
+  review:
     runs-on: ubuntu-latest
     permissions:
       contents: read
