@@ -1,6 +1,6 @@
 -- Claude Code: Neovim integration via reverse-engineered WebSocket MCP protocol
 -- Compatible with Anthropic's Claude Code CLI (claude command)
--- Terminal: 35% width, right-side split, auto-focus on open
+-- Terminal: 40% width, right-side split, auto-focus on open
 -- Filetype: claudecode_terminal (for autocmd targeting)
 return {
   'coder/claudecode.nvim',
@@ -10,6 +10,7 @@ return {
       ---@module "snacks"
       ---@type snacks.win.Config|{}
       snacks_win_opts = {
+        width = 0.4, -- 40% width (matches opencode)
         wo = {
           winbar = '',
         },
