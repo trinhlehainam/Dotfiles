@@ -8,7 +8,6 @@ return {
       ---@module "snacks"
       ---@type snacks.win.Config|{}
       snacks_win_opts = {
-        width = 0.4, -- 40% width (matches opencode)
         wo = {
           winbar = '',
         },
