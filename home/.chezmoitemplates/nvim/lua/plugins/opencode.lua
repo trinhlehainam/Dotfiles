@@ -8,7 +8,17 @@ return {
   },
   config = function()
     ---@type opencode.Opts
-    vim.g.opencode_opts = {}
+    -- Configure snacks terminal provider behavior
+    vim.g.opencode_opts = {
+      provider = {
+        snacks = {
+          win = {
+            width = 0.4, -- 40% width (matches claudecode)
+            enter = true, -- Focus terminal when opened (consistent with claudecode)
+          },
+        },
+      },
+    }
 
     -- Required for `opts.events.reload`.
     vim.o.autoread = true
