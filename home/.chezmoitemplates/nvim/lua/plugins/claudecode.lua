@@ -1,6 +1,24 @@
+-- Claude Code: Neovim integration via reverse-engineered WebSocket MCP protocol
+-- Compatible with Anthropic's Claude Code CLI (claude command)
+-- Terminal: 35% width, right-side split, auto-focus on open
+-- Filetype: claudecode_terminal (for autocmd targeting)
 return {
   'coder/claudecode.nvim',
   dependencies = { 'folke/snacks.nvim' },
+  opts = {
+    terminal = {
+      ---@module "snacks"
+      ---@type snacks.win.Config|{}
+      snacks_win_opts = {
+        wo = {
+          winbar = '',
+        },
+        bo = {
+          filetype = 'claudecode_terminal', -- Custom filetype for autocmd targeting
+        },
+      },
+    },
+  },
   config = true,
   keys = {
     { '<leader>ac', '<cmd>ClaudeCode<cr>', desc = 'Toggle Claude' },

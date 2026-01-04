@@ -1,3 +1,6 @@
+-- OpenCode: AI assistant integration with terminal, prompts, and context management
+-- Terminal: 35% width, right-side split, auto-focus on open
+-- Filetype: opencode_terminal (for autocmd targeting)
 return {
   'NickvanDyke/opencode.nvim',
   dependencies = {
@@ -8,7 +11,18 @@ return {
   },
   config = function()
     ---@type opencode.Opts
-    vim.g.opencode_opts = {}
+    -- Configure snacks terminal provider behavior
+    vim.g.opencode_opts = {
+      provider = {
+        snacks = {
+          ---@module "snacks"
+          ---@type snacks.win.Config|{}
+          win = {
+            enter = true, -- Focus terminal when opened (consistent with claudecode)
+          },
+        },
+      },
+    }
 
     -- Required for `opts.events.reload`.
     vim.o.autoread = true
