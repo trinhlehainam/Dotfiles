@@ -4,6 +4,7 @@ return {
   -- https://github.com/coder/claudecode.nvim?tab=readme-ov-file#advanced-configuration
   opts = {
     terminal = {
+      split_width_percentage = 0.4, -- 40% width (matches opencode)
       ---@module "snacks"
       ---@type snacks.win.Config|{}
       snacks_win_opts = {
@@ -17,6 +18,7 @@ return {
       },
     },
     diff_opts = {
+      -- Open diffs in new tab to avoid cluttering current tab with multiple windows
       open_in_current_tab = false,
     },
   },
