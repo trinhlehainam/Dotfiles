@@ -86,21 +86,8 @@ local function register_commands()
     end
   end, { bang = true, desc = 'Intelephense: Index workspace (use ! to clear cache)' })
 
-  -- :IntelephenseCancelIndexing (matches VSCode "Cancel indexing")
-  vim.api.nvim_create_user_command(CMD.CANCEL_INDEXING, function()
-    local client = get_intelephense_client()
-    if not client then
-      return log.warn('Intelephense not running', 'Intelephense')
-    end
-
-    client:request('cancelIndexing', {}, function(err, _)
-      if err then
-        log.error('Failed to cancel: ' .. tostring(err), 'Intelephense')
-      else
-        log.info('Indexing cancelled', 'Intelephense')
-      end
-    end, 0)
-  end, { desc = 'Intelephense: Cancel indexing' })
+  -- NOTE: CancelIndexing is registered dynamically in indexingStarted handler
+  -- and removed in indexingEnded handler (only available during indexing)
 
   -- :IntelephenseStatus - Show current status and cache info
   vim.api.nvim_create_user_command(CMD.STATUS, function()
@@ -131,14 +118,35 @@ intelephense.config = {
 
   -- Custom notification handlers for Intelephense indexing status
   handlers = {
-    ---@diagnostic disable-next-line: unused-local
-    ['indexingStarted'] = function(_err, _result, _ctx, _config)
+    ---@type lsp.Handler
+    ['indexingStarted'] = function(_, _, _, _)
       indexing_in_progress = true
+
+      -- Register CancelIndexing command only while indexing is in progress
+      vim.api.nvim_create_user_command(CMD.CANCEL_INDEXING, function()
+        local client = get_intelephense_client()
+        if not client then
+          return log.warn('Intelephense not running', 'Intelephense')
+        end
+
+        client:request('cancelIndexing', {}, function(err, _)
+          if err then
+            log.error('Failed to cancel: ' .. tostring(err), 'Intelephense')
+          else
+            log.info('Indexing cancelled', 'Intelephense')
+          end
+        end, 0)
+      end, { desc = 'Intelephense: Cancel indexing' })
+
       log.info('Indexing started...', 'Intelephense')
     end,
-    ---@diagnostic disable-next-line: unused-local
-    ['indexingEnded'] = function(_err, _result, _ctx, _config)
+    ---@type lsp.Handler
+    ['indexingEnded'] = function(_, _, _, _)
       indexing_in_progress = false
+
+      -- Remove CancelIndexing command when indexing is complete
+      pcall(vim.api.nvim_del_user_command, CMD.CANCEL_INDEXING)
+
       log.info('Indexing complete', 'Intelephense')
     end,
   },
