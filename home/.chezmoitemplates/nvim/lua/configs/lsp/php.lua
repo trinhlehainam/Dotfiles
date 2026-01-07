@@ -1,5 +1,6 @@
 local LanguageSetting = require('configs.lsp.base')
 local LspConfig = require('configs.lsp.lspconfig')
+local log = require('utils.log')
 local M = LanguageSetting:new()
 
 M.treesitter.filetypes = { 'php' }
@@ -30,10 +31,10 @@ local CMD = {
 ---@type boolean Local state management (no vim.g pollution)
 local commands_registered = false
 
----Get all active Intelephense LSP clients
----@return vim.lsp.Client[]
-local function get_clients()
-  return vim.lsp.get_clients({ name = 'intelephense' })
+---Get the active Intelephense LSP client (single client per session assumed)
+---@return vim.lsp.Client?
+local function get_intelephense_client()
+  return vim.lsp.get_clients({ name = 'intelephense' })[1]
 end
 
 ---Register Intelephense user commands
@@ -42,42 +43,26 @@ local function register_commands()
   -- :IntelephenseIndexWorkspace (matches VSCode "Index workspace")
   -- Uses clearCache: true to clear ONLY current workspace cache
   vim.api.nvim_create_user_command(CMD.INDEX_WORKSPACE, function()
-    local clients = get_clients()
-    if #clients == 0 then
-      return vim.notify('Intelephense not running', vim.log.levels.WARN)
+    local client = get_intelephense_client()
+    if not client then
+      return log.warn('Intelephense not running', 'Intelephense')
     end
 
-    -- Get root_dir from existing client
-    local root_dir = clients[1].config.root_dir
+    local root_dir = client.config.root_dir
+    vim.lsp.stop_client(client.id)
 
-    -- Stop all intelephense clients
-    for _, client in ipairs(clients) do
-      vim.lsp.stop_client(client.id)
-    end
-
-    -- Wait for clients to stop, then restart with clearCache: true
     local function try_restart()
-      -- Check if all clients have stopped
-      local all_stopped = true
-      for _, client in ipairs(clients) do
-        if not client:is_stopped() then
-          all_stopped = false
-          break
-        end
-      end
-
-      if all_stopped then
+      if client:is_stopped() then
         vim.lsp.start({
           name = 'intelephense',
           cmd = { 'intelephense', '--stdio' },
           root_dir = root_dir,
           init_options = {
             storagePath = STORAGE_PATH,
-            -- globalStoragePath uses default ~/.intelephense (already cross-IDE)
-            clearCache = true, -- KEY: Clears only current workspace cache!
+            clearCache = true,
           },
         })
-        vim.notify('Reindexing workspace...', vim.log.levels.INFO)
+        log.info('Reindexing workspace...', 'Intelephense')
       else
         vim.defer_fn(try_restart, 50)
       end
@@ -87,22 +72,19 @@ local function register_commands()
   end, { desc = 'Intelephense: Index workspace' })
 
   -- :IntelephenseCancelIndexing (matches VSCode "Cancel indexing")
-  -- Sends cancelIndexing LSP request to server
   vim.api.nvim_create_user_command(CMD.CANCEL_INDEXING, function()
-    local clients = get_clients()
-    if #clients == 0 then
-      return vim.notify('Intelephense not running', vim.log.levels.WARN)
+    local client = get_intelephense_client()
+    if not client then
+      return log.warn('Intelephense not running', 'Intelephense')
     end
 
-    for _, client in ipairs(clients) do
-      client:request('cancelIndexing', {}, function(err, _)
-        if err then
-          vim.notify('Failed to cancel: ' .. tostring(err), vim.log.levels.ERROR)
-        else
-          vim.notify('Indexing cancelled', vim.log.levels.INFO)
-        end
-      end, 0)
-    end
+    client:request('cancelIndexing', {}, function(err, _)
+      if err then
+        log.error('Failed to cancel: ' .. tostring(err), 'Intelephense')
+      else
+        log.info('Indexing cancelled', 'Intelephense')
+      end
+    end, 0)
   end, { desc = 'Intelephense: Cancel indexing' })
 end
 
@@ -129,21 +111,10 @@ intelephense.config = {
     register_commands()
   end,
 
-  -- Cleanup commands when LSP server process terminates (Neovim 0.11+)
-  -- This is simpler than LspDetach autocmd - no delays or tracking needed
-  ---@param _ integer exit code
-  ---@param _ integer signal
-  ---@param client_id integer client ID
-  on_exit = function(_, _, client_id)
-    -- Check if any OTHER intelephense clients remain
-    local remaining = vim.tbl_filter(function(c)
-      return c.id ~= client_id
-    end, get_clients())
-
-    if #remaining == 0 then
-      unregister_commands()
-      commands_registered = false
-    end
+  -- Single client per session: always cleanup on exit (no race condition)
+  on_exit = function(_code, _signal, _client_id)
+    unregister_commands()
+    commands_registered = false
   end,
 }
 
