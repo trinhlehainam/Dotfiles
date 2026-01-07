@@ -40,14 +40,15 @@ end
 ---Register Intelephense user commands
 ---@return nil
 local function register_commands()
-  -- :IntelephenseIndexWorkspace (matches VSCode "Index workspace")
-  -- Uses clearCache: true to clear ONLY current workspace cache
-  vim.api.nvim_create_user_command(CMD.INDEX_WORKSPACE, function()
+  -- :IntelephenseIndexWorkspace  - Soft reindex (incremental, use existing cache)
+  -- :IntelephenseIndexWorkspace! - Hard reindex (clear cache, full rebuild)
+  vim.api.nvim_create_user_command(CMD.INDEX_WORKSPACE, function(opts)
     local client = get_intelephense_client()
     if not client then
       return log.warn('Intelephense not running', 'Intelephense')
     end
 
+    local clear_cache = opts.bang
     local root_dir = client.config.root_dir
     vim.lsp.stop_client(client.id)
 
@@ -70,11 +71,16 @@ local function register_commands()
       root_dir = root_dir,
       init_options = {
         storagePath = STORAGE_PATH,
-        clearCache = true,
+        clearCache = clear_cache or nil, -- nil = use existing cache (faster)
       },
     })
-    log.info('Reindexing workspace...', 'Intelephense')
-  end, { desc = 'Intelephense: Index workspace' })
+
+    if clear_cache then
+      log.info('Full reindex (cache cleared)...', 'Intelephense')
+    else
+      log.info('Incremental reindex (using cache)...', 'Intelephense')
+    end
+  end, { bang = true, desc = 'Intelephense: Index workspace (use ! to clear cache)' })
 
   -- :IntelephenseCancelIndexing (matches VSCode "Cancel indexing")
   vim.api.nvim_create_user_command(CMD.CANCEL_INDEXING, function()
