@@ -26,10 +26,14 @@ local STORAGE_PATH = vim.fn.expand('~/.cache/intelephense')
 local CMD = {
   INDEX_WORKSPACE = 'IntelephenseIndexWorkspace',
   CANCEL_INDEXING = 'IntelephenseCancelIndexing',
+  STATUS = 'IntelephenseStatus',
 }
 
 ---@type boolean Local state management (no vim.g pollution)
 local commands_registered = false
+
+---@type boolean Tracks whether indexing is currently in progress
+local indexing_in_progress = false
 
 ---Get the active Intelephense LSP client (single client per session assumed)
 ---@return vim.lsp.Client?
@@ -97,6 +101,17 @@ local function register_commands()
       end
     end, 0)
   end, { desc = 'Intelephense: Cancel indexing' })
+
+  -- :IntelephenseStatus - Show current status and cache info
+  vim.api.nvim_create_user_command(CMD.STATUS, function()
+    local client = get_intelephense_client()
+    if not client then
+      return log.warn('Intelephense not running', 'Intelephense')
+    end
+
+    local status = indexing_in_progress and 'Indexing in progress...' or 'Ready'
+    log.info(status .. ' | Cache: ' .. STORAGE_PATH, 'Intelephense')
+  end, { desc = 'Intelephense: Show status and cache info' })
 end
 
 ---Unregister Intelephense user commands
@@ -104,6 +119,7 @@ end
 local function unregister_commands()
   pcall(vim.api.nvim_del_user_command, CMD.INDEX_WORKSPACE)
   pcall(vim.api.nvim_del_user_command, CMD.CANCEL_INDEXING)
+  pcall(vim.api.nvim_del_user_command, CMD.STATUS)
 end
 
 intelephense.config = {
@@ -111,6 +127,20 @@ intelephense.config = {
     storagePath = STORAGE_PATH,
     -- globalStoragePath uses default ~/.intelephense (already cross-IDE)
     -- NOTE: clearCache is NOT set here (defaults to false for normal startup)
+  },
+
+  -- Custom notification handlers for Intelephense indexing status
+  handlers = {
+    ---@diagnostic disable-next-line: unused-local
+    ['indexingStarted'] = function(_err, _result, _ctx, _config)
+      indexing_in_progress = true
+      log.info('Indexing started...', 'Intelephense')
+    end,
+    ---@diagnostic disable-next-line: unused-local
+    ['indexingEnded'] = function(_err, _result, _ctx, _config)
+      indexing_in_progress = false
+      log.info('Indexing complete', 'Intelephense')
+    end,
   },
 
   -- Register commands when LSP attaches
@@ -126,6 +156,7 @@ intelephense.config = {
   on_exit = function(_, _, _)
     unregister_commands()
     commands_registered = false
+    indexing_in_progress = false
   end,
 }
 
