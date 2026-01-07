@@ -18,22 +18,30 @@ M.linterconfig.linters_by_ft = {
 -- Intelephense with persistent cache and VSCode-matching commands
 local intelephense = LspConfig:new('intelephense', 'intelephense')
 
--- Cross-IDE cache path (no /nvim/ prefix for sharing with Emacs, Helix, etc.)
-local cache_dir = vim.fn.expand('~/.cache/intelephense')
+---@type string XDG-compliant project cache path (globalStoragePath uses default ~/.intelephense)
+local STORAGE_PATH = vim.fn.expand('~/.cache/intelephense')
 
--- Local state management (no vim.g pollution)
+---@enum IntelephenseCommand
+local CMD = {
+  INDEX_WORKSPACE = 'IntelephenseIndexWorkspace',
+  CANCEL_INDEXING = 'IntelephenseCancelIndexing',
+}
+
+---@type boolean Local state management (no vim.g pollution)
 local commands_registered = false
 
--- Helper to get intelephense clients
+---Get all active Intelephense LSP clients
+---@return vim.lsp.Client[]
 local function get_clients()
   return vim.lsp.get_clients({ name = 'intelephense' })
 end
 
--- Command implementations
-local function create_commands()
+---Register Intelephense user commands
+---@return nil
+local function register_commands()
   -- :IntelephenseIndexWorkspace (matches VSCode "Index workspace")
   -- Uses clearCache: true to clear ONLY current workspace cache
-  vim.api.nvim_create_user_command('IntelephenseIndexWorkspace', function()
+  vim.api.nvim_create_user_command(CMD.INDEX_WORKSPACE, function()
     local clients = get_clients()
     if #clients == 0 then
       return vim.notify('Intelephense not running', vim.log.levels.WARN)
@@ -47,25 +55,40 @@ local function create_commands()
       vim.lsp.stop_client(client.id)
     end
 
-    -- Restart with clearCache: true (clears only THIS workspace)
-    vim.defer_fn(function()
-      vim.lsp.start({
-        name = 'intelephense',
-        cmd = { 'intelephense', '--stdio' },
-        root_dir = root_dir,
-        init_options = {
-          storagePath = cache_dir,
-          globalStoragePath = cache_dir,
-          clearCache = true, -- KEY: Clears only current workspace cache!
-        },
-      })
-      vim.notify('Reindexing workspace...', vim.log.levels.INFO)
-    end, 100)
+    -- Wait for clients to stop, then restart with clearCache: true
+    local function try_restart()
+      -- Check if all clients have stopped
+      local all_stopped = true
+      for _, client in ipairs(clients) do
+        if not client:is_stopped() then
+          all_stopped = false
+          break
+        end
+      end
+
+      if all_stopped then
+        vim.lsp.start({
+          name = 'intelephense',
+          cmd = { 'intelephense', '--stdio' },
+          root_dir = root_dir,
+          init_options = {
+            storagePath = STORAGE_PATH,
+            -- globalStoragePath uses default ~/.intelephense (already cross-IDE)
+            clearCache = true, -- KEY: Clears only current workspace cache!
+          },
+        })
+        vim.notify('Reindexing workspace...', vim.log.levels.INFO)
+      else
+        vim.defer_fn(try_restart, 50)
+      end
+    end
+
+    try_restart()
   end, { desc = 'Intelephense: Index workspace' })
 
   -- :IntelephenseCancelIndexing (matches VSCode "Cancel indexing")
   -- Sends cancelIndexing LSP request to server
-  vim.api.nvim_create_user_command('IntelephenseCancelIndexing', function()
+  vim.api.nvim_create_user_command(CMD.CANCEL_INDEXING, function()
     local clients = get_clients()
     if #clients == 0 then
       return vim.notify('Intelephense not running', vim.log.levels.WARN)
@@ -83,16 +106,18 @@ local function create_commands()
   end, { desc = 'Intelephense: Cancel indexing' })
 end
 
-local function delete_commands()
-  pcall(vim.api.nvim_del_user_command, 'IntelephenseIndexWorkspace')
-  pcall(vim.api.nvim_del_user_command, 'IntelephenseCancelIndexing')
+---Unregister Intelephense user commands
+---@return nil
+local function unregister_commands()
+  pcall(vim.api.nvim_del_user_command, CMD.INDEX_WORKSPACE)
+  pcall(vim.api.nvim_del_user_command, CMD.CANCEL_INDEXING)
 end
 
 intelephense.config = {
   init_options = {
-    storagePath = cache_dir,
-    globalStoragePath = cache_dir,
-    -- Note: clearCache is NOT set here (defaults to false for normal startup)
+    storagePath = STORAGE_PATH,
+    -- globalStoragePath uses default ~/.intelephense (already cross-IDE)
+    -- NOTE: clearCache is NOT set here (defaults to false for normal startup)
   },
 
   -- Register commands when LSP attaches
@@ -101,11 +126,14 @@ intelephense.config = {
       return
     end
     commands_registered = true
-    create_commands()
+    register_commands()
   end,
 
   -- Cleanup commands when LSP server process terminates (Neovim 0.11+)
   -- This is simpler than LspDetach autocmd - no delays or tracking needed
+  ---@param _ integer exit code
+  ---@param _ integer signal
+  ---@param client_id integer client ID
   on_exit = function(_, _, client_id)
     -- Check if any OTHER intelephense clients remain
     local remaining = vim.tbl_filter(function(c)
@@ -113,7 +141,7 @@ intelephense.config = {
     end, get_clients())
 
     if #remaining == 0 then
-      delete_commands()
+      unregister_commands()
       commands_registered = false
     end
   end,
