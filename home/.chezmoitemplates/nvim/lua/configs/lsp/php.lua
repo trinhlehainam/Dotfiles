@@ -69,15 +69,15 @@ local function register_commands()
       end
     end
 
-    vim.lsp.start({
-      name = 'intelephense',
-      cmd = { 'intelephense', '--stdio' },
+    -- Use resolved config from vim.lsp.config to preserve handlers, on_attach, etc.
+    local base_config = vim.lsp.config['intelephense'] or {}
+    vim.lsp.start(vim.tbl_deep_extend('force', base_config, {
       root_dir = root_dir,
       init_options = {
         storagePath = STORAGE_PATH,
         clearCache = clear_cache or nil, -- nil = use existing cache (faster)
       },
-    })
+    }))
 
     if clear_cache then
       log.info('Full reindex (cache cleared)...', 'Intelephense')
@@ -109,6 +109,45 @@ local function unregister_commands()
   pcall(vim.api.nvim_del_user_command, CMD.STATUS)
 end
 
+---Handler for indexingStarted notification
+---@param _ lsp.ResponseError?
+---@param _ any
+---@param _ lsp.HandlerContext
+local function on_indexing_started(_, _, _)
+  indexing_in_progress = true
+
+  -- Register CancelIndexing command only while indexing is in progress
+  vim.api.nvim_create_user_command(CMD.CANCEL_INDEXING, function()
+    local client = get_intelephense_client()
+    if not client then
+      return log.warn('Intelephense not running', 'Intelephense')
+    end
+
+    client:request('cancelIndexing', {}, function(err, _)
+      if err then
+        log.error('Failed to cancel: ' .. tostring(err), 'Intelephense')
+      else
+        log.info('Indexing cancelled', 'Intelephense')
+      end
+    end, 0)
+  end, { desc = 'Intelephense: Cancel indexing' })
+
+  log.info('Indexing started...', 'Intelephense')
+end
+
+---Handler for indexingEnded notification
+---@param _ lsp.ResponseError?
+---@param _ any
+---@param _ lsp.HandlerContext
+local function on_indexing_ended(_, _, _)
+  indexing_in_progress = false
+
+  -- Remove CancelIndexing command when indexing is complete
+  pcall(vim.api.nvim_del_user_command, CMD.CANCEL_INDEXING)
+
+  log.info('Indexing complete', 'Intelephense')
+end
+
 intelephense.config = {
   init_options = {
     storagePath = STORAGE_PATH,
@@ -116,42 +155,15 @@ intelephense.config = {
     -- NOTE: clearCache is NOT set here (defaults to false for normal startup)
   },
 
-  -- Custom notification handlers for Intelephense indexing status
+  -- Notification handlers for Intelephense indexing status
+  -- Using Neovim 0.11+ built-in handlers config (higher priority than vim.lsp.handlers)
+  -- See: :h lsp-handler-resolution
   handlers = {
-    ---@type lsp.Handler
-    ['indexingStarted'] = function(_, _, _, _)
-      indexing_in_progress = true
-
-      -- Register CancelIndexing command only while indexing is in progress
-      vim.api.nvim_create_user_command(CMD.CANCEL_INDEXING, function()
-        local client = get_intelephense_client()
-        if not client then
-          return log.warn('Intelephense not running', 'Intelephense')
-        end
-
-        client:request('cancelIndexing', {}, function(err, _)
-          if err then
-            log.error('Failed to cancel: ' .. tostring(err), 'Intelephense')
-          else
-            log.info('Indexing cancelled', 'Intelephense')
-          end
-        end, 0)
-      end, { desc = 'Intelephense: Cancel indexing' })
-
-      log.info('Indexing started...', 'Intelephense')
-    end,
-    ---@type lsp.Handler
-    ['indexingEnded'] = function(_, _, _, _)
-      indexing_in_progress = false
-
-      -- Remove CancelIndexing command when indexing is complete
-      pcall(vim.api.nvim_del_user_command, CMD.CANCEL_INDEXING)
-
-      log.info('Indexing complete', 'Intelephense')
-    end,
+    ['indexingStarted'] = on_indexing_started,
+    ['indexingEnded'] = on_indexing_ended,
   },
 
-  -- Register commands when LSP attaches
+  -- Register user commands when LSP attaches
   on_attach = function(_, _)
     if commands_registered then
       return
