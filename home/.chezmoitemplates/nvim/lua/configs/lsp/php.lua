@@ -51,24 +51,29 @@ local function register_commands()
     local root_dir = client.config.root_dir
     vim.lsp.stop_client(client.id)
 
-    local function try_restart()
-      if client:is_stopped() then
-        vim.lsp.start({
-          name = 'intelephense',
-          cmd = { 'intelephense', '--stdio' },
-          root_dir = root_dir,
-          init_options = {
-            storagePath = STORAGE_PATH,
-            clearCache = true,
-          },
-        })
-        log.info('Reindexing workspace...', 'Intelephense')
-      else
-        vim.defer_fn(try_restart, 50)
+    -- Wait up to 5 seconds for client to stop, checking every 50ms
+    local stopped, reason = vim.wait(5000, function()
+      return client:is_stopped()
+    end, 50)
+
+    if not stopped then
+      if reason == -1 then
+        return log.error('Timed out waiting for client to stop', 'Intelephense')
+      elseif reason == -2 then
+        return log.warn('Restart interrupted', 'Intelephense')
       end
     end
 
-    try_restart()
+    vim.lsp.start({
+      name = 'intelephense',
+      cmd = { 'intelephense', '--stdio' },
+      root_dir = root_dir,
+      init_options = {
+        storagePath = STORAGE_PATH,
+        clearCache = true,
+      },
+    })
+    log.info('Reindexing workspace...', 'Intelephense')
   end, { desc = 'Intelephense: Index workspace' })
 
   -- :IntelephenseCancelIndexing (matches VSCode "Cancel indexing")
@@ -112,7 +117,7 @@ intelephense.config = {
   end,
 
   -- Single client per session: always cleanup on exit (no race condition)
-  on_exit = function(_code, _signal, _client_id)
+  on_exit = function(_, _, _)
     unregister_commands()
     commands_registered = false
   end,
