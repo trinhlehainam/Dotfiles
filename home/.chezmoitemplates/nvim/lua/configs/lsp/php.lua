@@ -42,14 +42,14 @@ local function get_intelephense_client()
 end
 
 ---Register Intelephense user commands
----@return nil
 local function register_commands()
   -- :IntelephenseIndexWorkspace  - Soft reindex (incremental, use existing cache)
   -- :IntelephenseIndexWorkspace! - Hard reindex (clear cache, full rebuild)
   vim.api.nvim_create_user_command(CMD.INDEX_WORKSPACE, function(opts)
     local client = get_intelephense_client()
     if not client then
-      return log.warn('Intelephense not running', 'Intelephense')
+      log.warn('Intelephense not running', 'Intelephense')
+      return
     end
 
     local clear_cache = opts.bang
@@ -63,9 +63,11 @@ local function register_commands()
 
     if not stopped then
       if reason == -1 then
-        return log.error('Timed out waiting for client to stop', 'Intelephense')
+        log.error('Timed out waiting for client to stop', 'Intelephense')
+        return
       elseif reason == -2 then
-        return log.warn('Restart interrupted', 'Intelephense')
+        log.warn('Restart interrupted', 'Intelephense')
+        return
       end
     end
 
@@ -93,7 +95,8 @@ local function register_commands()
   vim.api.nvim_create_user_command(CMD.STATUS, function()
     local client = get_intelephense_client()
     if not client then
-      return log.warn('Intelephense not running', 'Intelephense')
+      log.warn('Intelephense not running', 'Intelephense')
+      return
     end
 
     local status = indexing_in_progress and 'Indexing in progress...' or 'Ready'
@@ -102,18 +105,19 @@ local function register_commands()
 end
 
 ---Unregister Intelephense user commands
----@return nil
 local function unregister_commands()
   pcall(vim.api.nvim_del_user_command, CMD.INDEX_WORKSPACE)
   pcall(vim.api.nvim_del_user_command, CMD.CANCEL_INDEXING)
   pcall(vim.api.nvim_del_user_command, CMD.STATUS)
 end
 
----Handler for indexingStarted notification
----@param _ lsp.ResponseError?
----@param _ any
----@param _ lsp.HandlerContext
-local function on_indexing_started(_, _, _)
+---Handler for Intelephense indexingStarted notification
+---Server sends this notification when workspace indexing begins
+---@param err lsp.ResponseError? Error information (nil for successful notifications)
+---@param result nil Intelephense sends no result for this notification
+---@param ctx lsp.HandlerContext Context containing client_id, method, bufnr, etc.
+local function on_indexing_started(err, result, ctx)
+  local _, _, _ = err, result, ctx
   indexing_in_progress = true
 
   -- Register CancelIndexing command only while indexing is in progress
@@ -135,11 +139,13 @@ local function on_indexing_started(_, _, _)
   log.info('Indexing started...', 'Intelephense')
 end
 
----Handler for indexingEnded notification
----@param _ lsp.ResponseError?
----@param _ any
----@param _ lsp.HandlerContext
-local function on_indexing_ended(_, _, _)
+---Handler for Intelephense indexingEnded notification
+---Server sends this notification when workspace indexing completes
+---@param err lsp.ResponseError? Error information (nil for successful notifications)
+---@param result nil Intelephense sends no result for this notification
+---@param ctx lsp.HandlerContext Context containing client_id, method, bufnr, etc.
+local function on_indexing_ended(err, result, ctx)
+  local _, _, _ = err, result, ctx
   indexing_in_progress = false
 
   -- Remove CancelIndexing command when indexing is complete
