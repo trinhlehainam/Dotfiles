@@ -52,7 +52,7 @@
 --- The package name registered in Mason, used to tell Mason which LSP server binary to install
 --- @source https://mason-registry.dev/registry/list
 ---@field mason_package string?
----@field config table Configuration table passed to the LSP server setup function
+---@field config vim.lsp.Config Configuration table passed to the LSP server setup function
 ---@field setup function? Custom setup function for advanced LSP server configuration
 
 --- Debug Adapter Protocol (DAP) configuration
