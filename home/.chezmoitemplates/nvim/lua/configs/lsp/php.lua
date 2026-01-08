@@ -1,3 +1,8 @@
+-- References:
+--   https://github.com/bmewburn/vscode-intelephense (VSCode extension source)
+--   https://github.com/bmewburn/intelephense-docs/blob/master/installation.md (official docs)
+--   https://neovim.discourse.group/t/how-to-configure-file-associations-for-intelephense-ls/1667/13 (file associations)
+
 local LanguageSetting = require('configs.lsp.base')
 local LspConfig = require('configs.lsp.lspconfig')
 local log = require('utils.log')
@@ -16,10 +21,12 @@ M.linterconfig.linters_by_ft = {
   php = { 'phpstan' },
 }
 
--- Intelephense with persistent cache and VSCode-matching commands
+-- Intelephense: PHP language server with workspace indexing and reindex commands
+-- NOTE: Custom PHP extensions (.phl, .phi, etc.) MUST be added to files.associations
+--       below for workspace indexing. Neovim filetype autocommand only affects
+--       opened files - the server scans based on its own associations config.
 local intelephense = LspConfig:new('intelephense', 'intelephense')
 
----@type string XDG-compliant project cache path (globalStoragePath uses default ~/.intelephense)
 local STORAGE_PATH = vim.fn.expand('~/.cache/intelephense')
 
 ---@enum IntelephenseCommand
@@ -29,14 +36,10 @@ local CMD = {
   STATUS = 'IntelephenseStatus',
 }
 
----@type boolean Local state management (no vim.g pollution)
 local commands_registered = false
 
----@type boolean Tracks whether indexing is currently in progress
 local indexing_in_progress = false
 
----Get the active Intelephense LSP client (single client per session assumed)
----@return vim.lsp.Client?
 local function get_intelephense_client()
   return vim.lsp.get_clients({ name = 'intelephense' })[1]
 end
@@ -87,9 +90,6 @@ local function register_commands()
       log.info('Incremental reindex (using cache)...', 'Intelephense')
     end
   end, { bang = true, desc = 'Intelephense: Index workspace (use ! to clear cache)' })
-
-  -- NOTE: CancelIndexing is registered dynamically in indexingStarted handler
-  -- and removed in indexingEnded handler (only available during indexing)
 
   -- :IntelephenseStatus - Show current status and cache info
   vim.api.nvim_create_user_command(CMD.STATUS, function()
@@ -156,9 +156,8 @@ end
 
 intelephense.config = {
   init_options = {
+    -- Per-workspace indexed data cache (defaults to os.tmpdir() which is volatile)
     storagePath = STORAGE_PATH,
-    -- globalStoragePath uses default ~/.intelephense (already cross-IDE)
-    -- NOTE: clearCache is NOT set here (defaults to false for normal startup)
   },
 
   -- Notification handlers for Intelephense indexing status
@@ -189,11 +188,9 @@ intelephense.config = {
 M.lspconfigs = { intelephense }
 
 ---@type custom.DapConfig
-local php_dap = {
-  type = 'php',
-  use_masondap_default_setup = true,
+M.dapconfigs = {
+  { type = 'php', use_masondap_default_setup = true },
 }
-M.dapconfigs = { php_dap }
 
 M.neotest_adapter_setup = function()
   local has_phpunit, phpunit = pcall(require, 'neotest-phpunit')
