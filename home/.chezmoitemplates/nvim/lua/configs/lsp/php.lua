@@ -1,50 +1,53 @@
--- References:
---   https://github.com/bmewburn/vscode-intelephense (VSCode extension source)
---   https://github.com/bmewburn/intelephense-docs/blob/master/installation.md (official docs)
+-- PHP LSP config (Intelephense)
+-- Ref: https://github.com/bmewburn/intelephense-docs
 
 local LanguageSetting = require('configs.lsp.base')
 local LspConfig = require('configs.lsp.lspconfig')
 local log = require('utils.log')
+
 local M = LanguageSetting:new()
 
+-- Treesitter
 M.treesitter.filetypes = { 'php' }
 
+-- Formatters
 M.formatterconfig.servers = { 'blade-formatter', 'php-cs-fixer' }
 M.formatterconfig.formatters_by_ft = {
   blade = { 'blade-formatter' },
   php = { 'php_cs_fixer' },
 }
 
+-- Linters
 M.linterconfig.servers = { 'phpstan' }
-M.linterconfig.linters_by_ft = {
-  php = { 'phpstan' },
-}
+M.linterconfig.linters_by_ft = { php = { 'phpstan' } }
 
+-- Intelephense LSP
 local intelephense = LspConfig:new('intelephense', 'intelephense')
 
-local STORAGE_PATH = vim.fn.expand('~/.cache/intelephense')
+-- Constants
+local CACHE_PATH = vim.fn.expand('~/.cache/intelephense')
+local STOP_TIMEOUT = 5000
+local POLL_INTERVAL = 50
 
----@enum IntelephenseCommand
 local CMD = {
-  INDEX_WORKSPACE = 'IntelephenseIndexWorkspace',
-  CANCEL_INDEXING = 'IntelephenseCancelIndexing',
+  INDEX = 'IntelephenseIndexWorkspace',
+  CANCEL = 'IntelephenseCancelIndexing',
   STATUS = 'IntelephenseStatus',
 }
 
+-- State
 local commands_registered = false
-
 local indexing_in_progress = false
 
-local function get_intelephense_client()
+local function get_client()
   return vim.lsp.get_clients({ name = 'intelephense' })[1]
 end
 
----Register Intelephense user commands
+-- Register user commands
 local function register_commands()
-  -- :IntelephenseIndexWorkspace  - Soft reindex (incremental, use existing cache)
-  -- :IntelephenseIndexWorkspace! - Hard reindex (clear cache, full rebuild)
-  vim.api.nvim_create_user_command(CMD.INDEX_WORKSPACE, function(opts)
-    local client = get_intelephense_client()
+  -- :IntelephenseIndexWorkspace - reindex (! = clear cache)
+  vim.api.nvim_create_user_command(CMD.INDEX, function(opts)
+    local client = get_client()
     if not client then
       log.warn('Intelephense not running', 'Intelephense')
       return
@@ -54,75 +57,61 @@ local function register_commands()
     local root_dir = client.config.root_dir
     vim.lsp.stop_client(client.id)
 
-    -- Wait up to 5 seconds for client to stop, checking every 50ms
-    local stopped, reason = vim.wait(5000, function()
+    local stopped = vim.wait(STOP_TIMEOUT, function()
       return client:is_stopped()
-    end, 50)
+    end, POLL_INTERVAL)
 
     if not stopped then
-      if reason == -1 then
-        log.error('Timed out waiting for client to stop', 'Intelephense')
-        return
-      elseif reason == -2 then
-        log.warn('Restart interrupted', 'Intelephense')
-        return
-      end
+      log.error('Failed to stop client for reindex', 'Intelephense')
+      return
     end
 
-    -- Use resolved config from vim.lsp.config to preserve handlers, on_attach, etc.
+    -- Restart with resolved config, preserving handlers/on_attach
     local base_config = vim.lsp.config['intelephense'] or {}
     vim.lsp.start(vim.tbl_deep_extend('force', base_config, {
       root_dir = root_dir,
       init_options = {
-        storagePath = STORAGE_PATH,
-        clearCache = clear_cache or nil, -- nil = use existing cache (faster)
+        storagePath = CACHE_PATH,
+        clearCache = clear_cache or nil,
       },
     }))
 
-    if clear_cache then
-      log.info('Full reindex (cache cleared)...', 'Intelephense')
-    else
-      log.info('Incremental reindex (using cache)...', 'Intelephense')
-    end
-  end, { bang = true, desc = 'Intelephense: Index workspace (use ! to clear cache)' })
+    local msg = clear_cache and 'Full reindex (cache cleared)...' or 'Incremental reindex...'
+    log.info(msg, 'Intelephense')
+  end, { bang = true, desc = 'Intelephense: Reindex (! clears cache)' })
 
-  -- :IntelephenseStatus - Show current status and cache info
+  -- :IntelephenseStatus - show status
   vim.api.nvim_create_user_command(CMD.STATUS, function()
-    local client = get_intelephense_client()
+    local client = get_client()
     if not client then
       log.warn('Intelephense not running', 'Intelephense')
       return
     end
 
-    local status = indexing_in_progress and 'Indexing in progress...' or 'Ready'
-    log.info(status .. ' | Cache: ' .. STORAGE_PATH, 'Intelephense')
-  end, { desc = 'Intelephense: Show status and cache info' })
+    local status = indexing_in_progress and 'Indexing...' or 'Ready'
+    log.info(status .. ' | Cache: ' .. CACHE_PATH, 'Intelephense')
+  end, { desc = 'Intelephense: Show status' })
 end
 
----Unregister Intelephense user commands
 local function unregister_commands()
-  pcall(vim.api.nvim_del_user_command, CMD.INDEX_WORKSPACE)
-  pcall(vim.api.nvim_del_user_command, CMD.CANCEL_INDEXING)
+  pcall(vim.api.nvim_del_user_command, CMD.INDEX)
+  pcall(vim.api.nvim_del_user_command, CMD.CANCEL)
   pcall(vim.api.nvim_del_user_command, CMD.STATUS)
 end
 
----Handler for Intelephense indexingStarted notification
----Server sends this notification when workspace indexing begins
----@param err lsp.ResponseError? Error information (nil for successful notifications)
----@param result nil Intelephense sends no result for this notification
----@param ctx lsp.HandlerContext Context containing client_id, method, bufnr, etc.
-local function on_indexing_started(err, result, ctx)
-  local _, _, _ = err, result, ctx
+-- Indexing started handler
+local function on_indexing_started()
   indexing_in_progress = true
 
-  -- Register CancelIndexing command only while indexing is in progress
-  vim.api.nvim_create_user_command(CMD.CANCEL_INDEXING, function()
-    local client = get_intelephense_client()
+  -- Register cancel command (only available during indexing)
+  vim.api.nvim_create_user_command(CMD.CANCEL, function()
+    local client = get_client()
     if not client then
-      return log.warn('Intelephense not running', 'Intelephense')
+      log.warn('Intelephense not running', 'Intelephense')
+      return
     end
 
-    client:request('cancelIndexing', {}, function(err, _)
+    client:request('cancelIndexing', {}, function(err)
       if err then
         log.error('Failed to cancel: ' .. tostring(err), 'Intelephense')
       else
@@ -134,35 +123,23 @@ local function on_indexing_started(err, result, ctx)
   log.info('Indexing started...', 'Intelephense')
 end
 
----Handler for Intelephense indexingEnded notification
----Server sends this notification when workspace indexing completes
----@param err lsp.ResponseError? Error information (nil for successful notifications)
----@param result nil Intelephense sends no result for this notification
----@param ctx lsp.HandlerContext Context containing client_id, method, bufnr, etc.
-local function on_indexing_ended(err, result, ctx)
-  local _, _, _ = err, result, ctx
+-- Indexing ended handler
+local function on_indexing_ended()
   indexing_in_progress = false
-
-  pcall(vim.api.nvim_del_user_command, CMD.CANCEL_INDEXING)
-
+  pcall(vim.api.nvim_del_user_command, CMD.CANCEL)
   log.info('Indexing complete', 'Intelephense')
 end
 
 intelephense.config = {
-  init_options = {
-    storagePath = STORAGE_PATH,
-  },
+  init_options = { storagePath = CACHE_PATH },
 
-  -- Notification handlers for Intelephense indexing status
-  -- Using Neovim 0.11+ built-in handlers config (higher priority than vim.lsp.handlers)
-  -- See: :h lsp-handler-resolution
+  -- Indexing notification handlers (Neovim 0.11+ built-in handlers)
   handlers = {
     ['indexingStarted'] = on_indexing_started,
     ['indexingEnded'] = on_indexing_ended,
   },
 
-  -- Register user commands when LSP attaches
-  on_attach = function(_, _)
+  on_attach = function()
     if commands_registered then
       return
     end
@@ -170,8 +147,7 @@ intelephense.config = {
     register_commands()
   end,
 
-  -- Single client per session: always cleanup on exit (no race condition)
-  on_exit = function(_, _, _)
+  on_exit = function()
     unregister_commands()
     commands_registered = false
     indexing_in_progress = false
@@ -180,14 +156,16 @@ intelephense.config = {
 
 M.lspconfigs = { intelephense }
 
+-- DAP
 ---@type custom.DapConfig
 M.dapconfigs = {
   { type = 'php', use_masondap_default_setup = true },
 }
 
+-- Neotest
 M.neotest_adapter_setup = function()
-  local has_phpunit, phpunit = pcall(require, 'neotest-phpunit')
-  return has_phpunit and phpunit or nil
+  local ok, adapter = pcall(require, 'neotest-phpunit')
+  return ok and adapter or nil
 end
 
 return M
