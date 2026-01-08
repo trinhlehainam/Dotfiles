@@ -25,7 +25,7 @@ M.linterconfig.linters_by_ft = { php = { 'phpstan' } }
 local intelephense = LspConfig:new('intelephense', 'intelephense')
 
 -- Constants
-local CACHE_PATH = vim.fn.expand('~/.cache/intelephense')
+local CACHE_PATH = vim.fn.stdpath('cache') .. '/intelephense'
 local STOP_TIMEOUT = 5000
 local POLL_INTERVAL = 50
 
