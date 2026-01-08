@@ -1,7 +1,6 @@
 -- References:
 --   https://github.com/bmewburn/vscode-intelephense (VSCode extension source)
 --   https://github.com/bmewburn/intelephense-docs/blob/master/installation.md (official docs)
---   https://neovim.discourse.group/t/how-to-configure-file-associations-for-intelephense-ls/1667/13 (file associations)
 
 local LanguageSetting = require('configs.lsp.base')
 local LspConfig = require('configs.lsp.lspconfig')
@@ -21,10 +20,6 @@ M.linterconfig.linters_by_ft = {
   php = { 'phpstan' },
 }
 
--- Intelephense: PHP language server with workspace indexing and reindex commands
--- NOTE: Custom PHP extensions (.phl, .phi, etc.) MUST be added to files.associations
---       below for workspace indexing. Neovim filetype autocommand only affects
---       opened files - the server scans based on its own associations config.
 local intelephense = LspConfig:new('intelephense', 'intelephense')
 
 local STORAGE_PATH = vim.fn.expand('~/.cache/intelephense')
@@ -148,7 +143,6 @@ local function on_indexing_ended(err, result, ctx)
   local _, _, _ = err, result, ctx
   indexing_in_progress = false
 
-  -- Remove CancelIndexing command when indexing is complete
   pcall(vim.api.nvim_del_user_command, CMD.CANCEL_INDEXING)
 
   log.info('Indexing complete', 'Intelephense')
@@ -156,7 +150,6 @@ end
 
 intelephense.config = {
   init_options = {
-    -- Per-workspace indexed data cache (defaults to os.tmpdir() which is volatile)
     storagePath = STORAGE_PATH,
   },
 
