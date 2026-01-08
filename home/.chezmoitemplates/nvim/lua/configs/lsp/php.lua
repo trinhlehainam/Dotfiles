@@ -157,7 +157,7 @@ intelephense.config = {
 M.lspconfigs = { intelephense }
 
 -- DAP
----@type custom.DapConfig
+---@type custom.DapConfig[]
 M.dapconfigs = {
   { type = 'php', use_masondap_default_setup = true },
 }
