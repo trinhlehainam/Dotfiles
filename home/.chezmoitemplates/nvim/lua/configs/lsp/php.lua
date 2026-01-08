@@ -115,6 +115,8 @@ local function on_indexing_started()
       if err then
         log.error('Failed to cancel: ' .. tostring(err), 'Intelephense')
       else
+        indexing_in_progress = false
+        pcall(vim.api.nvim_del_user_command, CMD.CANCEL)
         log.info('Indexing cancelled', 'Intelephense')
       end
     end, 0)
@@ -133,13 +135,13 @@ end
 intelephense.config = {
   init_options = { storagePath = CACHE_PATH },
 
-  -- Indexing notification handlers (Neovim 0.11+ built-in handlers)
+  -- Intelephense indexing notification handlers
   handlers = {
     ['indexingStarted'] = on_indexing_started,
     ['indexingEnded'] = on_indexing_ended,
   },
 
-  on_attach = function()
+  on_attach = function(_, _)
     if commands_registered then
       return
     end
@@ -147,7 +149,7 @@ intelephense.config = {
     register_commands()
   end,
 
-  on_exit = function()
+  on_exit = function(_, _, _)
     unregister_commands()
     commands_registered = false
     indexing_in_progress = false
@@ -157,7 +159,6 @@ intelephense.config = {
 M.lspconfigs = { intelephense }
 
 -- DAP
----@type custom.DapConfig[]
 M.dapconfigs = {
   { type = 'php', use_masondap_default_setup = true },
 }
