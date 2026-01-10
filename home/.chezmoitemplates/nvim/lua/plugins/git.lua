@@ -110,9 +110,9 @@ return {
 
       local loaded = {}
       for _, p in ipairs(offset_plugins) do
-        local ok, name = pcall(require, p.name)
+        local ok, module = pcall(require, p.name)
         if ok then
-          p.module = name
+          p.module = module
           table.insert(loaded, p)
         end
       end
@@ -163,7 +163,7 @@ return {
       ---@param fn fun()
       local function in_source_win(fn)
         if source_win and vim.api.nvim_win_is_valid(source_win) then
-          vim.api.nvim_win_call(source_win, fn)
+          pcall(vim.api.nvim_win_call, source_win, fn)
         else
           fn()
         end
@@ -209,6 +209,9 @@ return {
             group = group,
             once = true,
             callback = function()
+              if blame_count <= 0 then
+                return -- Already cleaned up by on_source_closed
+              end
               blame_count = blame_count - 1
               if blame_count == 0 then
                 in_source_win(restore_plugins)
