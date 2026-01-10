@@ -69,6 +69,7 @@ return {
       -- offset lines (floating overlays, virtual text). Temporarily disable these
       -- plugins during blame.
       -- Refs: gitsigns#368, nvim-treesitter-context#579
+
       ---@class GitsignsBlameOffsetPlugin
       ---@field name string Module name for require()
       ---@field module table? Loaded module reference (nil until loaded)
