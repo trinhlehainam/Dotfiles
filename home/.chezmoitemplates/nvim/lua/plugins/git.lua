@@ -52,10 +52,8 @@ return {
   },
   -- 'tpope/vim-rhubarb',
   {
-    -- Adds git releated signs to the gutter, as well as utilities for managing changes
     'lewis6991/gitsigns.nvim',
     opts = {
-      -- See `:help gitsigns.txt`
       signs = {
         add = { text = '+' },
         change = { text = '~' },
@@ -67,38 +65,89 @@ return {
     config = function(_, opts)
       require('gitsigns').setup(opts)
 
-      -- Workaround: :Gitsigns blame uses scrollbind to sync blame/source windows.
-      -- TSContext's floating overlay creates visual offset that scrollbind can't
-      -- account for (Neovim limitation). Temporarily disable TSContext during blame.
+      -- Workaround: :Gitsigns blame uses scrollbind which can't account for visual
+      -- offset lines (floating overlays, virtual text). Temporarily disable these
+      -- plugins during blame.
       -- Refs: gitsigns#368, nvim-treesitter-context#579
-      local tsc_ok, tsc = pcall(require, 'treesitter-context')
-      if not tsc_ok then
+      ---@class GitsignsBlameOffsetPlugin
+      ---@field name string Module name for require()
+      ---@field module table? Loaded module reference (nil until loaded)
+      ---@field is_active fun(m: table): boolean Check if plugin is currently active
+      ---@field disable fun(m: table) Disable the plugin
+      ---@field enable fun(m: table) Re-enable the plugin
+      ---@field was_active boolean State before blame opened
+
+      ---@type GitsignsBlameOffsetPlugin[]
+      local offset_plugins = {
+        {
+          name = 'treesitter-context',
+          is_active = function(m)
+            return m.enabled()
+          end,
+          disable = function(m)
+            m.disable()
+          end,
+          enable = function(m)
+            m.enable()
+          end,
+          was_active = false,
+        },
+        {
+          name = 'lensline',
+          is_active = function(m)
+            return m.is_visible()
+          end,
+          disable = function(m)
+            m.hide()
+          end,
+          enable = function(m)
+            m.show()
+          end,
+          was_active = false,
+        },
+      }
+
+      local loaded = {}
+      for _, p in ipairs(offset_plugins) do
+        local ok, name = pcall(require, p.name)
+        if ok then
+          p.module = name
+          table.insert(loaded, p)
+        end
+      end
+      if #loaded == 0 then
         return
       end
 
-      local blame_count, was_enabled = 0, false -- Counter tracks nested blame windows
-      local group = vim.api.nvim_create_augroup('GitsignsBlameTSContext', {})
+      local blame_count = 0
+      local group = vim.api.nvim_create_augroup('GitsignsBlameVisualOffset', {})
 
       vim.api.nvim_create_autocmd('FileType', {
         pattern = 'gitsigns-blame',
         group = group,
-        callback = function(event)
+        callback = function(ev)
           if blame_count == 0 then
-            was_enabled = tsc.enabled()
-            if was_enabled then
-              tsc.disable()
+            for _, p in ipairs(loaded) do
+              p.was_active = p.is_active(p.module)
+              if p.was_active then
+                p.disable(p.module)
+              end
             end
           end
           blame_count = blame_count + 1
 
           vim.api.nvim_create_autocmd('BufWipeout', {
-            buffer = event.buf,
+            buffer = ev.buf,
             group = group,
             once = true,
             callback = function()
               blame_count = blame_count - 1
-              if blame_count == 0 and was_enabled then
-                tsc.enable()
+              if blame_count == 0 then
+                for _, p in ipairs(loaded) do
+                  if p.was_active then
+                    p.enable(p.module)
+                  end
+                end
               end
             end,
           })
