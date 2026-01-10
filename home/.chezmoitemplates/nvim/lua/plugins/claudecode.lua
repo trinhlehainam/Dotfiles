@@ -17,8 +17,7 @@ return {
       },
     },
     diff_opts = {
-      -- Open diffs in new tab to avoid cluttering current tab with multiple windows
-      open_in_current_tab = false,
+      open_in_current_tab = true,
     },
   },
   config = true,

@@ -121,7 +121,42 @@ return {
 
       local blame_count = 0
       local source_win = nil
+      local source_buf = nil
+      local source_win_aucmd = nil
+      local source_buf_aucmd = nil
       local group = vim.api.nvim_create_augroup('GitsignsBlameVisualOffset', {})
+
+      --- Restore plugins to their previous state
+      local function restore_plugins()
+        for _, p in ipairs(loaded) do
+          if p.was_active then
+            p.enable(p.module)
+          end
+        end
+      end
+
+      --- Clean up all source-related autocmds
+      local function cleanup_source_aucmds()
+        if source_win_aucmd then
+          pcall(vim.api.nvim_del_autocmd, source_win_aucmd)
+          source_win_aucmd = nil
+        end
+        if source_buf_aucmd then
+          pcall(vim.api.nvim_del_autocmd, source_buf_aucmd)
+          source_buf_aucmd = nil
+        end
+      end
+
+      --- Handle source window/buffer closing before blame
+      local function on_source_closed()
+        if blame_count > 0 then
+          restore_plugins()
+          blame_count = 0
+          source_win = nil
+          source_buf = nil
+          cleanup_source_aucmds()
+        end
+      end
 
       --- Run function in source window context (needed for buffer-local plugins like lensline)
       ---@param fn fun()
@@ -138,8 +173,9 @@ return {
         group = group,
         callback = function(ev)
           if blame_count == 0 then
-            -- Capture source window (alternate window when blame split is created)
+            -- Capture source window and buffer (alternate window when blame split is created)
             source_win = vim.fn.win_getid(vim.fn.winnr('#'))
+            source_buf = vim.api.nvim_win_get_buf(source_win)
             in_source_win(function()
               for _, p in ipairs(loaded) do
                 p.was_active = p.is_active(p.module)
@@ -148,6 +184,22 @@ return {
                 end
               end
             end)
+
+            -- Watch for source window closing before blame
+            source_win_aucmd = vim.api.nvim_create_autocmd('WinClosed', {
+              pattern = tostring(source_win),
+              group = group,
+              once = true,
+              callback = on_source_closed,
+            })
+
+            -- Watch for source buffer being deleted (e.g., :bd, :bw)
+            source_buf_aucmd = vim.api.nvim_create_autocmd('BufUnload', {
+              buffer = source_buf,
+              group = group,
+              once = true,
+              callback = on_source_closed,
+            })
           end
           blame_count = blame_count + 1
 
@@ -158,14 +210,10 @@ return {
             callback = function()
               blame_count = blame_count - 1
               if blame_count == 0 then
-                in_source_win(function()
-                  for _, p in ipairs(loaded) do
-                    if p.was_active then
-                      p.enable(p.module)
-                    end
-                  end
-                end)
+                in_source_win(restore_plugins)
                 source_win = nil
+                source_buf = nil
+                cleanup_source_aucmds()
               end
             end,
           })
