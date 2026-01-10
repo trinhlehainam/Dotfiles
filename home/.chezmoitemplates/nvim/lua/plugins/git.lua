@@ -64,6 +64,47 @@ return {
         changedelete = { text = '~' },
       },
     },
+    config = function(_, opts)
+      require('gitsigns').setup(opts)
+
+      -- Workaround: :Gitsigns blame uses scrollbind to sync blame/source windows.
+      -- TSContext's floating overlay creates visual offset that scrollbind can't
+      -- account for (Neovim limitation). Temporarily disable TSContext during blame.
+      -- Refs: gitsigns#368, nvim-treesitter-context#579
+      local tsc_ok, tsc = pcall(require, 'treesitter-context')
+      if not tsc_ok then
+        return
+      end
+
+      local blame_count, was_enabled = 0, false -- Counter tracks nested blame windows
+      local group = vim.api.nvim_create_augroup('GitsignsBlameTSContext', {})
+
+      vim.api.nvim_create_autocmd('FileType', {
+        pattern = 'gitsigns-blame',
+        group = group,
+        callback = function(event)
+          if blame_count == 0 then
+            was_enabled = tsc.enabled()
+            if was_enabled then
+              tsc.disable()
+            end
+          end
+          blame_count = blame_count + 1
+
+          vim.api.nvim_create_autocmd('BufWipeout', {
+            buffer = event.buf,
+            group = group,
+            once = true,
+            callback = function()
+              blame_count = blame_count - 1
+              if blame_count == 0 and was_enabled then
+                tsc.enable()
+              end
+            end,
+          })
+        end,
+      })
+    end,
   },
   -- https://github.com/pwntester/octo.nvim
   {
