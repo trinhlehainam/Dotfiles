@@ -120,19 +120,34 @@ return {
       end
 
       local blame_count = 0
+      local source_win = nil
       local group = vim.api.nvim_create_augroup('GitsignsBlameVisualOffset', {})
+
+      --- Run function in source window context (needed for buffer-local plugins like lensline)
+      ---@param fn fun()
+      local function in_source_win(fn)
+        if source_win and vim.api.nvim_win_is_valid(source_win) then
+          vim.api.nvim_win_call(source_win, fn)
+        else
+          fn()
+        end
+      end
 
       vim.api.nvim_create_autocmd('FileType', {
         pattern = 'gitsigns-blame',
         group = group,
         callback = function(ev)
           if blame_count == 0 then
-            for _, p in ipairs(loaded) do
-              p.was_active = p.is_active(p.module)
-              if p.was_active then
-                p.disable(p.module)
+            -- Capture source window (alternate window when blame split is created)
+            source_win = vim.fn.win_getid(vim.fn.winnr('#'))
+            in_source_win(function()
+              for _, p in ipairs(loaded) do
+                p.was_active = p.is_active(p.module)
+                if p.was_active then
+                  p.disable(p.module)
+                end
               end
-            end
+            end)
           end
           blame_count = blame_count + 1
 
@@ -143,11 +158,14 @@ return {
             callback = function()
               blame_count = blame_count - 1
               if blame_count == 0 then
-                for _, p in ipairs(loaded) do
-                  if p.was_active then
-                    p.enable(p.module)
+                in_source_win(function()
+                  for _, p in ipairs(loaded) do
+                    if p.was_active then
+                      p.enable(p.module)
+                    end
                   end
-                end
+                end)
+                source_win = nil
               end
             end,
           })
