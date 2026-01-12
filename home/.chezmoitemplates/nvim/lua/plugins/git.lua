@@ -123,7 +123,8 @@ return {
       local blame_count = 0
       local source_win = nil
       local source_buf = nil
-      local source_autocmd = nil
+      local source_win_aucmd = nil
+      local source_buf_aucmd = nil
       local source_hidden_aucmd = nil
       local blame_win_aucmd = nil
       local group = vim.api.nvim_create_augroup('GitsignsBlameVisualOffset', {})
@@ -139,9 +140,13 @@ return {
 
       --- Clean up all source-related autocmds
       local function cleanup_source_aucmds()
-        if source_autocmd then
-          pcall(vim.api.nvim_del_autocmd, source_autocmd)
-          source_autocmd = nil
+        if source_win_aucmd then
+          pcall(vim.api.nvim_del_autocmd, source_win_aucmd)
+          source_win_aucmd = nil
+        end
+        if source_buf_aucmd then
+          pcall(vim.api.nvim_del_autocmd, source_buf_aucmd)
+          source_buf_aucmd = nil
         end
         if source_hidden_aucmd then
           pcall(vim.api.nvim_del_autocmd, source_hidden_aucmd)
@@ -150,17 +155,6 @@ return {
         if blame_win_aucmd then
           pcall(vim.api.nvim_del_autocmd, blame_win_aucmd)
           blame_win_aucmd = nil
-        end
-      end
-
-      --- Handle source window/buffer closing before blame
-      local function on_source_closed()
-        if blame_count > 0 then
-          restore_plugins()
-          blame_count = 0
-          source_win = nil
-          source_buf = nil
-          cleanup_source_aucmds()
         end
       end
 
@@ -174,20 +168,26 @@ return {
         end
       end
 
+      --- Restore offset plugins and clear all state.
+      ---
+      --- We restore in the source window context when possible because some plugins
+      --- refresh based on the current window/buffer.
       local function restore_and_reset()
-        if blame_count > 0 then
-          in_source_win(restore_plugins)
-          blame_count = 0
-          source_win = nil
-          source_buf = nil
-          cleanup_source_aucmds()
+        if blame_count <= 0 then
+          return
         end
+
+        in_source_win(restore_plugins)
+        blame_count = 0
+        source_win = nil
+        source_buf = nil
+        cleanup_source_aucmds()
       end
 
       vim.api.nvim_create_autocmd('FileType', {
         pattern = 'gitsigns-blame',
         group = group,
-        callback = function(event)
+        callback = function(ev)
           if blame_count == 0 then
             -- Capture source window and buffer (alternate window when blame split is created)
             source_win = vim.fn.win_getid(vim.fn.winnr('#'))
@@ -201,12 +201,20 @@ return {
               end
             end)
 
-            -- Watch for source buffer being deleted (e.g., :bd, :bw)
-            source_autocmd = vim.api.nvim_create_autocmd({ 'BufDelete', 'WinClosed' }, {
+            -- Source window/buffer going away ends the blame session.
+            -- NOTE: WinClosed matches on the window id via the autocmd {pattern}.
+            source_win_aucmd = vim.api.nvim_create_autocmd('WinClosed', {
+              pattern = tostring(source_win),
+              group = group,
+              once = true,
+              callback = restore_and_reset,
+            })
+
+            source_buf_aucmd = vim.api.nvim_create_autocmd('BufDelete', {
               buffer = source_buf,
               group = group,
               once = true,
-              callback = on_source_closed,
+              callback = restore_and_reset,
             })
 
             -- Gitsigns closes blame when the *source buffer* becomes hidden.
@@ -221,8 +229,14 @@ return {
 
           -- Explicitly closing the blame split doesn't necessarily hide the source buffer.
           -- Catch that path too.
+          -- NOTE: WinClosed matches on the window id via the autocmd {pattern}.
+          local blame_win = vim.fn.bufwinid(ev.buf)
+          if blame_win == -1 then
+            blame_win = vim.api.nvim_get_current_win()
+          end
+
           blame_win_aucmd = vim.api.nvim_create_autocmd('WinClosed', {
-            buffer = event.buf,
+            pattern = tostring(blame_win),
             group = group,
             once = true,
             callback = restore_and_reset,
