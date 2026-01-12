@@ -25,6 +25,9 @@ for _, config in ipairs(linters) do
       if linters_by_ft[filetype] == nil then
         linters_by_ft[filetype] = ft_linters
         lint_on_save_by_ft[filetype] = config.lint_on_save ~= false
+      else
+        linters_by_ft[filetype] = vim.list_extend(linters_by_ft[filetype], ft_linters)
+        lint_on_save_by_ft[filetype] = lint_on_save_by_ft[filetype] and config.lint_on_save ~= false
       end
     end
   end
@@ -64,7 +67,7 @@ vim.api.nvim_create_autocmd('BufWritePost', {
   end,
 })
 
-vim.api.nvim_create_user_command('Lint', function()
+pcall(vim.api.nvim_create_user_command, 'Lint', function()
   lint.try_lint()
 end, { desc = 'Run linters for current buffer' })
 
@@ -73,14 +76,14 @@ local function set_enabled(value)
   log.info('Auto linting ' .. (enabled and 'enabled' or 'disabled'), 'nvim-lint')
 end
 
-vim.api.nvim_create_user_command('LintEnable', function()
+pcall(vim.api.nvim_create_user_command, 'LintEnable', function()
   set_enabled(true)
 end, { desc = 'Enable auto linting globally' })
 
-vim.api.nvim_create_user_command('LintDisable', function()
+pcall(vim.api.nvim_create_user_command, 'LintDisable', function()
   set_enabled(false)
 end, { desc = 'Disable auto linting globally' })
 
-vim.api.nvim_create_user_command('LintToggle', function()
+pcall(vim.api.nvim_create_user_command, 'LintToggle', function()
   set_enabled(not enabled)
 end, { desc = 'Toggle auto linting globally' })
