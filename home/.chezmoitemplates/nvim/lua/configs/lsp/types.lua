@@ -98,6 +98,8 @@
 --- Example: {javascript = {"eslint"}, python = {"flake8", "mypy"}}
 --- Supports multiple linters per filetype for comprehensive analysis
 ---@field linters_by_ft? table<string, table>
+--- Enable auto-linting on BufWritePost (default: true)
+---@field lint_on_save? boolean
 
 --- Complete language configuration bundle
 --- Aggregates all tooling configuration for a specific programming language,

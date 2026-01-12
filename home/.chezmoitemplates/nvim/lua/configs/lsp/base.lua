@@ -16,6 +16,7 @@ function M:new()
   t.linterconfig = {
     servers = nil,
     linters_by_ft = nil,
+    lint_on_save = true,
   }
   t.neotest_adapter_setup = nil
   return t

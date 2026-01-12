@@ -20,6 +20,7 @@ M.formatterconfig.formatters_by_ft = {
 -- Linters
 M.linterconfig.servers = { 'phpstan' }
 M.linterconfig.linters_by_ft = { php = { 'phpstan' } }
+M.linterconfig.lint_on_save = false
 
 -- Intelephense LSP
 local intelephense = LspConfig:new('intelephense', 'intelephense')
