@@ -123,8 +123,9 @@ return {
       local blame_count = 0
       local source_win = nil
       local source_buf = nil
-      local source_win_aucmd = nil
-      local source_buf_aucmd = nil
+      local source_autocmd = nil
+      local source_hidden_aucmd = nil
+      local blame_win_aucmd = nil
       local group = vim.api.nvim_create_augroup('GitsignsBlameVisualOffset', {})
 
       --- Restore plugins to their previous state
@@ -138,13 +139,17 @@ return {
 
       --- Clean up all source-related autocmds
       local function cleanup_source_aucmds()
-        if source_win_aucmd then
-          pcall(vim.api.nvim_del_autocmd, source_win_aucmd)
-          source_win_aucmd = nil
+        if source_autocmd then
+          pcall(vim.api.nvim_del_autocmd, source_autocmd)
+          source_autocmd = nil
         end
-        if source_buf_aucmd then
-          pcall(vim.api.nvim_del_autocmd, source_buf_aucmd)
-          source_buf_aucmd = nil
+        if source_hidden_aucmd then
+          pcall(vim.api.nvim_del_autocmd, source_hidden_aucmd)
+          source_hidden_aucmd = nil
+        end
+        if blame_win_aucmd then
+          pcall(vim.api.nvim_del_autocmd, blame_win_aucmd)
+          blame_win_aucmd = nil
         end
       end
 
@@ -169,10 +174,20 @@ return {
         end
       end
 
+      local function restore_and_reset()
+        if blame_count > 0 then
+          in_source_win(restore_plugins)
+          blame_count = 0
+          source_win = nil
+          source_buf = nil
+          cleanup_source_aucmds()
+        end
+      end
+
       vim.api.nvim_create_autocmd('FileType', {
         pattern = 'gitsigns-blame',
         group = group,
-        callback = function(ev)
+        callback = function(event)
           if blame_count == 0 then
             -- Capture source window and buffer (alternate window when blame split is created)
             source_win = vim.fn.win_getid(vim.fn.winnr('#'))
@@ -186,40 +201,31 @@ return {
               end
             end)
 
-            -- Watch for source window closing before blame
-            source_win_aucmd = vim.api.nvim_create_autocmd('WinClosed', {
-              pattern = tostring(source_win),
-              group = group,
-              once = true,
-              callback = on_source_closed,
-            })
-
             -- Watch for source buffer being deleted (e.g., :bd, :bw)
-            source_buf_aucmd = vim.api.nvim_create_autocmd('BufUnload', {
+            source_autocmd = vim.api.nvim_create_autocmd({ 'BufDelete', 'WinClosed' }, {
               buffer = source_buf,
               group = group,
               once = true,
               callback = on_source_closed,
             })
+
+            -- Gitsigns closes blame when the *source buffer* becomes hidden.
+            source_hidden_aucmd = vim.api.nvim_create_autocmd('BufHidden', {
+              buffer = source_buf,
+              group = group,
+              once = true,
+              callback = restore_and_reset,
+            })
           end
           blame_count = blame_count + 1
 
-          vim.api.nvim_create_autocmd('BufWipeout', {
-            buffer = ev.buf,
+          -- Explicitly closing the blame split doesn't necessarily hide the source buffer.
+          -- Catch that path too.
+          blame_win_aucmd = vim.api.nvim_create_autocmd('WinClosed', {
+            buffer = event.buf,
             group = group,
             once = true,
-            callback = function()
-              if blame_count <= 0 then
-                return -- Already cleaned up by on_source_closed
-              end
-              blame_count = blame_count - 1
-              if blame_count == 0 then
-                in_source_win(restore_plugins)
-                source_win = nil
-                source_buf = nil
-                cleanup_source_aucmds()
-              end
-            end,
+            callback = restore_and_reset,
           })
         end,
       })
