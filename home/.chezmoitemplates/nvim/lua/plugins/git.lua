@@ -124,7 +124,6 @@ return {
       local source_win = nil
       local source_buf = nil
       local source_win_aucmd = nil
-      local source_buf_aucmd = nil
       local source_hidden_aucmd = nil
       local blame_win_aucmd = nil
       local group = vim.api.nvim_create_augroup('GitsignsBlameVisualOffset', {})
@@ -143,10 +142,6 @@ return {
         if source_win_aucmd then
           pcall(vim.api.nvim_del_autocmd, source_win_aucmd)
           source_win_aucmd = nil
-        end
-        if source_buf_aucmd then
-          pcall(vim.api.nvim_del_autocmd, source_buf_aucmd)
-          source_buf_aucmd = nil
         end
         if source_hidden_aucmd then
           pcall(vim.api.nvim_del_autocmd, source_hidden_aucmd)
@@ -205,13 +200,6 @@ return {
             -- NOTE: WinClosed matches on the window id via the autocmd {pattern}.
             source_win_aucmd = vim.api.nvim_create_autocmd('WinClosed', {
               pattern = tostring(source_win),
-              group = group,
-              once = true,
-              callback = restore_and_reset,
-            })
-
-            source_buf_aucmd = vim.api.nvim_create_autocmd('BufDelete', {
-              buffer = source_buf,
               group = group,
               once = true,
               callback = restore_and_reset,
