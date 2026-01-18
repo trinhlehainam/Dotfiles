@@ -21,9 +21,6 @@ return {
     statusline = {
       enabled = false,
     },
-    footer = {
-      enabled = false,
-    },
     workspaces = {
       {
         name = vim.fs.basename(obsidian.vault_root(0) or vim.fn.getcwd()) or 'dynamic',
