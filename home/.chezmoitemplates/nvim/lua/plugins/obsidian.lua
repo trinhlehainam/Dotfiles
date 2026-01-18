@@ -15,7 +15,12 @@ return {
   opts = {
     legacy_commands = false, -- this will be removed in the next major release
     ui = { enable = false }, -- avoid conflict with render-markdown.nvim
-    disable_frontmatter = true,
+    frontmatter = {
+      enabled = false,
+    },
+    statusline = {
+      enabled = false,
+    },
     workspaces = {
       {
         name = vim.fs.basename(obsidian.vault_root(0) or vim.fn.getcwd()) or 'dynamic',
