@@ -136,6 +136,18 @@ end
 intelephense.config = {
   init_options = { storagePath = CACHE_PATH },
 
+  settings = {
+    intelephense = {
+      codeLens = {
+        references = { enable = true },
+        implementations = { enable = true },
+        usages = { enable = true },
+        overrides = { enable = true },
+        parent = { enable = true },
+      },
+    },
+  },
+
   -- Intelephense indexing notification handlers
   handlers = {
     ['indexingStarted'] = on_indexing_started,
