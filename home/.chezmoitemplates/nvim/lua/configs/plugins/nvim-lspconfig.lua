@@ -72,6 +72,8 @@ vim.api.nvim_create_autocmd('LspAttach', {
         callback = function(event2)
           vim.lsp.buf.clear_references()
           vim.api.nvim_clear_autocmds({ group = 'kickstart-lsp-highlight', buffer = event2.buf })
+          vim.api.nvim_clear_autocmds({ group = 'lsp-codelens', buffer = event2.buf })
+          vim.lsp.codelens.clear(nil, event2.buf)
         end,
       })
     end
@@ -84,6 +86,27 @@ vim.api.nvim_create_autocmd('LspAttach', {
       map('<leader>th', function()
         vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled({ bufnr = event.buf }))
       end, '[T]oggle Inlay [H]ints')
+    end
+
+    -- CodeLens (if supported)
+    -- TODO: When PR #36469 merges, add { display = { virt_lines = true } } for above-line display
+    -- Track: https://github.com/neovim/neovim/pull/36469
+    if
+      client
+      and client_supports_method(client, vim.lsp.protocol.Methods.textDocument_codeLens, event.buf)
+    then
+      vim.lsp.codelens.refresh({ bufnr = event.buf })
+
+      local codelens_augroup = vim.api.nvim_create_augroup('lsp-codelens', { clear = false })
+      vim.api.nvim_create_autocmd({ 'BufEnter', 'CursorHold', 'InsertLeave' }, {
+        buffer = event.buf,
+        group = codelens_augroup,
+        callback = function()
+          vim.lsp.codelens.refresh({ bufnr = event.buf })
+        end,
+      })
+
+      map('<leader>cl', vim.lsp.codelens.run, '[C]ode [L]ens Run')
     end
   end,
 })

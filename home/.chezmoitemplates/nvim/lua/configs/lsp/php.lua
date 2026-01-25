@@ -18,8 +18,8 @@ M.formatterconfig.formatters_by_ft = {
 }
 
 -- Linters
-M.linterconfig.servers = { 'phpstan' }
-M.linterconfig.linters_by_ft = { php = { 'phpstan' } }
+M.linterconfig.servers = { 'phpstan', 'phpcs' }
+M.linterconfig.linters_by_ft = { php = { 'phpstan', 'phpcs' } }
 M.linterconfig.lint_on_save = false
 
 -- Intelephense LSP
