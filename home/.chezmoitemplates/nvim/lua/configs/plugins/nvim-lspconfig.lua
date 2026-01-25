@@ -97,8 +97,9 @@ vim.api.nvim_create_autocmd('LspAttach', {
     then
       vim.lsp.codelens.refresh({ bufnr = event.buf })
 
+      -- Only refresh on buffer modifications (not on buffer switch)
       local codelens_augroup = vim.api.nvim_create_augroup('lsp-codelens', { clear = false })
-      vim.api.nvim_create_autocmd({ 'BufEnter', 'InsertLeave', 'TextChanged' }, {
+      vim.api.nvim_create_autocmd({ 'InsertLeave', 'TextChanged' }, {
         buffer = event.buf,
         group = codelens_augroup,
         callback = function()
