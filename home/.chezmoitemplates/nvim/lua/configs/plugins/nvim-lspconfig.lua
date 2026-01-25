@@ -98,15 +98,13 @@ vim.api.nvim_create_autocmd('LspAttach', {
       vim.lsp.codelens.refresh({ bufnr = event.buf })
 
       local codelens_augroup = vim.api.nvim_create_augroup('lsp-codelens', { clear = false })
-      vim.api.nvim_create_autocmd({ 'BufEnter', 'CursorHold', 'InsertLeave' }, {
+      vim.api.nvim_create_autocmd({ 'BufEnter', 'InsertLeave', 'TextChanged' }, {
         buffer = event.buf,
         group = codelens_augroup,
         callback = function()
           vim.lsp.codelens.refresh({ bufnr = event.buf })
         end,
       })
-
-      map('<leader>cl', vim.lsp.codelens.run, '[C]ode [L]ens Run')
     end
   end,
 })
