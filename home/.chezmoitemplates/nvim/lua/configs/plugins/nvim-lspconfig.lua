@@ -53,12 +53,13 @@ vim.api.nvim_create_autocmd('LspAttach', {
         event.buf
       )
     then
-      -- Track this client as supporting highlights
-      vim.b[event.buf].lsp_highlight_clients = vim.b[event.buf].lsp_highlight_clients or {}
-      vim.b[event.buf].lsp_highlight_clients[client.id] = true
+      -- Track this client as supporting highlights (vim.b returns copies, must reassign)
+      local highlight_clients = vim.b[event.buf].lsp_highlight_clients or {}
+      highlight_clients[client.id] = true
+      vim.b[event.buf].lsp_highlight_clients = highlight_clients
 
       -- Only create autocmds once per buffer (first highlight-capable client)
-      if vim.tbl_count(vim.b[event.buf].lsp_highlight_clients) == 1 then
+      if vim.tbl_count(highlight_clients) == 1 then
         local highlight_augroup =
           vim.api.nvim_create_augroup('kickstart-lsp-highlight', { clear = false })
         vim.api.nvim_create_autocmd({ 'CursorHold', 'CursorHoldI' }, {
@@ -92,14 +93,15 @@ vim.api.nvim_create_autocmd('LspAttach', {
       client
       and client_supports_method(client, vim.lsp.protocol.Methods.textDocument_codeLens, event.buf)
     then
-      -- Track this client as supporting codelens
-      vim.b[event.buf].lsp_codelens_clients = vim.b[event.buf].lsp_codelens_clients or {}
-      vim.b[event.buf].lsp_codelens_clients[client.id] = true
+      -- Track this client as supporting codelens (vim.b returns copies, must reassign)
+      local codelens_clients = vim.b[event.buf].lsp_codelens_clients or {}
+      codelens_clients[client.id] = true
+      vim.b[event.buf].lsp_codelens_clients = codelens_clients
 
       vim.lsp.codelens.refresh({ bufnr = event.buf })
 
       -- Only create autocmds once per buffer (first codelens-capable client)
-      if vim.tbl_count(vim.b[event.buf].lsp_codelens_clients) == 1 then
+      if vim.tbl_count(codelens_clients) == 1 then
         local codelens_augroup = vim.api.nvim_create_augroup('lsp-codelens', { clear = false })
         vim.api.nvim_create_autocmd({ 'InsertLeave', 'BufWritePost' }, {
           buffer = event.buf,
@@ -120,7 +122,7 @@ vim.api.nvim_create_autocmd('LspDetach', {
     local bufnr = event.buf
     local client_id = event.data.client_id
 
-    -- Remove from highlight clients and cleanup if none remain
+    -- Remove from highlight clients and cleanup if none remain (vim.b returns copies, must reassign)
     local highlight_clients = vim.b[bufnr].lsp_highlight_clients
     if highlight_clients and highlight_clients[client_id] then
       highlight_clients[client_id] = nil
@@ -128,10 +130,12 @@ vim.api.nvim_create_autocmd('LspDetach', {
         vim.lsp.buf.clear_references()
         pcall(vim.api.nvim_clear_autocmds, { group = 'kickstart-lsp-highlight', buffer = bufnr })
         vim.b[bufnr].lsp_highlight_clients = nil
+      else
+        vim.b[bufnr].lsp_highlight_clients = highlight_clients
       end
     end
 
-    -- Remove from codelens clients and cleanup if none remain
+    -- Remove from codelens clients and cleanup if none remain (vim.b returns copies, must reassign)
     local codelens_clients = vim.b[bufnr].lsp_codelens_clients
     if codelens_clients and codelens_clients[client_id] then
       codelens_clients[client_id] = nil
@@ -139,6 +143,8 @@ vim.api.nvim_create_autocmd('LspDetach', {
         pcall(vim.api.nvim_clear_autocmds, { group = 'lsp-codelens', buffer = bufnr })
         vim.lsp.codelens.clear(nil, bufnr)
         vim.b[bufnr].lsp_codelens_clients = nil
+      else
+        vim.b[bufnr].lsp_codelens_clients = codelens_clients
       end
     end
   end,
