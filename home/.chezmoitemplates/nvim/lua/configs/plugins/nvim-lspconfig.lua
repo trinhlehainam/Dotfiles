@@ -66,17 +66,6 @@ vim.api.nvim_create_autocmd('LspAttach', {
         group = highlight_augroup,
         callback = vim.lsp.buf.clear_references,
       })
-
-      vim.api.nvim_create_autocmd('LspDetach', {
-        group = vim.api.nvim_create_augroup('kickstart-lsp-detach', { clear = true }),
-        callback = function(event2)
-          vim.lsp.buf.clear_references()
-          vim.api.nvim_clear_autocmds({ group = 'kickstart-lsp-highlight', buffer = event2.buf })
-          vim.api.nvim_clear_autocmds({ group = 'lsp-codelens', buffer = event2.buf })
-          vim.lsp.codelens.clear(nil, event2.buf)
-          vim.b[event2.buf].codelens_autocmd_set = nil
-        end,
-      })
     end
 
     -- Inlay hints toggle (if supported)
@@ -115,6 +104,18 @@ vim.api.nvim_create_autocmd('LspAttach', {
 
       vim.b[event.buf].codelens_autocmd_set = true
     end
+
+    -- Cleanup on LspDetach (unconditional - safe to call even if features weren't set up)
+    vim.api.nvim_create_autocmd('LspDetach', {
+      group = vim.api.nvim_create_augroup('kickstart-lsp-detach', { clear = true }),
+      callback = function(event2)
+        vim.lsp.buf.clear_references()
+        vim.api.nvim_clear_autocmds({ group = 'kickstart-lsp-highlight', buffer = event2.buf })
+        vim.api.nvim_clear_autocmds({ group = 'lsp-codelens', buffer = event2.buf })
+        vim.lsp.codelens.clear(nil, event2.buf)
+        vim.b[event2.buf].codelens_autocmd_set = nil
+      end,
+    })
   end,
 })
 
