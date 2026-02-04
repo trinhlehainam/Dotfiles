@@ -18,8 +18,8 @@ M.formatterconfig.formatters_by_ft = {
 }
 
 -- Linters
-M.linterconfig.servers = { 'phpstan' }
-M.linterconfig.linters_by_ft = { php = { 'phpstan' } }
+M.linterconfig.servers = { 'phpstan', 'phpcs' }
+M.linterconfig.linters_by_ft = { php = { 'phpstan', 'phpcs' } }
 M.linterconfig.lint_on_save = false
 
 -- Intelephense LSP
@@ -135,6 +135,18 @@ end
 
 intelephense.config = {
   init_options = { storagePath = CACHE_PATH },
+
+  settings = {
+    intelephense = {
+      codeLens = {
+        references = { enable = true },
+        implementations = { enable = true },
+        usages = { enable = true },
+        overrides = { enable = true },
+        parent = { enable = true },
+      },
+    },
+  },
 
   -- Intelephense indexing notification handlers
   handlers = {

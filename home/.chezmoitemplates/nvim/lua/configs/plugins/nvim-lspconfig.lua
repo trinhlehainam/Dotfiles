@@ -53,27 +53,27 @@ vim.api.nvim_create_autocmd('LspAttach', {
         event.buf
       )
     then
-      local highlight_augroup =
-        vim.api.nvim_create_augroup('kickstart-lsp-highlight', { clear = false })
-      vim.api.nvim_create_autocmd({ 'CursorHold', 'CursorHoldI' }, {
-        buffer = event.buf,
-        group = highlight_augroup,
-        callback = vim.lsp.buf.document_highlight,
-      })
+      -- Track this client as supporting highlights (vim.b returns copies, must reassign)
+      local highlight_clients = vim.b[event.buf].lsp_highlight_clients or {}
+      highlight_clients[client.id] = true
+      vim.b[event.buf].lsp_highlight_clients = highlight_clients
 
-      vim.api.nvim_create_autocmd({ 'CursorMoved', 'CursorMovedI' }, {
-        buffer = event.buf,
-        group = highlight_augroup,
-        callback = vim.lsp.buf.clear_references,
-      })
+      -- Only create autocmds once per buffer (first highlight-capable client)
+      if vim.tbl_count(highlight_clients) == 1 then
+        local highlight_augroup =
+          vim.api.nvim_create_augroup('kickstart-lsp-highlight', { clear = false })
+        vim.api.nvim_create_autocmd({ 'CursorHold', 'CursorHoldI' }, {
+          buffer = event.buf,
+          group = highlight_augroup,
+          callback = vim.lsp.buf.document_highlight,
+        })
 
-      vim.api.nvim_create_autocmd('LspDetach', {
-        group = vim.api.nvim_create_augroup('kickstart-lsp-detach', { clear = true }),
-        callback = function(event2)
-          vim.lsp.buf.clear_references()
-          vim.api.nvim_clear_autocmds({ group = 'kickstart-lsp-highlight', buffer = event2.buf })
-        end,
-      })
+        vim.api.nvim_create_autocmd({ 'CursorMoved', 'CursorMovedI' }, {
+          buffer = event.buf,
+          group = highlight_augroup,
+          callback = vim.lsp.buf.clear_references,
+        })
+      end
     end
 
     -- Inlay hints toggle (if supported)
@@ -85,12 +85,73 @@ vim.api.nvim_create_autocmd('LspAttach', {
         vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled({ bufnr = event.buf }))
       end, '[T]oggle Inlay [H]ints')
     end
+
+    -- CodeLens (if supported)
+    -- TODO: When PR #36469 merges, add { display = { virt_lines = true } } for above-line display
+    -- Track: https://github.com/neovim/neovim/pull/36469
+    if
+      client
+      and client_supports_method(client, vim.lsp.protocol.Methods.textDocument_codeLens, event.buf)
+    then
+      -- Track this client as supporting codelens (vim.b returns copies, must reassign)
+      local codelens_clients = vim.b[event.buf].lsp_codelens_clients or {}
+      codelens_clients[client.id] = true
+      vim.b[event.buf].lsp_codelens_clients = codelens_clients
+
+      vim.lsp.codelens.refresh({ bufnr = event.buf })
+
+      -- Only create autocmds once per buffer (first codelens-capable client)
+      if vim.tbl_count(codelens_clients) == 1 then
+        local codelens_augroup = vim.api.nvim_create_augroup('lsp-codelens', { clear = false })
+        vim.api.nvim_create_autocmd({ 'InsertLeave', 'BufWritePost' }, {
+          buffer = event.buf,
+          group = codelens_augroup,
+          callback = function()
+            vim.lsp.codelens.refresh({ bufnr = event.buf })
+          end,
+        })
+      end
+    end
   end,
 })
 
--- Diagnostics
-local diagnostic_jump_ns = vim.api.nvim_create_namespace('on_diagnostic_jump')
+-- Cleanup on LspDetach - only disable features when no remaining client supports them
+vim.api.nvim_create_autocmd('LspDetach', {
+  group = vim.api.nvim_create_augroup('kickstart-lsp-detach', { clear = true }),
+  callback = function(event)
+    local bufnr = event.buf
+    local client_id = event.data.client_id
+
+    -- Remove from highlight clients and cleanup if none remain (vim.b returns copies, must reassign)
+    local highlight_clients = vim.b[bufnr].lsp_highlight_clients
+    if highlight_clients and highlight_clients[client_id] then
+      highlight_clients[client_id] = nil
+      if next(highlight_clients) == nil then
+        vim.lsp.buf.clear_references()
+        pcall(vim.api.nvim_clear_autocmds, { group = 'kickstart-lsp-highlight', buffer = bufnr })
+        vim.b[bufnr].lsp_highlight_clients = nil
+      else
+        vim.b[bufnr].lsp_highlight_clients = highlight_clients
+      end
+    end
+
+    -- Remove from codelens clients and cleanup if none remain (vim.b returns copies, must reassign)
+    local codelens_clients = vim.b[bufnr].lsp_codelens_clients
+    if codelens_clients and codelens_clients[client_id] then
+      codelens_clients[client_id] = nil
+      if next(codelens_clients) == nil then
+        pcall(vim.api.nvim_clear_autocmds, { group = 'lsp-codelens', buffer = bufnr })
+        vim.lsp.codelens.clear(nil, bufnr)
+        vim.b[bufnr].lsp_codelens_clients = nil
+      else
+        vim.b[bufnr].lsp_codelens_clients = codelens_clients
+      end
+    end
+  end,
+})
+
 vim.diagnostic.config({
+  update_in_insert = false,
   severity_sort = true,
   float = { border = 'rounded', source = 'if_many' },
   underline = { severity = vim.diagnostic.severity.ERROR },
@@ -106,25 +167,8 @@ vim.diagnostic.config({
   virtual_lines = {
     current_line = true,
   },
-  -- Neovim 0.12+: jump.on_jump (see https://github.com/neovim/neovim/issues/33154)
-  jump = (function()
-    if vim.fn.has('nvim-0.12') == 1 then
-      return {
-        on_jump = function(diagnostic, bufnr)
-          if not diagnostic then
-            return
-          end
-
-          vim.diagnostic.show(
-            diagnostic_jump_ns,
-            bufnr,
-            { diagnostic },
-            { virtual_lines = false, virtual_text = false }
-          )
-        end,
-      }
-    end
-  end)(),
+  -- TODO: Neovim 0.12+ jump.on_jump (see https://github.com/neovim/neovim/issues/33154)
+  jump = { float = true },
 })
 
 -- Diagnostic keymaps
@@ -146,12 +190,6 @@ vim.keymap.set('n', 'gk', function()
   vim.diagnostic.config({ virtual_lines = { current_line = not current_line } })
 end, { desc = 'Toggle diagnostic virtual_lines current_line' })
 
-vim.keymap.set('n', '[d', function()
-  vim.diagnostic.jump({ count = -1, float = true })
-end, { desc = 'Go to previous diagnostic message' })
-vim.keymap.set('n', ']d', function()
-  vim.diagnostic.jump({ count = 1, float = true })
-end, { desc = 'Go to next diagnostic message' })
 vim.keymap.set(
   'n',
   '<leader>e',

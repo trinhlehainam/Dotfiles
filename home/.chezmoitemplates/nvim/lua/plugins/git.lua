@@ -93,19 +93,6 @@ return {
           end,
           was_active = false,
         },
-        {
-          name = 'lensline',
-          is_active = function(m)
-            return m.is_visible()
-          end,
-          disable = function(m)
-            m.hide()
-          end,
-          enable = function(m)
-            m.show()
-          end,
-          was_active = false,
-        },
       }
 
       local loaded = {}

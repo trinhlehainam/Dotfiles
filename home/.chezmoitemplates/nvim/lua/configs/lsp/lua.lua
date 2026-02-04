@@ -11,6 +11,9 @@ lua_ls.config = {
       completion = {
         callSnippet = 'Replace',
       },
+      codeLens = {
+        enable = true,
+      },
     },
   },
 }
