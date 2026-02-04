@@ -110,9 +110,8 @@ vim.api.nvim_create_autocmd('LspAttach', {
   end,
 })
 
--- Diagnostics
-local diagnostic_jump_ns = vim.api.nvim_create_namespace('on_diagnostic_jump')
 vim.diagnostic.config({
+  update_in_insert = false,
   severity_sort = true,
   float = { border = 'rounded', source = 'if_many' },
   underline = { severity = vim.diagnostic.severity.ERROR },
@@ -128,25 +127,8 @@ vim.diagnostic.config({
   virtual_lines = {
     current_line = true,
   },
-  -- Neovim 0.12+: jump.on_jump (see https://github.com/neovim/neovim/issues/33154)
-  jump = (function()
-    if vim.fn.has('nvim-0.12') == 1 then
-      return {
-        on_jump = function(diagnostic, bufnr)
-          if not diagnostic then
-            return
-          end
-
-          vim.diagnostic.show(
-            diagnostic_jump_ns,
-            bufnr,
-            { diagnostic },
-            { virtual_lines = false, virtual_text = false }
-          )
-        end,
-      }
-    end
-  end)(),
+  -- TODO: Neovim 0.12+ jump.on_jump (see https://github.com/neovim/neovim/issues/33154)
+  jump = { float = true },
 })
 
 -- Diagnostic keymaps
@@ -168,12 +150,6 @@ vim.keymap.set('n', 'gk', function()
   vim.diagnostic.config({ virtual_lines = { current_line = not current_line } })
 end, { desc = 'Toggle diagnostic virtual_lines current_line' })
 
-vim.keymap.set('n', '[d', function()
-  vim.diagnostic.jump({ count = -1, float = true })
-end, { desc = 'Go to previous diagnostic message' })
-vim.keymap.set('n', ']d', function()
-  vim.diagnostic.jump({ count = 1, float = true })
-end, { desc = 'Go to next diagnostic message' })
 vim.keymap.set(
   'n',
   '<leader>e',
