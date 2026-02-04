@@ -53,19 +53,26 @@ vim.api.nvim_create_autocmd('LspAttach', {
         event.buf
       )
     then
-      local highlight_augroup =
-        vim.api.nvim_create_augroup('kickstart-lsp-highlight', { clear = false })
-      vim.api.nvim_create_autocmd({ 'CursorHold', 'CursorHoldI' }, {
-        buffer = event.buf,
-        group = highlight_augroup,
-        callback = vim.lsp.buf.document_highlight,
-      })
+      -- Track this client as supporting highlights
+      vim.b[event.buf].lsp_highlight_clients = vim.b[event.buf].lsp_highlight_clients or {}
+      vim.b[event.buf].lsp_highlight_clients[client.id] = true
 
-      vim.api.nvim_create_autocmd({ 'CursorMoved', 'CursorMovedI' }, {
-        buffer = event.buf,
-        group = highlight_augroup,
-        callback = vim.lsp.buf.clear_references,
-      })
+      -- Only create autocmds once per buffer (first highlight-capable client)
+      if vim.tbl_count(vim.b[event.buf].lsp_highlight_clients) == 1 then
+        local highlight_augroup =
+          vim.api.nvim_create_augroup('kickstart-lsp-highlight', { clear = false })
+        vim.api.nvim_create_autocmd({ 'CursorHold', 'CursorHoldI' }, {
+          buffer = event.buf,
+          group = highlight_augroup,
+          callback = vim.lsp.buf.document_highlight,
+        })
+
+        vim.api.nvim_create_autocmd({ 'CursorMoved', 'CursorMovedI' }, {
+          buffer = event.buf,
+          group = highlight_augroup,
+          callback = vim.lsp.buf.clear_references,
+        })
+      end
     end
 
     -- Inlay hints toggle (if supported)
@@ -85,37 +92,55 @@ vim.api.nvim_create_autocmd('LspAttach', {
       client
       and client_supports_method(client, vim.lsp.protocol.Methods.textDocument_codeLens, event.buf)
     then
-      -- Avoid duplicate autocmds if multiple codelens-capable clients attach to the same buffer
-      if vim.b[event.buf].codelens_autocmd_set then
-        return
-      end
+      -- Track this client as supporting codelens
+      vim.b[event.buf].lsp_codelens_clients = vim.b[event.buf].lsp_codelens_clients or {}
+      vim.b[event.buf].lsp_codelens_clients[client.id] = true
 
       vim.lsp.codelens.refresh({ bufnr = event.buf })
 
-      -- Only refresh on buffer modifications (not on buffer switch)
-      local codelens_augroup = vim.api.nvim_create_augroup('lsp-codelens', { clear = false })
-      vim.api.nvim_create_autocmd({ 'InsertLeave', 'BufWritePost' }, {
-        buffer = event.buf,
-        group = codelens_augroup,
-        callback = function()
-          vim.lsp.codelens.refresh({ bufnr = event.buf })
-        end,
-      })
+      -- Only create autocmds once per buffer (first codelens-capable client)
+      if vim.tbl_count(vim.b[event.buf].lsp_codelens_clients) == 1 then
+        local codelens_augroup = vim.api.nvim_create_augroup('lsp-codelens', { clear = false })
+        vim.api.nvim_create_autocmd({ 'InsertLeave', 'BufWritePost' }, {
+          buffer = event.buf,
+          group = codelens_augroup,
+          callback = function()
+            vim.lsp.codelens.refresh({ bufnr = event.buf })
+          end,
+        })
+      end
+    end
+  end,
+})
 
-      vim.b[event.buf].codelens_autocmd_set = true
+-- Cleanup on LspDetach - only disable features when no remaining client supports them
+vim.api.nvim_create_autocmd('LspDetach', {
+  group = vim.api.nvim_create_augroup('kickstart-lsp-detach', { clear = true }),
+  callback = function(event)
+    local bufnr = event.buf
+    local client_id = event.data.client_id
+
+    -- Remove from highlight clients and cleanup if none remain
+    local highlight_clients = vim.b[bufnr].lsp_highlight_clients
+    if highlight_clients and highlight_clients[client_id] then
+      highlight_clients[client_id] = nil
+      if next(highlight_clients) == nil then
+        vim.lsp.buf.clear_references()
+        pcall(vim.api.nvim_clear_autocmds, { group = 'kickstart-lsp-highlight', buffer = bufnr })
+        vim.b[bufnr].lsp_highlight_clients = nil
+      end
     end
 
-    -- Cleanup on LspDetach (unconditional - safe to call even if features weren't set up)
-    vim.api.nvim_create_autocmd('LspDetach', {
-      group = vim.api.nvim_create_augroup('kickstart-lsp-detach', { clear = true }),
-      callback = function(event2)
-        vim.lsp.buf.clear_references()
-        vim.api.nvim_clear_autocmds({ group = 'kickstart-lsp-highlight', buffer = event2.buf })
-        vim.api.nvim_clear_autocmds({ group = 'lsp-codelens', buffer = event2.buf })
-        vim.lsp.codelens.clear(nil, event2.buf)
-        vim.b[event2.buf].codelens_autocmd_set = nil
-      end,
-    })
+    -- Remove from codelens clients and cleanup if none remain
+    local codelens_clients = vim.b[bufnr].lsp_codelens_clients
+    if codelens_clients and codelens_clients[client_id] then
+      codelens_clients[client_id] = nil
+      if next(codelens_clients) == nil then
+        pcall(vim.api.nvim_clear_autocmds, { group = 'lsp-codelens', buffer = bufnr })
+        vim.lsp.codelens.clear(nil, bufnr)
+        vim.b[bufnr].lsp_codelens_clients = nil
+      end
+    end
   end,
 })
 
