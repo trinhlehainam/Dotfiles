@@ -74,6 +74,7 @@ vim.api.nvim_create_autocmd('LspAttach', {
           vim.api.nvim_clear_autocmds({ group = 'kickstart-lsp-highlight', buffer = event2.buf })
           vim.api.nvim_clear_autocmds({ group = 'lsp-codelens', buffer = event2.buf })
           vim.lsp.codelens.clear(nil, event2.buf)
+          vim.b[event2.buf].codelens_autocmd_set = nil
         end,
       })
     end
@@ -95,17 +96,24 @@ vim.api.nvim_create_autocmd('LspAttach', {
       client
       and client_supports_method(client, vim.lsp.protocol.Methods.textDocument_codeLens, event.buf)
     then
+      -- Avoid duplicate autocmds if multiple codelens-capable clients attach to the same buffer
+      if vim.b[event.buf].codelens_autocmd_set then
+        return
+      end
+
       vim.lsp.codelens.refresh({ bufnr = event.buf })
 
       -- Only refresh on buffer modifications (not on buffer switch)
       local codelens_augroup = vim.api.nvim_create_augroup('lsp-codelens', { clear = false })
-      vim.api.nvim_create_autocmd({ 'InsertLeave', 'TextChanged' }, {
+      vim.api.nvim_create_autocmd({ 'InsertLeave', 'BufWritePost' }, {
         buffer = event.buf,
         group = codelens_augroup,
         callback = function()
           vim.lsp.codelens.refresh({ bufnr = event.buf })
         end,
       })
+
+      vim.b[event.buf].codelens_autocmd_set = true
     end
   end,
 })
