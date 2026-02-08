@@ -10,11 +10,11 @@ function M:new()
   t.lspconfigs = {}
   t.dapconfigs = {}
   t.formatterconfig = {
-    servers = nil,
+    mason_packages = nil,
     formatters_by_ft = nil,
   }
   t.linterconfig = {
-    servers = nil,
+    mason_packages = nil,
     linters_by_ft = nil,
     lint_on_save = true,
   }

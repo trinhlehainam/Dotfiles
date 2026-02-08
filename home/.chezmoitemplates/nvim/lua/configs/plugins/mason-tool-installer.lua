@@ -28,15 +28,15 @@ local lspconfigs = lsp_config.lspconfigs or {}
 -- ========================================
 -- Formatter Configuration Aggregation
 -- ========================================
--- Build list of formatter servers to ensure are installed
+-- Build list of formatter packages to ensure are installed
 --- @type MasonToolEntry[]
 local ensure_installed_formatters = {}
 
--- Iterate through formatter configurations and extract server names
--- Each formatter config may specify multiple servers in a 'servers' field
+-- Iterate through formatter configurations and extract package names
+-- Each formatter config may specify multiple packages in a 'mason_packages' field
 for _, formatter in ipairs(formatters) do
-  if vim.islist(formatter.servers) then
-    vim.list_extend(ensure_installed_formatters, formatter.servers)
+  if vim.islist(formatter.mason_packages) then
+    vim.list_extend(ensure_installed_formatters, formatter.mason_packages)
   end
 end
 
@@ -54,16 +54,16 @@ end
 -- ========================================
 -- Linter Configuration Aggregation
 -- ========================================
--- Build list of linter servers to ensure are installed
+-- Build list of linter packages to ensure are installed
 -- Starts empty as no default linters are specified
 --- @type MasonToolEntry[]
 local ensure_installed_linters = {}
 
--- Iterate through linter configurations and extract server names
--- Each linter config may specify multiple servers in a 'servers' field
+-- Iterate through linter configurations and extract package names
+-- Each linter config may specify multiple packages in a 'mason_packages' field
 for _, linter in ipairs(linters) do
-  if vim.islist(linter.servers) then
-    vim.list_extend(ensure_installed_linters, linter.servers)
+  if vim.islist(linter.mason_packages) then
+    vim.list_extend(ensure_installed_linters, linter.mason_packages)
   end
 end
 
@@ -89,11 +89,12 @@ local ensure_installed_lsps = {}
 -- Iterate through LSP configurations and extract Mason package names
 -- Each LSP config specifies its Mason package name in 'mason_package' field
 for _, lspconfig in pairs(lspconfigs) do
-  local package_name = lspconfig.mason_package
-  -- Only add valid package names to the installation list
-  if type(package_name) == 'string' and package_name ~= '' then
-    -- Add package to installation list
-    ensure_installed_lsps[#ensure_installed_lsps + 1] = package_name
+  local package = lspconfig.mason_package
+  -- Handle both string and table entry formats
+  if type(package) == 'string' and package ~= '' then
+    ensure_installed_lsps[#ensure_installed_lsps + 1] = package
+  elseif type(package) == 'table' and type(package[1]) == 'string' and package[1] ~= '' then
+    ensure_installed_lsps[#ensure_installed_lsps + 1] = package
   end
 end
 

@@ -19,7 +19,7 @@ vim.treesitter.query.add_directive('inject-go-tmpl!', function(_, _, bufnr, _, m
   metadata['injection.language'] = ext
 end, {})
 
-M.formatterconfig.servers = { 'gofumpt', 'goimports-reviser', 'golines' }
+M.formatterconfig.mason_packages = { 'gofumpt', 'goimports-reviser', 'golines' }
 M.formatterconfig.formatters_by_ft = {
   go = { 'gofumpt', 'goimports-reviser', 'golines' },
 }
@@ -32,7 +32,7 @@ gopls.config = {
 }
 
 -- NOTE: golangci-lint-langserver requires golangci-lint to be installed
-M.linterconfig.servers = { 'golangci-lint' }
+M.linterconfig.mason_packages = { 'golangci-lint' }
 -- INFO: https://github.com/nametake/golangci-lint-langserver?tab=readme-ov-file#configuration-for-nvim-lspconfig
 local golangci_lint_ls = LspConfig:new('golangci_lint_ls', 'golangci-lint')
 

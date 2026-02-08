@@ -4,7 +4,7 @@ local M = LanguageSetting:new()
 
 M.treesitter.filetypes = { 'json' }
 
-M.formatterconfig.servers = { 'jq' }
+M.formatterconfig.mason_packages = { 'jq' }
 M.formatterconfig.formatters_by_ft = {
   json = { 'jq' },
 }

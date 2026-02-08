@@ -50,8 +50,9 @@
 --- @source https://github.com/neovim/nvim-lspconfig/blob/master/doc/configs.md#lsp-configs
 ---@field server string?
 --- The package name registered in Mason, used to tell Mason which LSP server binary to install
+--- Can be a simple string or a table with version/auto_update/condition options
 --- @source https://mason-registry.dev/registry/list
----@field mason_package string?
+---@field mason_package MasonToolEntry?
 ---@field config vim.lsp.Config Configuration table passed to the LSP server setup function
 ---@field setup function? Custom setup function for advanced LSP server configuration
 
@@ -77,9 +78,8 @@
 --- @source https://github.com/stevearc/conform.nvim?tab=readme-ov-file#formatters
 ---@class custom.FormatterConfig
 --- List of formatter packages to install via Mason
---- Example: {"prettier", "black", "stylua"}
 --- These must match Mason registry names for formatters
----@field servers? string[]
+---@field mason_packages? MasonToolEntry[]
 --- Filetype-to-formatter mapping for conform.nvim configuration
 --- Example: {javascript = {"prettier"}, python = {"black", "isort"}}
 --- Allows multiple formatters per filetype and fallback chains
@@ -91,9 +91,9 @@
 --- @source https://github.com/mfussenegger/nvim-lint?tab=readme-ov-file#available-linters
 ---@class custom.LinterConfig
 --- List of linter packages to install via Mason
---- Example: {"eslint_d", "flake8", "luacheck"}
 --- These must match Mason registry names for linters
----@field servers? string[]
+--- @source https://github.com/whoissethdaniel/mason-tool-installer.nvim
+---@field mason_packages? MasonToolEntry[]
 --- Filetype-to-linter mapping for nvim-lint configuration
 --- Example: {javascript = {"eslint"}, python = {"flake8", "mypy"}}
 --- Supports multiple linters per filetype for comprehensive analysis

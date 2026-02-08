@@ -10,14 +10,14 @@ M.treesitter.filetypes = {
   'css',
 }
 
-M.formatterconfig.servers = { 'prettierd' }
+M.formatterconfig.mason_packages = { 'prettierd' }
 M.formatterconfig.formatters_by_ft = {
   javascriptreact = { 'rustywind' },
   typescriptreact = { 'rustywind' },
   vue = { 'rustywind', 'prettierd' },
 }
 
-M.linterconfig.servers = { 'eslint_d', 'markuplint' }
+M.linterconfig.mason_packages = { 'eslint_d', 'markuplint' }
 M.linterconfig.linters_by_ft = {
   javascriptreact = { 'markuplint' },
   typescriptreact = { 'markuplint' },

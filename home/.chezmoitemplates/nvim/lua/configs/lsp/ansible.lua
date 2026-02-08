@@ -47,7 +47,7 @@ if common.IS_WINDOWS then
   }
 else
   -- INFO: https://github.com/ansible/ansible-lint
-  M.linterconfig.servers = { 'ansible-lint' }
+  M.linterconfig.mason_packages = { 'ansible-lint' }
 end
 
 M.lspconfigs = { ansiblels }

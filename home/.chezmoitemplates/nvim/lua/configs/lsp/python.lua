@@ -5,7 +5,7 @@ local M = LanguageSetting:new()
 M.treesitter.filetypes = { 'python' }
 
 -- NOTE: ruff is an running server that watching python files
-M.formatterconfig.servers = { 'ruff' }
+M.formatterconfig.mason_packages = { 'ruff' }
 M.formatterconfig.formatters_by_ft = {
   python = {
     -- "ruff_fix", -- An extremely fast Python linter, written in Rust. Fix lint errors.
