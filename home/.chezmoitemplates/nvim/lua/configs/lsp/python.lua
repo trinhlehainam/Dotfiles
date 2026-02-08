@@ -4,7 +4,7 @@ local M = LanguageSetting:new()
 
 M.treesitter.filetypes = { 'python' }
 
--- NOTE: ruff is an running server that watching python files
+-- NOTE: ruff is a running server that watching python files
 M.formatterconfig.mason_packages = { 'ruff' }
 M.formatterconfig.formatters_by_ft = {
   python = {

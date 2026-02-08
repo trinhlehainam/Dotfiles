@@ -7,9 +7,9 @@
 --   - mason-tool-installer: Plugin that handles automatic installation of tools via Mason
 --
 -- The configuration follows these steps:
---   1. Extract formatter configurations and build list of servers to install
---   2. Extract linter configurations and build list of servers to install
---   3. Extract LSP configurations and build list of language servers to install
+--   1. Extract formatter configurations and build list of mason packages to install
+--   2. Extract linter configurations and build list of mason packages to install
+--   3. Extract LSP configurations and build list of mason packages to install
 --   4. Pass aggregated list to mason-tool-installer for automatic installation
 
 -- Import configuration modules with error handling
