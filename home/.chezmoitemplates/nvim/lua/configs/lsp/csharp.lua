@@ -5,7 +5,7 @@ local M = LanguageSetting:new()
 -- https://github.com/GustavEikaas/easy-dotnet.nvim?tab=readme-ov-file#requirements-5
 M.treesitter.filetypes = { 'c_sharp', 'sql', 'json', 'xml' }
 
-M.formatterconfig.servers = { 'csharpier' }
+M.formatterconfig.mason_packages = { 'csharpier' }
 M.formatterconfig.formatters_by_ft = {
   cs = { 'csharpier' },
 }

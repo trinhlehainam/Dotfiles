@@ -3,7 +3,7 @@ local M = {}
 
 --- Create a new LSP configuration instance
 --- @param server string? The name of the LSP server used for Neovim LSP to enable the server (e.g., "lua_ls", "typescript-language-server", "pyright")
---- @param mason_package string? The name of the server package registered in Mason, used to tell Mason what LSP server binary to install (e.g., "lua-language-server", "typescript-language-server", "pyright")
+--- @param mason_package MasonToolEntry? The name of the server package registered in Mason, used to tell Mason what LSP server binary to install (e.g., "lua-language-server", "typescript-language-server", "pyright")
 --- @return custom.LspConfig A new LspConfig instance with the specified server and Mason package configuration
 ---
 --- @usage

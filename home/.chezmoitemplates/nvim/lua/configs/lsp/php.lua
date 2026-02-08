@@ -11,14 +11,14 @@ local M = LanguageSetting:new()
 M.treesitter.filetypes = { 'php' }
 
 -- Formatters
-M.formatterconfig.servers = { 'blade-formatter', 'php-cs-fixer' }
+M.formatterconfig.mason_packages = { 'blade-formatter', 'php-cs-fixer' }
 M.formatterconfig.formatters_by_ft = {
   blade = { 'blade-formatter' },
   php = { 'php_cs_fixer' },
 }
 
 -- Linters
-M.linterconfig.servers = { 'phpstan', 'phpcs' }
+M.linterconfig.mason_packages = { 'phpstan', 'phpcs' }
 M.linterconfig.linters_by_ft = { php = { 'phpstan', 'phpcs' } }
 M.linterconfig.lint_on_save = false
 
