@@ -29,6 +29,7 @@ local lspconfigs = lsp_config.lspconfigs or {}
 -- Formatter Configuration Aggregation
 -- ========================================
 -- Build list of formatter servers to ensure are installed
+--- @type MasonToolEntry[]
 local ensure_installed_formatters = {}
 
 -- Iterate through formatter configurations and extract server names
@@ -55,6 +56,7 @@ end
 -- ========================================
 -- Build list of linter servers to ensure are installed
 -- Starts empty as no default linters are specified
+--- @type MasonToolEntry[]
 local ensure_installed_linters = {}
 
 -- Iterate through linter configurations and extract server names
@@ -81,6 +83,7 @@ end
 -- LSP Configuration Aggregation
 -- ========================================
 -- Build list of LSP servers to ensure are installed
+--- @type MasonToolEntry[]
 local ensure_installed_lsps = {}
 
 -- Iterate through LSP configurations and extract Mason package names
@@ -99,6 +102,7 @@ end
 -- ========================================
 -- Combine all tool lists into single installation list
 -- Mason-tool-installer will handle deduplication automatically
+--- @type MasonToolEntry[]
 local ensure_installed = {}
 vim.list_extend(ensure_installed, ensure_installed_formatters)
 vim.list_extend(ensure_installed, ensure_installed_linters)

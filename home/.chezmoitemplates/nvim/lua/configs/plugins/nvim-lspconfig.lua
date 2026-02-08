@@ -235,6 +235,6 @@ for server_name, config in pairs(servers) do
 end
 
 -- Language server for Postgres written in Rust
--- NOTE: This framework is not production ready yet, check back later
+-- TODO: This framework is not production ready yet, check back later
 -- lspconfig.postgres_lsp.setup{}
 --

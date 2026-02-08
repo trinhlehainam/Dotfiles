@@ -4,6 +4,7 @@ local M = LanguageSetting:new()
 
 M.treesitter.filetypes = { 'lua' }
 
+-- TODO: https://github.com/folke/lazydev.nvim/issues/136#issuecomment-3773651709
 local lua_ls = LspConfig:new('lua_ls', 'lua-language-server')
 lua_ls.config = {
   settings = {
