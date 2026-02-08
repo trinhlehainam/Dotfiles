@@ -89,12 +89,9 @@ local ensure_installed_lsps = {}
 -- Iterate through LSP configurations and extract Mason package names
 -- Each LSP config specifies its Mason package name in 'mason_package' field
 for _, lspconfig in pairs(lspconfigs) do
-  local package = lspconfig.mason_package
-  -- Handle both string and table entry formats
-  if type(package) == 'string' and package ~= '' then
-    ensure_installed_lsps[#ensure_installed_lsps + 1] = package
-  elseif type(package) == 'table' and type(package[1]) == 'string' and package[1] ~= '' then
-    ensure_installed_lsps[#ensure_installed_lsps + 1] = package
+  local pkg = lspconfig.mason_package
+  if pkg then
+    table.insert(ensure_installed_lsps, pkg)
   end
 end
 
