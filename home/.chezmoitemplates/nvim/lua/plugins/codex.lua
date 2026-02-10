@@ -18,7 +18,7 @@ return {
       quit = '<C-q>', -- Keybind to close the Codex window (default: Ctrl + q)
     }, -- Disable internal default keymap (<leader>cc -> :CodexToggle)
     border = 'rounded', -- Options: 'single', 'double', or 'rounded'
-    width = 0.35, -- Width of the floating window (0.0 to 1.0)
+    width = 0.4, -- Width of the floating window (0.0 to 1.0)
     height = 0.8, -- Height of the floating window (0.0 to 1.0)
     model = nil, -- Optional: pass a string to use a specific model (e.g., 'o3-mini')
     autoinstall = false, -- Automatically install the Codex CLI if not found
