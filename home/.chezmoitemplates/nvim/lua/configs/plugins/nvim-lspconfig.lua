@@ -164,9 +164,7 @@ vim.diagnostic.config({
     },
   } or {},
   virtual_text = false,
-  virtual_lines = {
-    current_line = true,
-  },
+  virtual_lines = false,
   -- TODO: Neovim 0.12+ jump.on_jump (see https://github.com/neovim/neovim/issues/33154)
   jump = { float = true },
 })

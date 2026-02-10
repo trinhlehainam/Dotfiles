@@ -27,9 +27,10 @@ local copy_destination = platform.is_linux and 'ClipboardAndPrimarySelection' or
 -- - https://wezterm.org/config/lua/keyassignment/SendString.html
 -- - https://sw.kovidgoyal.net/kitty/keyboard-protocol/
 -- - https://github.com/sst/opencode/issues/1505#issuecomment-3411334883
+-- - https://github.com/openai/codex/discussions/3024#discussioncomment-15539151
 -------------------------------------------------------------------------------
 local CSI_U = {
-  SHIFT = '\x1b[13;2u',
+  SHIFT = '\x1b\r',
   CTRL = '\x1b[13;5u',
   ['CTRL|SHIFT'] = '\x1b[13;6u',
 }
