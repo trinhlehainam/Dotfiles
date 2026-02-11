@@ -163,7 +163,8 @@ intelephense.config = {
   end,
 
   on_exit = function(_, _, _)
-    unregister_commands()
+    -- Defer to avoid calling nvim_del_user_command in a fast event context
+    vim.schedule(unregister_commands)
     commands_registered = false
     indexing_in_progress = false
   end,
