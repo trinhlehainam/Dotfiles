@@ -39,13 +39,19 @@ local CMD = {
 -- State
 local commands_registered = false
 local indexing_in_progress = false
+local codelens_display_registered = false
+local original_codelens_display
 
 local function get_client()
   return vim.lsp.get_clients({ name = 'intelephense' })[1]
 end
 
 -- Register user commands
-local function register_commands()
+local function register_commands_once()
+  if commands_registered then
+    return
+  end
+
   -- :IntelephenseIndexWorkspace - reindex (! = clear cache)
   vim.api.nvim_create_user_command(CMD.INDEX, function(opts)
     local client = get_client()
@@ -92,6 +98,8 @@ local function register_commands()
     local status = indexing_in_progress and 'Indexing...' or 'Ready'
     log.info(status .. ' | Cache: ' .. CACHE_PATH, 'Intelephense')
   end, { desc = 'Intelephense: Show status' })
+
+  commands_registered = true
 end
 
 local function unregister_commands()
@@ -133,72 +141,37 @@ local function on_indexing_ended()
   log.info('Indexing complete', 'Intelephense')
 end
 
-intelephense.config = {
-  init_options = { storagePath = CACHE_PATH },
-
-  settings = {
-    intelephense = {
-      codeLens = {
-        references = { enable = true },
-        implementations = { enable = true },
-        usages = { enable = true },
-        overrides = { enable = true },
-        parent = { enable = true },
-      },
-    },
-  },
-
-  -- Intelephense indexing notification handlers
-  handlers = {
-    ['indexingStarted'] = on_indexing_started,
-    ['indexingEnded'] = on_indexing_ended,
-  },
-
-  on_attach = function(_, _)
-    if commands_registered then
-      return
-    end
-    commands_registered = true
-    register_commands()
-  end,
-
-  on_exit = function(_, _, _)
-    -- Defer to avoid calling nvim_del_user_command in a fast event context
-    vim.schedule(unregister_commands)
-    commands_registered = false
-    indexing_in_progress = false
-  end,
-}
-
 -- ============================================================================
 -- Unused Function Diagnostics (via Intelephense CodeLens)
 -- ============================================================================
--- Override codelens.display to create diagnostics for 0-reference symbols
--- that don't already have Intelephense diagnostics
-do
-  local _ns = vim.api.nvim_create_namespace('intelephense_unused_refs')
-  local _original_display = vim.lsp.codelens.display
+local unused_refs_ns = vim.api.nvim_create_namespace('intelephense_unused_refs')
 
-  -- Extract symbol name from buffer at position
-  local function get_symbol_at(bufnr, line, col)
-    local lines = vim.api.nvim_buf_get_lines(bufnr, line, line + 1, false)
-    if not lines[1] then
-      return nil
-    end
-    -- Extract word at column (handles $var, function names, class names)
-    local text = lines[1]:sub(col + 1)
-    return text:match('^%$?[%w_]+')
+-- Extract symbol name from buffer at position
+local function get_symbol_at(bufnr, line, col)
+  local lines = vim.api.nvim_buf_get_lines(bufnr, line, line + 1, false)
+  if not lines[1] then
+    return nil
+  end
+  -- Extract word at column (handles $var, function names, class names)
+  local text = lines[1]:sub(col + 1)
+  return text:match('^%$?[%w_]+')
+end
+
+local function register_codelens_display_once()
+  if codelens_display_registered then
+    return
   end
 
+  original_codelens_display = vim.lsp.codelens.display
   vim.lsp.codelens.display = function(lenses, bufnr, client_id)
-    _original_display(lenses, bufnr, client_id)
+    original_codelens_display(lenses, bufnr, client_id)
 
     local client = vim.lsp.get_client_by_id(client_id)
     if not client or client.name ~= 'intelephense' then
       return
     end
 
-    vim.diagnostic.reset(_ns, bufnr)
+    vim.diagnostic.reset(unused_refs_ns, bufnr)
     if not lenses or #lenses == 0 then
       return
     end
@@ -232,9 +205,58 @@ do
       return acc
     end)
 
-    vim.diagnostic.set(_ns, bufnr, diagnostics)
+    vim.diagnostic.set(unused_refs_ns, bufnr, diagnostics)
   end
+
+  codelens_display_registered = true
 end
+
+local function unregister_codelens_display()
+  if not codelens_display_registered then
+    return
+  end
+
+  if original_codelens_display then
+    vim.lsp.codelens.display = original_codelens_display
+  end
+  codelens_display_registered = false
+end
+
+intelephense.config = {
+  init_options = { storagePath = CACHE_PATH },
+
+  settings = {
+    intelephense = {
+      codeLens = {
+        references = { enable = true },
+        implementations = { enable = true },
+        usages = { enable = true },
+        overrides = { enable = true },
+        parent = { enable = true },
+      },
+    },
+  },
+
+  -- Intelephense indexing notification handlers
+  handlers = {
+    ['indexingStarted'] = on_indexing_started,
+    ['indexingEnded'] = on_indexing_ended,
+  },
+
+  on_attach = function(_, _)
+    register_codelens_display_once()
+    register_commands_once()
+  end,
+
+  on_exit = function(_, _, _)
+    unregister_codelens_display()
+
+    -- Defer to avoid calling nvim_del_user_command in a fast event context
+    vim.schedule(unregister_commands)
+    commands_registered = false
+    indexing_in_progress = false
+  end,
+}
 
 M.lspconfigs = { intelephense }
 
