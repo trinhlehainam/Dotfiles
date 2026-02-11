@@ -41,6 +41,7 @@ local commands_registered = false
 local indexing_in_progress = false
 local codelens_display_registered = false
 local original_codelens_display
+local active_clients = {}
 
 local function get_client()
   return vim.lsp.get_clients({ name = 'intelephense' })[1]
@@ -116,26 +117,32 @@ end
 
 -- Indexing started handler
 local function on_indexing_started()
+  if indexing_in_progress then
+    return
+  end
+
   indexing_in_progress = true
 
   -- Register cancel command (only available during indexing)
-  vim.api.nvim_create_user_command(CMD.CANCEL, function()
-    local client = get_client()
-    if not client then
-      log.warn('Intelephense not running', 'Intelephense')
-      return
-    end
-
-    client:request('cancelIndexing', {}, function(err)
-      if err then
-        log.error('Failed to cancel: ' .. tostring(err), 'Intelephense')
-      else
-        indexing_in_progress = false
-        pcall(vim.api.nvim_del_user_command, CMD.CANCEL)
-        log.info('Indexing cancelled', 'Intelephense')
+  if vim.fn.exists(':' .. CMD.CANCEL) ~= 2 then
+    vim.api.nvim_create_user_command(CMD.CANCEL, function()
+      local client = get_client()
+      if not client then
+        log.warn('Intelephense not running', 'Intelephense')
+        return
       end
-    end, 0)
-  end, { desc = 'Intelephense: Cancel indexing' })
+
+      client:request('cancelIndexing', {}, function(err)
+        if err then
+          log.error('Failed to cancel: ' .. tostring(err), 'Intelephense')
+        else
+          indexing_in_progress = false
+          pcall(vim.api.nvim_del_user_command, CMD.CANCEL)
+          log.info('Indexing cancelled', 'Intelephense')
+        end
+      end, 0)
+    end, { desc = 'Intelephense: Cancel indexing' })
+  end
 
   log.info('Indexing started...', 'Intelephense')
 end
@@ -249,14 +256,18 @@ intelephense.config = {
     ['indexingEnded'] = on_indexing_ended,
   },
 
-  on_attach = function(_, _)
+  on_attach = function(client, _)
+    active_clients[client.id] = true
     register_codelens_display_once()
     register_commands_once()
   end,
 
-  on_exit = function(_, _, _)
-    unregister_codelens_display()
-    unregister_commands()
+  on_exit = function(_, _, client_id)
+    active_clients[client_id] = nil
+    if next(active_clients) == nil then
+      unregister_codelens_display()
+      unregister_commands()
+    end
   end,
 }
 
