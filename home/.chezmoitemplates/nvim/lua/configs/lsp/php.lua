@@ -29,6 +29,7 @@ local intelephense = LspConfig:new('intelephense', 'intelephense')
 local CACHE_PATH = vim.fn.stdpath('cache') .. '/intelephense'
 local STOP_TIMEOUT = 5000
 local POLL_INTERVAL = 50
+local INDEX_START_TIMEOUT = 2000
 
 local CMD = {
   INDEX = 'IntelephenseIndexWorkspace',
@@ -84,8 +85,23 @@ local function register_commands_once()
       },
     }))
 
-    local msg = clear_cache and 'Full reindex (cache cleared)...' or 'Incremental reindex...'
-    log.info(msg, 'Intelephense')
+    local signaled, reason = vim.wait(INDEX_START_TIMEOUT, function()
+      return indexing_in_progress
+    end, POLL_INTERVAL)
+    if signaled then
+      return
+    end
+
+    if reason == -2 then
+      log.warn('Reindex status check interrupted.', 'Intelephense')
+      return
+    end
+
+    if clear_cache then
+      log.warn('No indexing signal received after full reindex request.', 'Intelephense')
+    else
+      log.info('No indexing signal received; workspace may already be up to date.', 'Intelephense')
+    end
   end, { bang = true, desc = 'Intelephense: Reindex (! clears cache)' })
 
   -- :IntelephenseStatus - show status
