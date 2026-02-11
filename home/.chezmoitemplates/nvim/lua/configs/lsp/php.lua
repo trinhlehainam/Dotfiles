@@ -242,8 +242,11 @@ local function unregister_codelens_display()
     vim.lsp.codelens.display = original_codelens_display
   end
   codelens_display_registered = false
-  -- Clear stale diagnostics from all buffers
-  vim.diagnostic.reset(unused_refs_ns)
+
+  -- Schedule: diagnostic.reset uses buf API, unsafe in fast-event context
+  vim.schedule(function()
+    vim.diagnostic.reset(unused_refs_ns)
+  end)
 end
 
 intelephense.config = {
