@@ -124,7 +124,7 @@ local function on_indexing_started()
   indexing_in_progress = true
 
   -- Register cancel command (only available during indexing)
-  if vim.fn.exists(':' .. CMD.CANCEL) ~= 2 then
+  if vim.fn.exists(':' .. CMD.CANCEL) == 0 then
     vim.api.nvim_create_user_command(CMD.CANCEL, function()
       local client = get_client()
       if not client then
