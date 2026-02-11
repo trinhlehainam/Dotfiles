@@ -103,9 +103,15 @@ local function register_commands_once()
 end
 
 local function unregister_commands()
-  pcall(vim.api.nvim_del_user_command, CMD.INDEX)
-  pcall(vim.api.nvim_del_user_command, CMD.CANCEL)
-  pcall(vim.api.nvim_del_user_command, CMD.STATUS)
+  vim.schedule(function()
+    -- Defer to avoid calling nvim_del_user_command in a fast event context
+    pcall(vim.api.nvim_del_user_command, CMD.INDEX)
+    pcall(vim.api.nvim_del_user_command, CMD.CANCEL)
+    pcall(vim.api.nvim_del_user_command, CMD.STATUS)
+  end)
+
+  commands_registered = false
+  indexing_in_progress = false
 end
 
 -- Indexing started handler
@@ -250,11 +256,7 @@ intelephense.config = {
 
   on_exit = function(_, _, _)
     unregister_codelens_display()
-
-    -- Defer to avoid calling nvim_del_user_command in a fast event context
-    vim.schedule(unregister_commands)
-    commands_registered = false
-    indexing_in_progress = false
+    unregister_commands()
   end,
 }
 
