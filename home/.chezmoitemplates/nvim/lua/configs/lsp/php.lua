@@ -29,7 +29,6 @@ local intelephense = LspConfig:new('intelephense', 'intelephense')
 local CACHE_PATH = vim.fn.stdpath('cache') .. '/intelephense'
 local STOP_TIMEOUT = 5000
 local POLL_INTERVAL = 50
-local INDEX_START_TIMEOUT = 2000
 
 local CMD = {
   INDEX = 'IntelephenseIndexWorkspace',
@@ -56,13 +55,19 @@ local function register_commands_once()
 
   -- :IntelephenseIndexWorkspace - reindex (! = clear cache)
   vim.api.nvim_create_user_command(CMD.INDEX, function(opts)
-    local client = get_client()
-    if not client then
-      log.warn('Intelephense not running', 'Intelephense')
+    local clear_cache = opts.bang
+
+    if not clear_cache and indexing_in_progress then
+      log.info('Indexing in progress.', 'Intelephense')
       return
     end
 
-    local clear_cache = opts.bang
+    local client = get_client()
+    if not client then
+      log.warn('Intelephense is not running in this workspace.', 'Intelephense')
+      return
+    end
+
     local root_dir = client.config.root_dir
     vim.lsp.stop_client(client.id)
 
@@ -71,7 +76,7 @@ local function register_commands_once()
     end, POLL_INTERVAL)
 
     if not stopped then
-      log.error('Failed to stop client for reindex', 'Intelephense')
+      log.error('Could not stop Intelephense before reindexing.', 'Intelephense')
       return
     end
 
@@ -85,22 +90,10 @@ local function register_commands_once()
       },
     }))
 
-    local signaled, reason = vim.wait(INDEX_START_TIMEOUT, function()
-      return indexing_in_progress
-    end, POLL_INTERVAL)
-    if signaled then
-      return
-    end
-
-    if reason == -2 then
-      log.warn('Reindex status check interrupted.', 'Intelephense')
-      return
-    end
-
     if clear_cache then
-      log.warn('No indexing signal received after full reindex request.', 'Intelephense')
+      log.info('Full reindex requested (cache clear enabled).', 'Intelephense')
     else
-      log.info('No indexing signal received; workspace may already be up to date.', 'Intelephense')
+      log.info('Incremental reindex requested.', 'Intelephense')
     end
   end, { bang = true, desc = 'Intelephense: Reindex (! clears cache)' })
 
@@ -108,12 +101,12 @@ local function register_commands_once()
   vim.api.nvim_create_user_command(CMD.STATUS, function()
     local client = get_client()
     if not client then
-      log.warn('Intelephense not running', 'Intelephense')
+      log.warn('Intelephense is not running in this workspace.', 'Intelephense')
       return
     end
 
-    local status = indexing_in_progress and 'Indexing...' or 'Ready'
-    log.info(status .. ' | Cache: ' .. CACHE_PATH, 'Intelephense')
+    local status = indexing_in_progress and 'Indexing in progress' or 'Ready'
+    log.info('Status: ' .. status .. ' | Cache: ' .. CACHE_PATH, 'Intelephense')
   end, { desc = 'Intelephense: Show status' })
 
   commands_registered = true
@@ -144,30 +137,30 @@ local function on_indexing_started()
     vim.api.nvim_create_user_command(CMD.CANCEL, function()
       local client = get_client()
       if not client then
-        log.warn('Intelephense not running', 'Intelephense')
+        log.warn('Intelephense is not running in this workspace.', 'Intelephense')
         return
       end
 
       client:request('cancelIndexing', {}, function(err)
         if err then
-          log.error('Failed to cancel: ' .. tostring(err), 'Intelephense')
+          log.error('Failed to cancel indexing: ' .. tostring(err), 'Intelephense')
         else
           indexing_in_progress = false
           pcall(vim.api.nvim_del_user_command, CMD.CANCEL)
-          log.info('Indexing cancelled', 'Intelephense')
+          log.info('Indexing canceled by user.', 'Intelephense')
         end
       end, 0)
     end, { desc = 'Intelephense: Cancel indexing' })
   end
 
-  log.info('Indexing started...', 'Intelephense')
+  log.info('Indexing started.', 'Intelephense')
 end
 
 -- Indexing ended handler
 local function on_indexing_ended()
   indexing_in_progress = false
   pcall(vim.api.nvim_del_user_command, CMD.CANCEL)
-  log.info('Indexing complete', 'Intelephense')
+  log.info('Indexing finished.', 'Intelephense')
 end
 
 -- ============================================================================
