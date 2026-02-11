@@ -169,6 +169,72 @@ intelephense.config = {
   end,
 }
 
+-- ============================================================================
+-- Unused Function Diagnostics (via Intelephense CodeLens)
+-- ============================================================================
+-- Override codelens.display to create diagnostics for 0-reference symbols
+-- that don't already have Intelephense diagnostics
+do
+  local _ns = vim.api.nvim_create_namespace('intelephense_unused_refs')
+  local _original_display = vim.lsp.codelens.display
+
+  -- Extract symbol name from buffer at position
+  local function get_symbol_at(bufnr, line, col)
+    local lines = vim.api.nvim_buf_get_lines(bufnr, line, line + 1, false)
+    if not lines[1] then
+      return nil
+    end
+    -- Extract word at column (handles $var, function names, class names)
+    local text = lines[1]:sub(col + 1)
+    return text:match('^%$?[%w_]+')
+  end
+
+  vim.lsp.codelens.display = function(lenses, bufnr, client_id)
+    _original_display(lenses, bufnr, client_id)
+
+    local client = vim.lsp.get_client_by_id(client_id)
+    if not client or client.name ~= 'intelephense' then
+      return
+    end
+
+    vim.diagnostic.reset(_ns, bufnr)
+    if not lenses or #lenses == 0 then
+      return
+    end
+
+    -- Lines with existing intelephense diagnostics
+    local existing =
+      vim.diagnostic.get(bufnr, { namespace = vim.lsp.diagnostic.get_namespace(client_id) })
+    local diag_lines = vim.iter(existing):fold({}, function(acc, d)
+      acc[d.lnum] = true
+      return acc
+    end)
+    local has_existing = next(diag_lines) ~= nil
+
+    -- Single pass: filter + map in one fold (3x fewer function calls)
+    local diagnostics = vim.iter(lenses):fold({}, function(acc, lens)
+      local cmd = lens.command
+      if cmd and cmd.title and cmd.title:match('^0 References') then
+        local pos = lens.range.start
+        if not has_existing or not diag_lines[pos.line] then
+          local symbol = get_symbol_at(bufnr, pos.line, pos.character) or 'symbol'
+          acc[#acc + 1] = {
+            lnum = pos.line,
+            col = pos.character,
+            message = ("Symbol '%s' is declared but not used."):format(symbol),
+            severity = vim.diagnostic.severity.HINT,
+            source = 'intelephense',
+            code = 'P1003',
+          }
+        end
+      end
+      return acc
+    end)
+
+    vim.diagnostic.set(_ns, bufnr, diagnostics)
+  end
+end
+
 M.lspconfigs = { intelephense }
 
 -- DAP
