@@ -22,80 +22,63 @@ return {
       })
 
       local diffview = require('diffview')
-      local function is_valid_utf8(s)
-        local i, n = 1, #s
-        while i <= n do
-          local c = s:byte(i)
-          if c < 0x80 then
-            i = i + 1
-          elseif c < 0xC2 then
-            return false
-          elseif c < 0xE0 then
-            local c2 = s:byte(i + 1)
-            if not c2 or c2 < 0x80 or c2 > 0xBF then
-              return false
-            end
-            i = i + 2
-          elseif c < 0xF0 then
-            local c2, c3 = s:byte(i + 1), s:byte(i + 2)
-            if not c2 or not c3 then
-              return false
-            end
-            if c == 0xE0 and (c2 < 0xA0 or c2 > 0xBF) then
-              return false
-            end
-            if c == 0xED and (c2 < 0x80 or c2 > 0x9F) then
-              return false
-            end
-            if c ~= 0xE0 and c ~= 0xED and (c2 < 0x80 or c2 > 0xBF) then
-              return false
-            end
-            if c3 < 0x80 or c3 > 0xBF then
-              return false
-            end
-            i = i + 3
-          elseif c < 0xF5 then
-            local c2, c3, c4 = s:byte(i + 1), s:byte(i + 2), s:byte(i + 3)
-            if not c2 or not c3 or not c4 then
-              return false
-            end
-            if c == 0xF0 and (c2 < 0x90 or c2 > 0xBF) then
-              return false
-            end
-            if c == 0xF4 and (c2 < 0x80 or c2 > 0x8F) then
-              return false
-            end
-            if c ~= 0xF0 and c ~= 0xF4 and (c2 < 0x80 or c2 > 0xBF) then
-              return false
-            end
-            if c3 < 0x80 or c3 > 0xBF or c4 < 0x80 or c4 > 0xBF then
-              return false
-            end
-            i = i + 4
-          else
-            return false
-          end
+
+      -- Diffview virtual buffers may contain raw CP932 bytes from git.
+      -- Convert only when the current main diff buffer is SJIS/CP932.
+
+      local function is_sjis_fenc(fenc)
+        fenc = (fenc or ''):lower()
+        return fenc == 'cp932' or fenc == 'sjis' or fenc == 'shift_jis'
+      end
+
+      local function is_main_sjis()
+        local ok_lib, diffview_lib = pcall(require, 'diffview.lib')
+        if not ok_lib then
+          return false
         end
-        return true
+
+        local view = diffview_lib.get_current_view()
+        local layout = view and view.cur_layout
+        if not layout then
+          return false
+        end
+
+        local ok_main, main_win = pcall(function()
+          return layout:get_main_win()
+        end)
+        if not ok_main or not main_win then
+          return false
+        end
+
+        local main_buf = main_win.file and main_win.file.bufnr
+        if not main_buf or not vim.api.nvim_buf_is_valid(main_buf) then
+          return false
+        end
+
+        return is_sjis_fenc(vim.bo[main_buf].fileencoding)
       end
 
       diffview.setup({
         hooks = {
-          diff_buf_read = function(bufnr)
+          diff_buf_read = function(bufnr, _)
+            -- Run once per virtual buffer to avoid repeat conversions.
             if vim.b[bufnr].sjis_decoded then
               return
             end
 
             local bufname = vim.api.nvim_buf_get_name(bufnr)
             local is_diffview_buf = bufname:match('^diffview://') ~= nil
+            -- Only touch Diffview virtual buffers.
+            -- Real file buffers are already decoded via Neovim fileencoding.
             if not is_diffview_buf then
               return
             end
 
-            local raw = table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), '\n')
-            if is_valid_utf8(raw) then
+            if not is_main_sjis() then
               return
             end
+
+            local raw = table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), '\n')
             local ok, converted = pcall(vim.iconv, raw, 'cp932', 'utf-8')
             if not ok or not converted or converted == '' then
               return
@@ -103,7 +86,13 @@ return {
 
             local was_modifiable = vim.bo[bufnr].modifiable
             vim.bo[bufnr].modifiable = true
-            vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, vim.split(converted, '\n', { plain = true }))
+            vim.api.nvim_buf_set_lines(
+              bufnr,
+              0,
+              -1,
+              false,
+              vim.split(converted, '\n', { plain = true })
+            )
             vim.bo[bufnr].modifiable = was_modifiable
             vim.b[bufnr].sjis_decoded = true
           end,
