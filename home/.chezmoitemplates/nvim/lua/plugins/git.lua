@@ -22,7 +22,93 @@ return {
       })
 
       local diffview = require('diffview')
-      diffview.setup()
+      local function is_valid_utf8(s)
+        local i, n = 1, #s
+        while i <= n do
+          local c = s:byte(i)
+          if c < 0x80 then
+            i = i + 1
+          elseif c < 0xC2 then
+            return false
+          elseif c < 0xE0 then
+            local c2 = s:byte(i + 1)
+            if not c2 or c2 < 0x80 or c2 > 0xBF then
+              return false
+            end
+            i = i + 2
+          elseif c < 0xF0 then
+            local c2, c3 = s:byte(i + 1), s:byte(i + 2)
+            if not c2 or not c3 then
+              return false
+            end
+            if c == 0xE0 and (c2 < 0xA0 or c2 > 0xBF) then
+              return false
+            end
+            if c == 0xED and (c2 < 0x80 or c2 > 0x9F) then
+              return false
+            end
+            if c ~= 0xE0 and c ~= 0xED and (c2 < 0x80 or c2 > 0xBF) then
+              return false
+            end
+            if c3 < 0x80 or c3 > 0xBF then
+              return false
+            end
+            i = i + 3
+          elseif c < 0xF5 then
+            local c2, c3, c4 = s:byte(i + 1), s:byte(i + 2), s:byte(i + 3)
+            if not c2 or not c3 or not c4 then
+              return false
+            end
+            if c == 0xF0 and (c2 < 0x90 or c2 > 0xBF) then
+              return false
+            end
+            if c == 0xF4 and (c2 < 0x80 or c2 > 0x8F) then
+              return false
+            end
+            if c ~= 0xF0 and c ~= 0xF4 and (c2 < 0x80 or c2 > 0xBF) then
+              return false
+            end
+            if c3 < 0x80 or c3 > 0xBF or c4 < 0x80 or c4 > 0xBF then
+              return false
+            end
+            i = i + 4
+          else
+            return false
+          end
+        end
+        return true
+      end
+
+      diffview.setup({
+        hooks = {
+          diff_buf_read = function(bufnr)
+            if vim.b[bufnr].sjis_decoded then
+              return
+            end
+
+            local bufname = vim.api.nvim_buf_get_name(bufnr)
+            local is_diffview_buf = bufname:match('^diffview://') ~= nil
+            if not is_diffview_buf then
+              return
+            end
+
+            local raw = table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), '\n')
+            if is_valid_utf8(raw) then
+              return
+            end
+            local ok, converted = pcall(vim.iconv, raw, 'cp932', 'utf-8')
+            if not ok or not converted or converted == '' then
+              return
+            end
+
+            local was_modifiable = vim.bo[bufnr].modifiable
+            vim.bo[bufnr].modifiable = true
+            vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, vim.split(converted, '\n', { plain = true }))
+            vim.bo[bufnr].modifiable = was_modifiable
+            vim.b[bufnr].sjis_decoded = true
+          end,
+        },
+      })
 
       vim.keymap.set(
         'n',

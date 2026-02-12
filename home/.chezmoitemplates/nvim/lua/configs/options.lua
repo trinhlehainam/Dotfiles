@@ -44,6 +44,9 @@ vim.o.breakindent = true
 -- Save undo history
 vim.o.undofile = true
 
+-- Prefer UTF-8, but still detect Japanese legacy encodings when needed.
+vim.opt.fileencodings = { 'ucs-bom', 'utf-8', 'cp932', 'sjis', 'default', 'latin1' }
+
 -- Case-insensitive searching UNLESS \C or one or more capital letters in the search term
 vim.o.ignorecase = true
 vim.o.smartcase = true
