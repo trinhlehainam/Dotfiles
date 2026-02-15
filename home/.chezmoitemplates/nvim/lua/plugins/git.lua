@@ -1,6 +1,9 @@
 -- One-shot target line used by blame -> Diffview handoff.
 ---@type integer|nil
 local pending_blame_diffview_lnum = nil
+-- Monotonic request id so deferred cleanup can't wipe a newer jump request.
+---@type integer
+local pending_blame_diffview_req_id = 0
 
 return {
   {
@@ -157,8 +160,9 @@ return {
           return layout:get_main_win()
         end)
         local main_buf = ok_main and main_win and main_win.file and main_win.file.bufnr or nil
+        local target_win = ok_main and main_win and main_win.id or nil
         -- Run once when the main diff buffer becomes ready.
-        if main_buf ~= bufnr then
+        if main_buf ~= bufnr or type(target_win) ~= 'number' then
           return
         end
 
@@ -173,7 +177,9 @@ return {
         local line = math.max(1, math.min(pending_blame_diffview_lnum, last))
         -- Delay cursor move until after panel toggling/layout settles.
         vim.schedule(function()
-          vim.api.nvim_win_set_cursor(0, { line, 0 })
+          if vim.api.nvim_win_is_valid(target_win) then
+            vim.api.nvim_win_set_cursor(target_win, { line, 0 })
+          end
         end)
         pending_blame_diffview_lnum = nil
       end
@@ -324,7 +330,7 @@ return {
         ---@type GitSignsBlameEntryLike|nil
         local info = entries[lnum]
         local sha = info and info.commit and info.commit.sha or nil
-        if type(sha) ~= 'string' or sha == '' then
+        if type(sha) ~= 'string' or not sha:match('^%x+$') then
           return
         end
 
@@ -340,10 +346,21 @@ return {
 
         -- Use commit-side line number when available (more stable for old commits).
         local target_lnum = (info.orig_lnum and info.orig_lnum > 0) and info.orig_lnum or lnum
+        pending_blame_diffview_req_id = pending_blame_diffview_req_id + 1
+        local req_id = pending_blame_diffview_req_id
         pending_blame_diffview_lnum = target_lnum
         local ok_open = pcall(vim.cmd, open_cmd)
         if not ok_open then
-          pending_blame_diffview_lnum = nil
+          if pending_blame_diffview_req_id == req_id then
+            pending_blame_diffview_lnum = nil
+          end
+        else
+          -- Safety net: clear stale state if hook never consumes this request.
+          vim.defer_fn(function()
+            if pending_blame_diffview_req_id == req_id then
+              pending_blame_diffview_lnum = nil
+            end
+          end, 3000)
         end
       end
 
