@@ -25,20 +25,28 @@ return {
 
       -- Diffview virtual buffers may contain raw CP932 bytes from git.
       -- Convert only when the current main diff buffer is SJIS/CP932.
-
       local function is_sjis_fenc(fenc)
         fenc = (fenc or ''):lower()
         return fenc == 'cp932' or fenc == 'sjis' or fenc == 'shift_jis'
       end
 
-      local function is_main_sjis()
-        local ok_lib, diffview_lib = pcall(require, 'diffview.lib')
+      local ok_lib, diffview_lib = pcall(require, 'diffview.lib')
+
+      local function current_layout()
         if not ok_lib then
-          return false
+          return nil
         end
 
         local view = diffview_lib.get_current_view()
-        local layout = view and view.cur_layout
+        return view and view.cur_layout or nil
+      end
+
+      local function is_diffview_buf(bufnr)
+        return vim.api.nvim_buf_is_valid(bufnr) and vim.api.nvim_buf_get_name(bufnr):match('^diffview://') ~= nil
+      end
+
+      local function is_main_sjis()
+        local layout = current_layout()
         if not layout then
           return false
         end
@@ -58,43 +66,76 @@ return {
         return is_sjis_fenc(vim.bo[main_buf].fileencoding)
       end
 
+      local function layout_diffview_buffers(fallback_bufnr)
+        local layout = current_layout()
+        if not layout or type(layout.windows) ~= 'table' then
+          return { fallback_bufnr }
+        end
+
+        local seen = {}
+        local bufs = {}
+        for _, win in ipairs(layout.windows) do
+          local target_buf = win and win.file and win.file.bufnr or nil
+          if target_buf and not seen[target_buf] and is_diffview_buf(target_buf) then
+            seen[target_buf] = true
+            table.insert(bufs, target_buf)
+          end
+        end
+
+        if #bufs == 0 then
+          return { fallback_bufnr }
+        end
+        return bufs
+      end
+
+      local function decode_cp932(raw, force)
+        local ok_decode, converted = pcall(vim.iconv, raw, 'cp932', 'utf-8')
+        if not ok_decode or not converted or converted == '' then
+          return nil
+        end
+
+        if force then
+          return converted
+        end
+
+        -- Decode only when cp932<->utf8 roundtrip preserves original bytes.
+        local ok_roundtrip, roundtrip = pcall(vim.iconv, converted, 'utf-8', 'cp932')
+        if not ok_roundtrip or roundtrip ~= raw then
+          return nil
+        end
+
+        return converted
+      end
+
+      local function decode_buffer_once(target_buf, force)
+        if vim.b[target_buf].sjis_decoded then
+          return
+        end
+
+        local raw = table.concat(vim.api.nvim_buf_get_lines(target_buf, 0, -1, false), '\n')
+        local converted = decode_cp932(raw, force)
+        if not converted then
+          return
+        end
+
+        local was_modifiable = vim.bo[target_buf].modifiable
+        vim.bo[target_buf].modifiable = true
+        vim.api.nvim_buf_set_lines(target_buf, 0, -1, false, vim.split(converted, '\n', { plain = true }))
+        vim.bo[target_buf].modifiable = was_modifiable
+        vim.b[target_buf].sjis_decoded = true
+      end
+
       diffview.setup({
         hooks = {
           diff_buf_read = function(bufnr, _)
-            -- Run once per virtual buffer to avoid repeat conversions.
-            if vim.b[bufnr].sjis_decoded then
+            if not is_diffview_buf(bufnr) then
               return
             end
 
-            local bufname = vim.api.nvim_buf_get_name(bufnr)
-            local is_diffview_buf = bufname:match('^diffview://') ~= nil
-            -- Only touch Diffview virtual buffers.
-            -- Real file buffers are already decoded via Neovim fileencoding.
-            if not is_diffview_buf then
-              return
+            local force = is_main_sjis()
+            for _, target_buf in ipairs(layout_diffview_buffers(bufnr)) do
+              decode_buffer_once(target_buf, force)
             end
-
-            if not is_main_sjis() then
-              return
-            end
-
-            local raw = table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), '\n')
-            local ok, converted = pcall(vim.iconv, raw, 'cp932', 'utf-8')
-            if not ok or not converted or converted == '' then
-              return
-            end
-
-            local was_modifiable = vim.bo[bufnr].modifiable
-            vim.bo[bufnr].modifiable = true
-            vim.api.nvim_buf_set_lines(
-              bufnr,
-              0,
-              -1,
-              false,
-              vim.split(converted, '\n', { plain = true })
-            )
-            vim.bo[bufnr].modifiable = was_modifiable
-            vim.b[bufnr].sjis_decoded = true
           end,
         },
       })
