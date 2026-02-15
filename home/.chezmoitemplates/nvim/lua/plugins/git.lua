@@ -1,3 +1,11 @@
+-- One-shot target line used by blame -> Diffview handoff.
+---@type integer|nil
+local pending_blame_diffview_lnum = nil
+-- Monotonic id for blame->Diffview jump requests.
+-- Deferred cleanup only clears state when its captured id is still current.
+---@type integer
+local pending_blame_diffview_req_id = 0
+
 return {
   {
     'NeogitOrg/neogit',
@@ -22,7 +30,181 @@ return {
       })
 
       local diffview = require('diffview')
-      diffview.setup()
+
+      ---@class DiffviewMainFileLike
+      ---@field bufnr integer
+      ---@class DiffviewMainWinLike
+      ---@field id integer
+      ---@field file DiffviewMainFileLike
+      ---@class DiffviewLayoutLike
+      ---@field get_main_win fun(self: DiffviewLayoutLike): DiffviewMainWinLike
+
+      -- Diffview virtual buffers may contain raw CP932 bytes from git.
+      -- Convert only when the current main diff buffer is SJIS/CP932.
+      ---@param fenc string?
+      ---@return boolean
+      local function is_sjis_fenc(fenc)
+        fenc = (fenc or ''):lower()
+        return fenc == 'cp932' or fenc == 'sjis' or fenc == 'shift_jis'
+      end
+
+      local ok_lib, diffview_lib = pcall(require, 'diffview.lib')
+
+      -- Runtime layout instance for the active Diffview tab.
+      ---@return DiffviewLayoutLike|nil
+      local function current_layout()
+        if not ok_lib then
+          return nil
+        end
+
+        local view = diffview_lib.get_current_view()
+        return view and view.cur_layout or nil
+      end
+
+      -- Diffview hooks also run for local file buffers; filter to virtual diffview buffers.
+      ---@param bufnr integer
+      ---@return boolean
+      local function is_diffview_buf(bufnr)
+        return vim.api.nvim_buf_is_valid(bufnr)
+          and vim.api.nvim_buf_get_name(bufnr):match('^diffview://') ~= nil
+      end
+
+      -- Use main side encoding as the fast/explicit signal for cp932 conversion.
+      ---@return boolean
+      local function is_main_sjis()
+        local layout = current_layout()
+        if not layout then
+          return false
+        end
+
+        local ok_main, main_win = pcall(function()
+          return layout:get_main_win()
+        end)
+        if not ok_main or not main_win then
+          return false
+        end
+
+        local main_buf = main_win.file and main_win.file.bufnr
+        if not main_buf or not vim.api.nvim_buf_is_valid(main_buf) then
+          return false
+        end
+
+        return is_sjis_fenc(vim.bo[main_buf].fileencoding)
+      end
+
+      -- force=true: trust SJIS signal from main buffer and decode directly.
+      -- force=false: decode only when cp932->utf8->cp932 roundtrip matches raw bytes.
+      ---@param raw string
+      ---@param force boolean
+      ---@return string|nil
+      local function decode_cp932(raw, force)
+        local ok_decode, converted = pcall(vim.iconv, raw, 'cp932', 'utf-8')
+        if not ok_decode or not converted or converted == '' then
+          return nil
+        end
+
+        if force then
+          return converted
+        end
+
+        -- Commit readonly buffers may not expose encoding metadata.
+        -- Decode only when cp932<->utf8 roundtrip preserves original bytes.
+        local ok_roundtrip, roundtrip = pcall(vim.iconv, converted, 'utf-8', 'cp932')
+        if not ok_roundtrip or roundtrip ~= raw then
+          return nil
+        end
+
+        return converted
+      end
+
+      -- Per-buffer one-shot conversion guard (important for diff3/diff4).
+      ---@param target_buf integer
+      ---@param force boolean
+      local function decode_buffer_once(target_buf, force)
+        if vim.b[target_buf].sjis_decoded then
+          return
+        end
+
+        local raw = table.concat(vim.api.nvim_buf_get_lines(target_buf, 0, -1, false), '\n')
+        -- Empty buffers have nothing to decode; mark as handled to keep one-shot behavior.
+        if raw == '' then
+          vim.b[target_buf].sjis_decoded = true
+          return
+        end
+
+        local converted = decode_cp932(raw, force)
+        if not converted then
+          return
+        end
+
+        local was_modifiable = vim.bo[target_buf].modifiable
+        vim.bo[target_buf].modifiable = true
+        vim.api.nvim_buf_set_lines(
+          target_buf,
+          0,
+          -1,
+          false,
+          vim.split(converted, '\n', { plain = true })
+        )
+        vim.bo[target_buf].modifiable = was_modifiable
+        vim.b[target_buf].sjis_decoded = true
+      end
+
+      -- One-shot post-open behavior for blame -> Diffview:
+      -- close file panel (if open) and jump to the source line.
+      ---@param bufnr integer
+      local function apply_pending_blame_jump(bufnr)
+        if not pending_blame_diffview_lnum then
+          return
+        end
+
+        local layout = current_layout()
+        if not layout then
+          return
+        end
+
+        local ok_main, main_win = pcall(function()
+          return layout:get_main_win()
+        end)
+        local main_buf = ok_main and main_win and main_win.file and main_win.file.bufnr or nil
+        local target_win = ok_main and main_win and main_win.id or nil
+        -- Run once when the main diff buffer becomes ready.
+        if main_buf ~= bufnr or type(target_win) ~= 'number' then
+          return
+        end
+
+        if ok_lib then
+          local view = diffview_lib.get_current_view()
+          if view and view.panel and view.panel.is_open and view.panel:is_open() then
+            diffview.emit('toggle_files')
+          end
+        end
+
+        local last = vim.api.nvim_buf_line_count(bufnr)
+        local line = math.max(1, math.min(pending_blame_diffview_lnum, last))
+        -- Delay cursor move until after panel toggling/layout settles.
+        vim.schedule(function()
+          if vim.api.nvim_win_is_valid(target_win) then
+            vim.api.nvim_win_set_cursor(target_win, { line, 0 })
+          end
+        end)
+        pending_blame_diffview_lnum = nil
+      end
+
+      diffview.setup({
+        hooks = {
+          diff_buf_read = function(bufnr, _)
+            -- diff_buf_read also fires for local file buffers; only process
+            -- Diffview virtual buffers here.
+            if not is_diffview_buf(bufnr) then
+              return
+            end
+
+            decode_buffer_once(bufnr, is_main_sjis())
+            apply_pending_blame_jump(bufnr)
+          end,
+        },
+      })
 
       vim.keymap.set(
         'n',
@@ -115,6 +297,70 @@ return {
       local blame_win_aucmd = nil
       local group = vim.api.nvim_create_augroup('GitsignsBlameVisualOffset', {})
 
+      --- Open Diffview for the blamed commit line under cursor.
+      --- Uses gitsigns cache from the original source buffer.
+      ---@param blame_buf integer gitsigns-blame buffer id
+      ---@param blame_source_buf integer? source file buffer id
+      local function open_diffview_from_blame(blame_buf, blame_source_buf)
+        local ok_cache, gitsigns_cache = pcall(require, 'gitsigns.cache')
+        if not ok_cache then
+          return
+        end
+
+        -- Reuse blame data from the source buffer cache (same shape as gitsigns blame view).
+        ---@type Gitsigns.CacheEntry|nil
+        local bcache = blame_source_buf and gitsigns_cache.cache[blame_source_buf] or nil
+        local blame = bcache and bcache.blame
+        local entries = blame and blame.entries
+        if type(entries) ~= 'table' then
+          return
+        end
+
+        local blame_win = vim.fn.bufwinid(blame_buf)
+        if blame_win == -1 then
+          blame_win = vim.api.nvim_get_current_win()
+        end
+        -- Pick commit from the current line in the blame window.
+        local lnum = vim.api.nvim_win_get_cursor(blame_win)[1]
+        local info = entries[lnum]
+        local sha = info and info.commit and info.commit.sha or nil
+        if type(sha) ~= 'string' or not sha:match('^%x+$') then
+          return
+        end
+
+        -- DiffviewOpen is used here so "d" jumps straight to the selected commit diff.
+        -- Prefer file-scoped diff; fallback to commit-wide diff when path is unavailable.
+        local relpath = info.filename or (bcache.git_obj and bcache.git_obj.relpath) or nil
+        local open_cmd
+        if type(relpath) == 'string' and relpath ~= '' then
+          open_cmd = 'DiffviewOpen ' .. sha .. '^! -- ' .. vim.fn.fnameescape(relpath)
+        else
+          open_cmd = 'DiffviewOpen ' .. sha .. '^!'
+        end
+
+        -- Use commit-side line number when available (more stable for old commits).
+        local target_lnum = (info.orig_lnum and info.orig_lnum > 0) and info.orig_lnum or lnum
+        pending_blame_diffview_req_id = pending_blame_diffview_req_id + 1
+        local req_id = pending_blame_diffview_req_id
+        pending_blame_diffview_lnum = target_lnum
+        local ok_open = pcall(vim.cmd, open_cmd)
+        if not ok_open then
+          if pending_blame_diffview_req_id == req_id then
+            pending_blame_diffview_lnum = nil
+          end
+        else
+          -- Safety net for edge cases where Diffview opens but our hook path
+          -- never consumes pending_blame_diffview_lnum.
+          -- local req_id capture timer id for this request only.
+          -- If a newer request starts first, ids differ and this timer is ignored.
+          vim.defer_fn(function()
+            if pending_blame_diffview_req_id == req_id then
+              pending_blame_diffview_lnum = nil
+            end
+          end, 3000)
+        end
+      end
+
       --- Restore plugins to their previous state
       local function restore_plugins()
         for _, p in ipairs(loaded) do
@@ -155,6 +401,7 @@ return {
       --- We restore in the source window context when possible because some plugins
       --- refresh based on the current window/buffer.
       local function restore_and_reset()
+        -- Multiple blame windows can exist; restore only when the session is active.
         if blame_count <= 0 then
           return
         end
@@ -200,6 +447,28 @@ return {
               callback = restore_and_reset,
             })
           end
+
+          -- Override order for blame "d":
+          -- 1) FileType callback runs
+          -- 2) gitsigns applies its default blame maps
+          -- 3) scheduled map runs last and overrides "d"
+          vim.schedule(function()
+            if not vim.api.nvim_buf_is_valid(ev.buf) then
+              return
+            end
+
+            local function open()
+              open_diffview_from_blame(ev.buf, source_buf)
+            end
+
+            vim.keymap.set('n', 'd', open, {
+              buffer = ev.buf,
+              silent = true,
+              noremap = true,
+              desc = 'Diffview for blamed commit',
+            })
+          end)
+
           blame_count = blame_count + 1
 
           -- Explicitly closing the blame split doesn't necessarily hide the source buffer.
