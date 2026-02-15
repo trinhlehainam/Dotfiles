@@ -32,6 +32,7 @@ return {
 
       local ok_lib, diffview_lib = pcall(require, 'diffview.lib')
 
+      -- Runtime layout instance for the active Diffview tab.
       local function current_layout()
         if not ok_lib then
           return nil
@@ -45,6 +46,7 @@ return {
         return vim.api.nvim_buf_is_valid(bufnr) and vim.api.nvim_buf_get_name(bufnr):match('^diffview://') ~= nil
       end
 
+      -- Use main side encoding as the fast/explicit signal for cp932 conversion.
       local function is_main_sjis()
         local layout = current_layout()
         if not layout then
@@ -66,6 +68,8 @@ return {
         return is_sjis_fenc(vim.bo[main_buf].fileencoding)
       end
 
+      -- Collect unique Diffview virtual buffers from the current layout.
+      -- Fallback to the event buffer if layout is temporarily unavailable.
       local function layout_diffview_buffers(fallback_bufnr)
         local layout = current_layout()
         if not layout or type(layout.windows) ~= 'table' then
@@ -98,6 +102,7 @@ return {
           return converted
         end
 
+        -- Commit readonly buffers may not expose encoding metadata.
         -- Decode only when cp932<->utf8 roundtrip preserves original bytes.
         local ok_roundtrip, roundtrip = pcall(vim.iconv, converted, 'utf-8', 'cp932')
         if not ok_roundtrip or roundtrip ~= raw then
@@ -107,6 +112,7 @@ return {
         return converted
       end
 
+      -- Per-buffer one-shot conversion guard (important for diff3/diff4).
       local function decode_buffer_once(target_buf, force)
         if vim.b[target_buf].sjis_decoded then
           return
@@ -132,6 +138,7 @@ return {
               return
             end
 
+            -- Convert all panes in the current layout in one pass.
             local force = is_main_sjis()
             for _, target_buf in ipairs(layout_diffview_buffers(bufnr)) do
               decode_buffer_once(target_buf, force)
