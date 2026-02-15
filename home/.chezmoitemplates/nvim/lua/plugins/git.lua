@@ -43,7 +43,8 @@ return {
       end
 
       local function is_diffview_buf(bufnr)
-        return vim.api.nvim_buf_is_valid(bufnr) and vim.api.nvim_buf_get_name(bufnr):match('^diffview://') ~= nil
+        return vim.api.nvim_buf_is_valid(bufnr)
+          and vim.api.nvim_buf_get_name(bufnr):match('^diffview://') ~= nil
       end
 
       -- Use main side encoding as the fast/explicit signal for cp932 conversion.
@@ -104,7 +105,13 @@ return {
 
         local was_modifiable = vim.bo[target_buf].modifiable
         vim.bo[target_buf].modifiable = true
-        vim.api.nvim_buf_set_lines(target_buf, 0, -1, false, vim.split(converted, '\n', { plain = true }))
+        vim.api.nvim_buf_set_lines(
+          target_buf,
+          0,
+          -1,
+          false,
+          vim.split(converted, '\n', { plain = true })
+        )
         vim.bo[target_buf].modifiable = was_modifiable
         vim.b[target_buf].sjis_decoded = true
       end
@@ -214,6 +221,47 @@ return {
       local blame_win_aucmd = nil
       local group = vim.api.nvim_create_augroup('GitsignsBlameVisualOffset', {})
 
+      --- Open Diffview for the blamed commit line under cursor.
+      --- Uses gitsigns cache from the original source buffer.
+      ---@param blame_buf integer gitsigns-blame buffer id
+      ---@param blame_source_buf integer? source file buffer id
+      local function open_diffview_from_blame(blame_buf, blame_source_buf)
+        local ok_cache, gitsigns_cache = pcall(require, 'gitsigns.cache')
+        if not ok_cache then
+          return
+        end
+
+        local bcache = blame_source_buf and gitsigns_cache.cache[blame_source_buf] or nil
+        local blame = bcache and bcache.blame
+        local entries = blame and blame.entries
+        if type(entries) ~= 'table' then
+          return
+        end
+
+        local blame_win = vim.fn.bufwinid(blame_buf)
+        if blame_win == -1 then
+          blame_win = vim.api.nvim_get_current_win()
+        end
+        -- Pick commit from the current line in the blame window.
+        local lnum = vim.api.nvim_win_get_cursor(blame_win)[1]
+        local info = entries[lnum]
+        local sha = info and info.commit and info.commit.sha or nil
+        if type(sha) ~= 'string' or sha == '' then
+          return
+        end
+
+        -- Prefer file-scoped diff; fallback to commit-wide diff if path is unavailable.
+        -- Use DiffviewOpen here (not DiffviewFileHistory) because "d" from blame is
+        -- expected to open the selected commit diff directly in one step.
+        local relpath = info.filename or (bcache.git_obj and bcache.git_obj.relpath) or nil
+        if type(relpath) == 'string' and relpath ~= '' then
+          vim.cmd('DiffviewOpen ' .. sha .. '^! -- ' .. vim.fn.fnameescape(relpath))
+          return
+        end
+
+        vim.cmd('DiffviewOpen ' .. sha .. '^!')
+      end
+
       --- Restore plugins to their previous state
       local function restore_plugins()
         for _, p in ipairs(loaded) do
@@ -299,6 +347,29 @@ return {
               callback = restore_and_reset,
             })
           end
+
+          -- gitsigns sets `filetype = gitsigns-blame` first, then defines its
+          -- default blame maps (including "d"). This FileType callback runs in
+          -- between those two steps, so mapping here directly can be overwritten.
+          -- Use `vim.schedule` to run on the next loop tick, after gitsigns
+          -- finishes blame setup, then apply our custom "d" map last.
+          vim.schedule(function()
+            if not vim.api.nvim_buf_is_valid(ev.buf) then
+              return
+            end
+
+            local function open()
+              open_diffview_from_blame(ev.buf, source_buf)
+            end
+
+            vim.keymap.set('n', 'd', open, {
+              buffer = ev.buf,
+              silent = true,
+              noremap = true,
+              desc = 'Diffview for blamed commit',
+            })
+          end)
+
           blame_count = blame_count + 1
 
           -- Explicitly closing the blame split doesn't necessarily hide the source buffer.
