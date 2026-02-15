@@ -282,18 +282,6 @@ return {
         return
       end
 
-      ---@class GitSignsCommitLike
-      ---@field sha string
-      ---@class GitSignsBlameEntryLike
-      ---@field commit GitSignsCommitLike
-      ---@field filename? string
-      ---@field orig_lnum? integer
-      ---@class GitSignsBlameCacheLike
-      ---@field entries table<integer, GitSignsBlameEntryLike>
-      ---@class GitSignsCacheEntryLike
-      ---@field blame? GitSignsBlameCacheLike
-      ---@field git_obj? { relpath?: string }
-
       local blame_count = 0
       local source_win = nil
       local source_buf = nil
@@ -313,7 +301,7 @@ return {
         end
 
         -- Reuse blame data from the source buffer cache (same shape as gitsigns blame view).
-        ---@type GitSignsCacheEntryLike|nil
+        ---@type Gitsigns.CacheEntry|nil
         local bcache = blame_source_buf and gitsigns_cache.cache[blame_source_buf] or nil
         local blame = bcache and bcache.blame
         local entries = blame and blame.entries
@@ -327,7 +315,6 @@ return {
         end
         -- Pick commit from the current line in the blame window.
         local lnum = vim.api.nvim_win_get_cursor(blame_win)[1]
-        ---@type GitSignsBlameEntryLike|nil
         local info = entries[lnum]
         local sha = info and info.commit and info.commit.sha or nil
         if type(sha) ~= 'string' or not sha:match('^%x+$') then
