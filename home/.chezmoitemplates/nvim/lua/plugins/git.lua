@@ -1,3 +1,5 @@
+-- One-shot target line used by blame -> Diffview handoff.
+---@type integer|nil
 local pending_blame_diffview_lnum = nil
 
 return {
@@ -25,8 +27,18 @@ return {
 
       local diffview = require('diffview')
 
+      ---@class DiffviewMainFileLike
+      ---@field bufnr integer
+      ---@class DiffviewMainWinLike
+      ---@field id integer
+      ---@field file DiffviewMainFileLike
+      ---@class DiffviewLayoutLike
+      ---@field get_main_win fun(self: DiffviewLayoutLike): DiffviewMainWinLike
+
       -- Diffview virtual buffers may contain raw CP932 bytes from git.
       -- Convert only when the current main diff buffer is SJIS/CP932.
+      ---@param fenc string?
+      ---@return boolean
       local function is_sjis_fenc(fenc)
         fenc = (fenc or ''):lower()
         return fenc == 'cp932' or fenc == 'sjis' or fenc == 'shift_jis'
@@ -35,6 +47,7 @@ return {
       local ok_lib, diffview_lib = pcall(require, 'diffview.lib')
 
       -- Runtime layout instance for the active Diffview tab.
+      ---@return DiffviewLayoutLike|nil
       local function current_layout()
         if not ok_lib then
           return nil
@@ -44,12 +57,16 @@ return {
         return view and view.cur_layout or nil
       end
 
+      -- Diffview hooks also run for local file buffers; filter to virtual diffview buffers.
+      ---@param bufnr integer
+      ---@return boolean
       local function is_diffview_buf(bufnr)
         return vim.api.nvim_buf_is_valid(bufnr)
           and vim.api.nvim_buf_get_name(bufnr):match('^diffview://') ~= nil
       end
 
       -- Use main side encoding as the fast/explicit signal for cp932 conversion.
+      ---@return boolean
       local function is_main_sjis()
         local layout = current_layout()
         if not layout then
@@ -73,6 +90,9 @@ return {
 
       -- force=true: trust SJIS signal from main buffer and decode directly.
       -- force=false: decode only when cp932->utf8->cp932 roundtrip matches raw bytes.
+      ---@param raw string
+      ---@param force boolean
+      ---@return string|nil
       local function decode_cp932(raw, force)
         local ok_decode, converted = pcall(vim.iconv, raw, 'cp932', 'utf-8')
         if not ok_decode or not converted or converted == '' then
@@ -94,6 +114,8 @@ return {
       end
 
       -- Per-buffer one-shot conversion guard (important for diff3/diff4).
+      ---@param target_buf integer
+      ---@param force boolean
       local function decode_buffer_once(target_buf, force)
         if vim.b[target_buf].sjis_decoded then
           return
@@ -120,6 +142,7 @@ return {
 
       -- One-shot post-open behavior for blame -> Diffview:
       -- close file panel (if open) and jump to the source line.
+      ---@param bufnr integer
       local function apply_pending_blame_jump(bufnr)
         if not pending_blame_diffview_lnum then
           return
@@ -134,6 +157,7 @@ return {
           return layout:get_main_win()
         end)
         local main_buf = ok_main and main_win and main_win.file and main_win.file.bufnr or nil
+        -- Run once when the main diff buffer becomes ready.
         if main_buf ~= bufnr then
           return
         end
@@ -147,6 +171,7 @@ return {
 
         local last = vim.api.nvim_buf_line_count(bufnr)
         local line = math.max(1, math.min(pending_blame_diffview_lnum, last))
+        -- Delay cursor move until after panel toggling/layout settles.
         vim.schedule(function()
           vim.api.nvim_win_set_cursor(0, { line, 0 })
         end)
@@ -251,6 +276,18 @@ return {
         return
       end
 
+      ---@class GitSignsCommitLike
+      ---@field sha string
+      ---@class GitSignsBlameEntryLike
+      ---@field commit GitSignsCommitLike
+      ---@field filename? string
+      ---@field orig_lnum? integer
+      ---@class GitSignsBlameCacheLike
+      ---@field entries table<integer, GitSignsBlameEntryLike>
+      ---@class GitSignsCacheEntryLike
+      ---@field blame? GitSignsBlameCacheLike
+      ---@field git_obj? { relpath?: string }
+
       local blame_count = 0
       local source_win = nil
       local source_buf = nil
@@ -269,6 +306,8 @@ return {
           return
         end
 
+        -- Reuse blame data from the source buffer cache (same shape as gitsigns blame view).
+        ---@type GitSignsCacheEntryLike|nil
         local bcache = blame_source_buf and gitsigns_cache.cache[blame_source_buf] or nil
         local blame = bcache and bcache.blame
         local entries = blame and blame.entries
@@ -282,6 +321,7 @@ return {
         end
         -- Pick commit from the current line in the blame window.
         local lnum = vim.api.nvim_win_get_cursor(blame_win)[1]
+        ---@type GitSignsBlameEntryLike|nil
         local info = entries[lnum]
         local sha = info and info.commit and info.commit.sha or nil
         if type(sha) ~= 'string' or sha == '' then
@@ -347,6 +387,7 @@ return {
       --- We restore in the source window context when possible because some plugins
       --- refresh based on the current window/buffer.
       local function restore_and_reset()
+        -- Multiple blame windows can exist; restore only when the session is active.
         if blame_count <= 0 then
           return
         end
