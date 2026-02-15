@@ -298,7 +298,9 @@ return {
           open_cmd = 'DiffviewOpen ' .. sha .. '^!'
         end
 
-        pending_blame_diffview_lnum = lnum
+        -- Use commit-side line number when available (more stable for old commits).
+        local target_lnum = (info.orig_lnum and info.orig_lnum > 0) and info.orig_lnum or lnum
+        pending_blame_diffview_lnum = target_lnum
         local ok_open = pcall(vim.cmd, open_cmd)
         if not ok_open then
           pending_blame_diffview_lnum = nil
