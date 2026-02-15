@@ -1,3 +1,5 @@
+local pending_blame_diffview_lnum = nil
+
 return {
   {
     'NeogitOrg/neogit',
@@ -116,6 +118,41 @@ return {
         vim.b[target_buf].sjis_decoded = true
       end
 
+      -- One-shot post-open behavior for blame -> Diffview:
+      -- close file panel (if open) and jump to the source line.
+      local function apply_pending_blame_jump(bufnr)
+        if not pending_blame_diffview_lnum then
+          return
+        end
+
+        local layout = current_layout()
+        if not layout then
+          return
+        end
+
+        local ok_main, main_win = pcall(function()
+          return layout:get_main_win()
+        end)
+        local main_buf = ok_main and main_win and main_win.file and main_win.file.bufnr or nil
+        if main_buf ~= bufnr then
+          return
+        end
+
+        if ok_lib then
+          local view = diffview_lib.get_current_view()
+          if view and view.panel and view.panel.is_open and view.panel:is_open() then
+            diffview.emit('toggle_files')
+          end
+        end
+
+        local last = vim.api.nvim_buf_line_count(bufnr)
+        local line = math.max(1, math.min(pending_blame_diffview_lnum, last))
+        vim.schedule(function()
+          vim.api.nvim_win_set_cursor(0, { line, 0 })
+        end)
+        pending_blame_diffview_lnum = nil
+      end
+
       diffview.setup({
         hooks = {
           diff_buf_read = function(bufnr, _)
@@ -126,6 +163,7 @@ return {
             end
 
             decode_buffer_once(bufnr, is_main_sjis())
+            apply_pending_blame_jump(bufnr)
           end,
         },
       })
@@ -250,16 +288,21 @@ return {
           return
         end
 
-        -- Prefer file-scoped diff; fallback to commit-wide diff if path is unavailable.
-        -- Use DiffviewOpen here (not DiffviewFileHistory) because "d" from blame is
-        -- expected to open the selected commit diff directly in one step.
+        -- DiffviewOpen is used here so "d" jumps straight to the selected commit diff.
+        -- Prefer file-scoped diff; fallback to commit-wide diff when path is unavailable.
         local relpath = info.filename or (bcache.git_obj and bcache.git_obj.relpath) or nil
+        local open_cmd
         if type(relpath) == 'string' and relpath ~= '' then
-          vim.cmd('DiffviewOpen ' .. sha .. '^! -- ' .. vim.fn.fnameescape(relpath))
-          return
+          open_cmd = 'DiffviewOpen ' .. sha .. '^! -- ' .. vim.fn.fnameescape(relpath)
+        else
+          open_cmd = 'DiffviewOpen ' .. sha .. '^!'
         end
 
-        vim.cmd('DiffviewOpen ' .. sha .. '^!')
+        pending_blame_diffview_lnum = lnum
+        local ok_open = pcall(vim.cmd, open_cmd)
+        if not ok_open then
+          pending_blame_diffview_lnum = nil
+        end
       end
 
       --- Restore plugins to their previous state
@@ -348,11 +391,10 @@ return {
             })
           end
 
-          -- gitsigns sets `filetype = gitsigns-blame` first, then defines its
-          -- default blame maps (including "d"). This FileType callback runs in
-          -- between those two steps, so mapping here directly can be overwritten.
-          -- Use `vim.schedule` to run on the next loop tick, after gitsigns
-          -- finishes blame setup, then apply our custom "d" map last.
+          -- Override order for blame "d":
+          -- 1) FileType callback runs
+          -- 2) gitsigns applies its default blame maps
+          -- 3) scheduled map runs last and overrides "d"
           vim.schedule(function()
             if not vim.api.nvim_buf_is_valid(ev.buf) then
               return
