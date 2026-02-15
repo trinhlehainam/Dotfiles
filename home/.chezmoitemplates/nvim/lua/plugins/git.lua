@@ -1,7 +1,8 @@
 -- One-shot target line used by blame -> Diffview handoff.
 ---@type integer|nil
 local pending_blame_diffview_lnum = nil
--- Monotonic request id so deferred cleanup can't wipe a newer jump request.
+-- Monotonic id for blame->Diffview jump requests.
+-- Deferred cleanup only clears state when its captured id is still current.
 ---@type integer
 local pending_blame_diffview_req_id = 0
 
@@ -342,7 +343,10 @@ return {
             pending_blame_diffview_lnum = nil
           end
         else
-          -- Safety net: clear stale state if hook never consumes this request.
+          -- Safety net for edge cases where Diffview opens but our hook path
+          -- never consumes pending_blame_diffview_lnum.
+          -- local req_id capture timer id for this request only.
+          -- If a newer request starts first, ids differ and this timer is ignored.
           vim.defer_fn(function()
             if pending_blame_diffview_req_id == req_id then
               pending_blame_diffview_lnum = nil
