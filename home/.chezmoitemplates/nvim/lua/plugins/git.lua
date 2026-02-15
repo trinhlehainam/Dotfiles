@@ -126,6 +126,12 @@ return {
         end
 
         local raw = table.concat(vim.api.nvim_buf_get_lines(target_buf, 0, -1, false), '\n')
+        -- Empty buffers have nothing to decode; mark as handled to keep one-shot behavior.
+        if raw == '' then
+          vim.b[target_buf].sjis_decoded = true
+          return
+        end
+
         local converted = decode_cp932(raw, force)
         if not converted then
           return
