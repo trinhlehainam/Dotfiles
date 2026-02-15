@@ -68,30 +68,8 @@ return {
         return is_sjis_fenc(vim.bo[main_buf].fileencoding)
       end
 
-      -- Collect unique Diffview virtual buffers from the current layout.
-      -- Fallback to the event buffer if layout is temporarily unavailable.
-      local function layout_diffview_buffers(fallback_bufnr)
-        local layout = current_layout()
-        if not layout or type(layout.windows) ~= 'table' then
-          return { fallback_bufnr }
-        end
-
-        local seen = {}
-        local bufs = {}
-        for _, win in ipairs(layout.windows) do
-          local target_buf = win and win.file and win.file.bufnr or nil
-          if target_buf and not seen[target_buf] and is_diffview_buf(target_buf) then
-            seen[target_buf] = true
-            table.insert(bufs, target_buf)
-          end
-        end
-
-        if #bufs == 0 then
-          return { fallback_bufnr }
-        end
-        return bufs
-      end
-
+      -- force=true: trust SJIS signal from main buffer and decode directly.
+      -- force=false: decode only when cp932->utf8->cp932 roundtrip matches raw bytes.
       local function decode_cp932(raw, force)
         local ok_decode, converted = pcall(vim.iconv, raw, 'cp932', 'utf-8')
         if not ok_decode or not converted or converted == '' then
@@ -134,15 +112,13 @@ return {
       diffview.setup({
         hooks = {
           diff_buf_read = function(bufnr, _)
+            -- diff_buf_read also fires for local file buffers; only process
+            -- Diffview virtual buffers here.
             if not is_diffview_buf(bufnr) then
               return
             end
 
-            -- Convert all panes in the current layout in one pass.
-            local force = is_main_sjis()
-            for _, target_buf in ipairs(layout_diffview_buffers(bufnr)) do
-              decode_buffer_once(target_buf, force)
-            end
+            decode_buffer_once(bufnr, is_main_sjis())
           end,
         },
       })
