@@ -1,24 +1,13 @@
 return {
   'NickvanDyke/opencode.nvim',
-  dependencies = {
-    -- Recommended for `ask()` and `select()`.
-    -- Required for `snacks` provider.
-    ---@module 'snacks' <- Loads `snacks.nvim` types for configuration intellisense.
-    { 'folke/snacks.nvim', opts = { input = {}, picker = {}, terminal = {} } },
-  },
   config = function()
-    ---@type opencode.Opts
-    -- Configure snacks terminal provider behavior
-    vim.g.opencode_opts = {
-      provider = {
-        snacks = {
-          win = {
-            width = 0.4, -- 40% width (matches claudecode)
-            enter = true, -- Focus terminal when opened (consistent with claudecode)
-          },
-        },
-      },
-    }
+    local opts = require('opencode.config').opts
+    opts.server.toggle = function()
+      require('opencode.terminal').toggle('opencode --port', {
+        split = 'right',
+        width = math.floor(vim.o.columns * 0.4),
+      })
+    end
 
     -- Required for `opts.events.reload`.
     vim.o.autoread = true
