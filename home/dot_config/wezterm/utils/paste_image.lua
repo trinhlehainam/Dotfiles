@@ -2,6 +2,7 @@ local wezterm = require('wezterm') ---@type Wezterm
 
 local platform = require('utils.platform')
 local strings = require('utils.strings')
+local wsl = require('utils.wsl')
 
 local M = {}
 
@@ -19,90 +20,12 @@ local function escape_powershell_single_quote(value)
   return value:gsub("'", "''")
 end
 
----@param pane Pane
----@return string|nil
-local function pane_domain_name(pane)
-  local ok, domain_name = pcall(function()
-    return pane:get_domain_name()
-  end)
-
-  if not ok or type(domain_name) ~= 'string' or domain_name == '' then
-    return nil
-  end
-
-  return domain_name
-end
-
 ---@param linux_dir string
 ---@param filename string
 ---@return string
 local function join_linux_path(linux_dir, filename)
   local sep = linux_dir:match('/$') and '' or '/'
   return linux_dir .. sep .. filename
-end
-
----@param wsl_distro string
----@param linux_dir string
----@return boolean
-local function ensure_wsl_dir(wsl_distro, linux_dir)
-  local ok, success = pcall(wezterm.run_child_process, {
-    'wsl.exe',
-    '-d',
-    wsl_distro,
-    '--',
-    'mkdir',
-    '-p',
-    linux_dir,
-  })
-
-  return ok and success
-end
-
----@param pane Pane
----@return string|nil
-local function pane_wsl_distro(pane)
-  local domain_name = pane_domain_name(pane)
-  if not domain_name then
-    return nil
-  end
-
-  local distro = domain_name:match('^WSL:(.+)$')
-  if not distro then
-    return nil
-  end
-
-  distro = strings.trim(distro)
-  if distro == '' then
-    return nil
-  end
-
-  return distro
-end
-
----@param wsl_distro string
----@param linux_path string
----@return string|nil
-local function wslpath_to_windows(wsl_distro, linux_path)
-  local ok, success, stdout, _ = pcall(wezterm.run_child_process, {
-    'wsl.exe',
-    '-d',
-    wsl_distro,
-    '--',
-    'wslpath',
-    '-w',
-    linux_path,
-  })
-
-  if not ok or not success or not stdout then
-    return nil
-  end
-
-  local windows_path = strings.trim(stdout)
-  if windows_path == '' then
-    return nil
-  end
-
-  return windows_path
 end
 
 ---@return boolean|nil
@@ -171,7 +94,7 @@ local function try_smart_paste(pane)
     return false
   end
 
-  local wsl_distro = pane_wsl_distro(pane)
+  local wsl_distro = wsl.pane_distro(pane)
   if not wsl_distro then
     return false
   end
@@ -181,11 +104,11 @@ local function try_smart_paste(pane)
     return false
   end
 
-  if not ensure_wsl_dir(wsl_distro, WSL_TEMP_DIR) then
+  if not wsl.ensure_dir(wsl_distro, WSL_TEMP_DIR) then
     return false
   end
 
-  local windows_temp_dir = wslpath_to_windows(wsl_distro, WSL_TEMP_DIR)
+  local windows_temp_dir = wsl.path_to_windows(wsl_distro, WSL_TEMP_DIR)
   if not windows_temp_dir then
     return false
   end
