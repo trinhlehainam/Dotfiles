@@ -46,6 +46,17 @@ local function enum_save_status(value)
   return SAVE_STATUS_BY_VALUE[value]
 end
 
+---@return string
+local function make_screenshot_filename()
+  if wezterm.time and wezterm.time.now then
+    local timestamp = wezterm.time.now():format('%Y%m%d_%H%M%S_%3f')
+    return string.format('screenshot_%s.png', timestamp)
+  end
+
+  -- Fallback for older runtimes: keep second precision but add random suffix.
+  return string.format('screenshot_%s_%06d.png', wezterm.strftime('%Y%m%d_%H%M%S'), math.random(0, 999999))
+end
+
 ---@param windows_path string
 ---@return SaveStatus|nil
 local function save_clipboard_image_png(windows_path)
@@ -107,7 +118,7 @@ local function try_smart_paste(pane)
     return false
   end
 
-  local filename = string.format('screenshot_%s.png', wezterm.strftime('%Y%m%d_%H%M%S'))
+  local filename = make_screenshot_filename()
   local full_windows_path = join_windows_path(windows_temp_dir, filename)
   local full_linux_path = join_linux_path(WSL_TEMP_DIR, filename)
 
