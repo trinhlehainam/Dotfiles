@@ -78,17 +78,7 @@ local function pane_is_wsl(pane)
     return false
   end
 
-  if domain_name:match('^WSL:') then
-    return true
-  end
-
-  for _, domain in ipairs(wsl.domains()) do
-    if domain.name == domain_name then
-      return true
-    end
-  end
-
-  return false
+  return domain_name:match('^WSL:') ~= nil
 end
 
 ---@param wsl_distro string
