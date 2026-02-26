@@ -166,48 +166,52 @@ local function join_windows_path(windows_dir, filename)
   return windows_dir .. sep .. filename
 end
 
----@param window Window
 ---@param pane Pane
-function M.smart_paste(window, pane)
+---@return boolean
+local function try_smart_paste(pane)
   if not platform.is_win then
-    fallback_paste(window, pane)
-    return
+    return false
   end
 
   if not pane_is_wsl(pane) then
-    fallback_paste(window, pane)
-    return
+    return false
   end
 
   local has_image = clipboard_has_image()
   if has_image ~= true then
-    fallback_paste(window, pane)
-    return
+    return false
   end
 
   local linux_cwd = linux_cwd_from_pane(pane)
   if not linux_cwd then
-    fallback_paste(window, pane)
-    return
+    return false
   end
 
   local wsl_distro = wsl.default_distro()
   if not wsl_distro then
-    fallback_paste(window, pane)
-    return
+    return false
   end
 
   local windows_cwd = wslpath_to_windows(wsl_distro, linux_cwd)
   if not windows_cwd then
-    fallback_paste(window, pane)
-    return
+    return false
   end
 
   local filename = string.format('screenshot_%s.png', wezterm.strftime('%Y%m%d_%H%M%S'))
   local full_windows_path = join_windows_path(windows_cwd, filename)
 
-  if save_clipboard_image_png(full_windows_path) then
-    pane:send_text(filename)
+  if not save_clipboard_image_png(full_windows_path) then
+    return false
+  end
+
+  pane:send_text(filename)
+  return true
+end
+
+---@param window Window
+---@param pane Pane
+function M.smart_paste(window, pane)
+  if try_smart_paste(pane) then
     return
   end
 
