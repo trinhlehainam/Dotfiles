@@ -3,6 +3,7 @@ local platform = require('utils.platform')
 local pane = require('utils.pane')
 local navigation = require('utils.navigation')
 local wallpaper = require('utils.wallpaper')
+local paste_image = require('utils.paste_image')
 
 local act = wezterm.action ---@type Action
 
@@ -120,7 +121,13 @@ return {
       },
 
       { key = 'C', mods = 'CTRL|SHIFT', action = act.CopyTo(copy_destination) },
-      { key = 'V', mods = 'CTRL|SHIFT', action = act.PasteFrom('Clipboard') },
+      {
+        key = 'V',
+        mods = 'CTRL|SHIFT',
+        action = wezterm.action_callback(function(w, p)
+          paste_image.smart_paste(w, p)
+        end),
+      },
 
       -- Modifier+Enter: CSI u in tmux, normal key otherwise
       tmux_mod_enter('SHIFT'),
