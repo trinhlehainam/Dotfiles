@@ -1,22 +1,36 @@
 return {
   'NickvanDyke/opencode.nvim',
-  dependencies = {
-    -- Recommended for `ask()` and `select()`.
-    -- Required for `snacks` provider.
-    ---@module 'snacks' <- Loads `snacks.nvim` types for configuration intellisense.
-    { 'folke/snacks.nvim', opts = { input = {}, picker = {}, terminal = {} } },
-  },
+  dependencies = { 'folke/snacks.nvim' },
   config = function()
-    ---@type opencode.Opts
-    -- Configure snacks terminal provider behavior
-    vim.g.opencode_opts = {
-      provider = {
-        snacks = {
-          win = {
-            width = 0.4, -- 40% width (matches claudecode)
-            enter = true, -- Focus terminal when opened (consistent with claudecode)
-          },
+    -- https://github.com/nickjvandyke/opencode.nvim?tab=readme-ov-file#customization
+    local opencode_cmd = 'opencode --port'
+    ---@type snacks.terminal.Opts
+    local snacks_terminal_opts = {
+      win = {
+        bo = {
+          filetype = 'opencode_terminal',
         },
+        position = 'right',
+        enter = true,
+        width = 0.4,
+        on_win = function(win)
+          -- Set up keymaps and cleanup for an arbitrary terminal
+          require('opencode.terminal').setup(win.win)
+        end,
+      },
+    }
+    ---@type opencode.Opts
+    vim.g.opencode_opts = {
+      server = {
+        start = function()
+          require('snacks.terminal').open(opencode_cmd, snacks_terminal_opts)
+        end,
+        stop = function()
+          require('snacks.terminal').get(opencode_cmd, snacks_terminal_opts):close()
+        end,
+        toggle = function()
+          require('snacks.terminal').toggle(opencode_cmd, snacks_terminal_opts)
+        end,
       },
     }
 
