@@ -21,12 +21,30 @@ end
 ---@param cwd_uri string
 ---@return string|nil
 local function file_uri_to_linux_path(cwd_uri)
-  local path = cwd_uri:match('^file://[^/]*(/.*)$') or cwd_uri:match('^file:(/.*)$')
+  local host, path = cwd_uri:match('^file://([^/]*)(/.*)$')
+  if not path then
+    path = cwd_uri:match('^file:(/.*)$')
+  end
+
   if not path then
     return nil
   end
 
-  return strings.percent_decode(path)
+  local decoded = strings.percent_decode(path)
+
+  if host and host:lower() == 'wsl.localhost' then
+    local _, _, _, rest = decoded:find('^/([^/]+)(/.*)$')
+    if rest then
+      decoded = rest
+    end
+  end
+
+  local drive, rest = decoded:match('^/([A-Za-z]):/(.*)$')
+  if drive and rest then
+    return string.format('/mnt/%s/%s', drive:lower(), rest)
+  end
+
+  return decoded
 end
 
 ---@param pane Pane
@@ -204,7 +222,7 @@ local function try_smart_paste(pane)
     return false
   end
 
-  pane:send_text(filename)
+  pane:send_text('@' .. filename)
   return true
 end
 
