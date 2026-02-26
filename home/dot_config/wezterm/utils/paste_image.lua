@@ -2,9 +2,10 @@ local wezterm = require('wezterm') ---@type Wezterm
 
 local platform = require('utils.platform')
 local strings = require('utils.strings')
-local wsl = require('utils.wsl')
 
 local M = {}
+
+local WSL_TEMP_DIR = '/tmp/wezterm-smart-paste'
 
 ---@param window Window
 ---@param pane Pane
@@ -16,62 +17,6 @@ end
 ---@return string
 local function escape_powershell_single_quote(value)
   return value:gsub("'", "''")
-end
-
----@param cwd_uri string
----@return string|nil
-local function file_uri_to_linux_path(cwd_uri)
-  local host, path = cwd_uri:match('^file://([^/]*)(/.*)$')
-  if not path then
-    path = cwd_uri:match('^file:(/.*)$')
-  end
-
-  if not path then
-    return nil
-  end
-
-  local decoded = strings.percent_decode(path)
-
-  if host and host:lower() == 'wsl.localhost' then
-    local _, _, _, rest = decoded:find('^/([^/]+)(/.*)$')
-    if rest then
-      decoded = rest
-    end
-  end
-
-  local drive, rest = decoded:match('^/([A-Za-z]):/(.*)$')
-  if drive and rest then
-    return string.format('/mnt/%s/%s', drive:lower(), rest)
-  end
-
-  return decoded
-end
-
----@param pane Pane
----@return string|nil
-local function linux_cwd_from_pane(pane)
-  local cwd = pane:get_current_working_dir()
-  if not cwd then
-    return nil
-  end
-
-  if type(cwd) == 'table' then
-    if type(cwd.file_path) == 'string' and cwd.file_path ~= '' then
-      return cwd.file_path
-    end
-
-    if type(cwd.path) == 'string' and cwd.path ~= '' then
-      return cwd.path
-    end
-
-    if type(cwd.uri) == 'string' and cwd.uri ~= '' then
-      return file_uri_to_linux_path(cwd.uri)
-    end
-  elseif type(cwd) == 'string' then
-    return file_uri_to_linux_path(cwd) or cwd
-  end
-
-  return file_uri_to_linux_path(tostring(cwd))
 end
 
 ---@param pane Pane
@@ -88,15 +33,50 @@ local function pane_domain_name(pane)
   return domain_name
 end
 
----@param pane Pane
+---@param linux_dir string
+---@param filename string
+---@return string
+local function join_linux_path(linux_dir, filename)
+  local sep = linux_dir:match('/$') and '' or '/'
+  return linux_dir .. sep .. filename
+end
+
+---@param wsl_distro string
+---@param linux_dir string
 ---@return boolean
-local function pane_is_wsl(pane)
+local function ensure_wsl_dir(wsl_distro, linux_dir)
+  local ok, success = pcall(wezterm.run_child_process, {
+    'wsl.exe',
+    '-d',
+    wsl_distro,
+    '--',
+    'mkdir',
+    '-p',
+    linux_dir,
+  })
+
+  return ok and success
+end
+
+---@param pane Pane
+---@return string|nil
+local function pane_wsl_distro(pane)
   local domain_name = pane_domain_name(pane)
   if not domain_name then
-    return false
+    return nil
   end
 
-  return domain_name:match('^WSL:') ~= nil
+  local distro = domain_name:match('^WSL:(.+)$')
+  if not distro then
+    return nil
+  end
+
+  distro = strings.trim(distro)
+  if distro == '' then
+    return nil
+  end
+
+  return distro
 end
 
 ---@param wsl_distro string
@@ -191,7 +171,8 @@ local function try_smart_paste(pane)
     return false
   end
 
-  if not pane_is_wsl(pane) then
+  local wsl_distro = pane_wsl_distro(pane)
+  if not wsl_distro then
     return false
   end
 
@@ -200,29 +181,24 @@ local function try_smart_paste(pane)
     return false
   end
 
-  local linux_cwd = linux_cwd_from_pane(pane)
-  if not linux_cwd then
+  if not ensure_wsl_dir(wsl_distro, WSL_TEMP_DIR) then
     return false
   end
 
-  local wsl_distro = wsl.default_distro()
-  if not wsl_distro then
-    return false
-  end
-
-  local windows_cwd = wslpath_to_windows(wsl_distro, linux_cwd)
-  if not windows_cwd then
+  local windows_temp_dir = wslpath_to_windows(wsl_distro, WSL_TEMP_DIR)
+  if not windows_temp_dir then
     return false
   end
 
   local filename = string.format('screenshot_%s.png', wezterm.strftime('%Y%m%d_%H%M%S'))
-  local full_windows_path = join_windows_path(windows_cwd, filename)
+  local full_windows_path = join_windows_path(windows_temp_dir, filename)
+  local full_linux_path = join_linux_path(WSL_TEMP_DIR, filename)
 
   if not save_clipboard_image_png(full_windows_path) then
     return false
   end
 
-  pane:send_text('@' .. filename)
+  pane:send_text('@' .. full_linux_path)
   return true
 end
 
