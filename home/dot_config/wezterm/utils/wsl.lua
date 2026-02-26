@@ -11,6 +11,16 @@ local cached_domains = nil
 ---@type string|nil
 local preferred = nil
 
+---@type table<string, string>
+local cached_windows_paths = {}
+
+---@param wsl_distro string
+---@param linux_path string
+---@return string
+local function windows_path_cache_key(wsl_distro, linux_path)
+  return string.format('%s\0%s', wsl_distro, linux_path)
+end
+
 ---@param domain_name string
 ---@return string|nil
 function M.distro_from_domain_name(domain_name)
@@ -107,6 +117,25 @@ function M.path_to_windows(wsl_distro, linux_path)
     return nil
   end
 
+  return windows_path
+end
+
+---@param wsl_distro string
+---@param linux_path string
+---@return string|nil
+function M.path_to_windows_cached(wsl_distro, linux_path)
+  local key = windows_path_cache_key(wsl_distro, linux_path)
+  local cached = cached_windows_paths[key]
+  if cached then
+    return cached
+  end
+
+  local windows_path = M.path_to_windows(wsl_distro, linux_path)
+  if not windows_path then
+    return nil
+  end
+
+  cached_windows_paths[key] = windows_path
   return windows_path
 end
 

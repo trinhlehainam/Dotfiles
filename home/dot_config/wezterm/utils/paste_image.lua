@@ -7,6 +7,11 @@ local wsl = require('utils.wsl')
 local M = {}
 
 local WSL_TEMP_DIR = '/tmp/wezterm-smart-paste'
+local SAVE_STATUS = {
+  SAVED = 'SAVED',
+  NO_IMAGE = 'NO_IMAGE',
+  SAVE_FAILED = 'SAVE_FAILED',
+}
 
 ---@param window Window
 ---@param pane Pane
@@ -28,18 +33,29 @@ local function join_linux_path(linux_dir, filename)
   return linux_dir .. sep .. filename
 end
 
----@return boolean|nil
-local function clipboard_has_image()
-  local check_cmd = table.concat({
+---@param windows_path string
+---@return 'SAVED'|'NO_IMAGE'|'SAVE_FAILED'|nil
+local function save_clipboard_image_png(windows_path)
+  local escaped = escape_powershell_single_quote(windows_path)
+  local save_cmd = table.concat({
+    "$ErrorActionPreference = 'Stop';",
     'Add-Type -AssemblyName System.Windows.Forms;',
-    '[System.Windows.Forms.Clipboard]::ContainsImage()',
+    'Add-Type -AssemblyName System.Drawing;',
+    '$img = [System.Windows.Forms.Clipboard]::GetImage();',
+    string.format("if ($null -eq $img) { Write-Output '%s'; exit 0 }", SAVE_STATUS.NO_IMAGE),
+    'try {',
+    string.format("$img.Save('%s', [System.Drawing.Imaging.ImageFormat]::Png);", escaped),
+    string.format("Write-Output '%s';", SAVE_STATUS.SAVED),
+    '} catch {',
+    string.format("Write-Output '%s';", SAVE_STATUS.SAVE_FAILED),
+    '}',
   }, ' ')
 
   local ok, success, stdout, _ = pcall(wezterm.run_child_process, {
     'powershell.exe',
     '-NoProfile',
     '-Command',
-    check_cmd,
+    save_cmd,
   })
 
   if not ok or not success or not stdout then
@@ -47,36 +63,17 @@ local function clipboard_has_image()
   end
 
   local state = strings.trim(stdout)
-  if state == 'True' then
-    return true
+  if state == SAVE_STATUS.SAVED then
+    return SAVE_STATUS.SAVED
   end
-  if state == 'False' then
-    return false
+  if state == SAVE_STATUS.NO_IMAGE then
+    return SAVE_STATUS.NO_IMAGE
+  end
+  if state == SAVE_STATUS.SAVE_FAILED then
+    return SAVE_STATUS.SAVE_FAILED
   end
 
   return nil
-end
-
----@param windows_path string
----@return boolean
-local function save_clipboard_image_png(windows_path)
-  local escaped = escape_powershell_single_quote(windows_path)
-  local save_cmd = table.concat({
-    'Add-Type -AssemblyName System.Windows.Forms;',
-    'Add-Type -AssemblyName System.Drawing;',
-    '$img = [System.Windows.Forms.Clipboard]::GetImage();',
-    'if ($null -eq $img) { exit 1 }',
-    string.format("$img.Save('%s', [System.Drawing.Imaging.ImageFormat]::Png)", escaped),
-  }, ' ')
-
-  local ok, success = pcall(wezterm.run_child_process, {
-    'powershell.exe',
-    '-NoProfile',
-    '-Command',
-    save_cmd,
-  })
-
-  return ok and success
 end
 
 ---@param windows_dir string
@@ -99,16 +96,11 @@ local function try_smart_paste(pane)
     return false
   end
 
-  local has_image = clipboard_has_image()
-  if has_image ~= true then
-    return false
-  end
-
   if not wsl.ensure_dir(wsl_distro, WSL_TEMP_DIR) then
     return false
   end
 
-  local windows_temp_dir = wsl.path_to_windows(wsl_distro, WSL_TEMP_DIR)
+  local windows_temp_dir = wsl.path_to_windows_cached(wsl_distro, WSL_TEMP_DIR)
   if not windows_temp_dir then
     return false
   end
@@ -117,7 +109,8 @@ local function try_smart_paste(pane)
   local full_windows_path = join_windows_path(windows_temp_dir, filename)
   local full_linux_path = join_linux_path(WSL_TEMP_DIR, filename)
 
-  if not save_clipboard_image_png(full_windows_path) then
+  local save_state = save_clipboard_image_png(full_windows_path)
+  if save_state ~= SAVE_STATUS.SAVED then
     return false
   end
 
