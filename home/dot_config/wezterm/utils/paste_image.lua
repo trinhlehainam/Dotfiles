@@ -7,11 +7,18 @@ local wsl = require('utils.wsl')
 local M = {}
 
 local WSL_TEMP_DIR = '/tmp/wezterm-smart-paste'
+---@enum SaveStatus
 local SAVE_STATUS = {
   SAVED = 'SAVED',
   NO_IMAGE = 'NO_IMAGE',
   SAVE_FAILED = 'SAVE_FAILED',
 }
+
+---@type table<string, SaveStatus>
+local SAVE_STATUS_BY_VALUE = {}
+for _, enum_value in pairs(SAVE_STATUS) do
+  SAVE_STATUS_BY_VALUE[enum_value] = enum_value
+end
 
 ---@param window Window
 ---@param pane Pane
@@ -33,8 +40,14 @@ local function join_linux_path(linux_dir, filename)
   return linux_dir .. sep .. filename
 end
 
+---@param value string
+---@return SaveStatus|nil
+local function enum_save_status(value)
+  return SAVE_STATUS_BY_VALUE[value]
+end
+
 ---@param windows_path string
----@return 'SAVED'|'NO_IMAGE'|'SAVE_FAILED'|nil
+---@return SaveStatus|nil
 local function save_clipboard_image_png(windows_path)
   local escaped = escape_powershell_single_quote(windows_path)
   local save_cmd = table.concat({
@@ -62,18 +75,7 @@ local function save_clipboard_image_png(windows_path)
     return nil
   end
 
-  local state = strings.trim(stdout)
-  if state == SAVE_STATUS.SAVED then
-    return SAVE_STATUS.SAVED
-  end
-  if state == SAVE_STATUS.NO_IMAGE then
-    return SAVE_STATUS.NO_IMAGE
-  end
-  if state == SAVE_STATUS.SAVE_FAILED then
-    return SAVE_STATUS.SAVE_FAILED
-  end
-
-  return nil
+  return enum_save_status(strings.trim(stdout))
 end
 
 ---@param windows_dir string
