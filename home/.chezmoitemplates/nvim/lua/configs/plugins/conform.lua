@@ -22,7 +22,10 @@ end
 local base_star_formatters = vim.deepcopy(formatters_by_ft['*'] or {})
 formatters_by_ft['*'] = function(bufnr)
   project_settings.ensure_conform_overrides(bufnr)
-  return common.merge_unique_strings(base_star_formatters, project_settings.get_project_formatters(bufnr))
+  return common.merge_unique_strings(
+    base_star_formatters,
+    project_settings.get_project_formatters(bufnr)
+  )
 end
 
 require('conform').setup({
