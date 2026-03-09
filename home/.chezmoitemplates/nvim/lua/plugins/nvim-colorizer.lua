@@ -2,6 +2,7 @@ return {
   -- https://github.com/catgoose/nvim-colorizer.lua
   'catgoose/nvim-colorizer.lua',
   event = 'BufReadPre',
+  -- https://github.com/catgoose/nvim-colorizer.lua?tab=readme-ov-file#default-configuration
   opts = {
     filetypes = {
       'css',
@@ -9,8 +10,8 @@ return {
       'typescript',
       html = { mode = 'foreground' },
     },
-    user_default_options = {
-      mode = 'background',
+    display = {
+      mode = 'background', -- "background"|"foreground"|"virtualtext"
     },
   },
 }

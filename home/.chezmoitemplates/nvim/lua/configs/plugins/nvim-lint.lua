@@ -21,6 +21,7 @@ if not ok_lint then
 end
 
 local log = require('utils.log')
+local project_settings = require('configs.project_settings')
 
 -- Load linter configuration (do not hard-fail)
 local linters = {}
@@ -70,6 +71,73 @@ lint.linters_by_ft = linters_by_ft
 local enabled = true
 local group = vim.api.nvim_create_augroup('nvim-lint', { clear = true })
 
+local function merge_unique(base, extra)
+  local merged = vim.deepcopy(base or {})
+  local seen = {}
+
+  for _, name in ipairs(merged) do
+    seen[name] = true
+  end
+
+  for _, name in ipairs(extra or {}) do
+    if not seen[name] then
+      seen[name] = true
+      table.insert(merged, name)
+    end
+  end
+
+  return merged
+end
+
+local function resolve_base_linters(filetype)
+  local exact = linters_by_ft[filetype]
+  if exact then
+    return vim.deepcopy(exact)
+  end
+
+  local merged = {}
+  for _, part in ipairs(vim.split(filetype, '.', { plain = true })) do
+    merged = merge_unique(merged, linters_by_ft[part] or {})
+  end
+
+  return merged
+end
+
+local function resolve_base_lint_on_save(filetype)
+  if lint_on_save_by_ft[filetype] ~= nil then
+    return lint_on_save_by_ft[filetype]
+  end
+
+  local lint_on_save = nil
+  for _, part in ipairs(vim.split(filetype, '.', { plain = true })) do
+    local value = lint_on_save_by_ft[part]
+    if value ~= nil then
+      lint_on_save = lint_on_save == nil and value or (lint_on_save and value)
+    end
+  end
+
+  return lint_on_save
+end
+
+local function linters_for_buf(bufnr)
+  project_settings.ensure_lint_overrides(bufnr)
+  return merge_unique(resolve_base_linters(vim.bo[bufnr].filetype), project_settings.get_project_linters(bufnr))
+end
+
+local function lint_on_save_enabled(bufnr)
+  local tooling_lint_on_save = project_settings.get_tooling_lint_on_save(bufnr)
+  if tooling_lint_on_save ~= nil then
+    return tooling_lint_on_save
+  end
+
+  local base_lint_on_save = resolve_base_lint_on_save(vim.bo[bufnr].filetype)
+  if base_lint_on_save ~= nil then
+    return base_lint_on_save
+  end
+
+  return true
+end
+
 local function auto_lint(bufnr)
   if not enabled then
     return
@@ -79,21 +147,17 @@ local function auto_lint(bufnr)
     return
   end
 
-  local ft = vim.bo[bufnr].filetype
-  local ft_linters = linters_by_ft[ft]
-
-  if not ft_linters or #ft_linters == 0 then
+  local ft_linters = linters_for_buf(bufnr)
+  if #ft_linters == 0 then
     return
   end
 
-  local lint_on_save = lint_on_save_by_ft[ft]
-
-  if lint_on_save == false then
+  if lint_on_save_enabled(bufnr) == false then
     return
   end
 
   vim.api.nvim_buf_call(bufnr, function()
-    lint.try_lint()
+    lint.try_lint(ft_linters)
   end)
 end
 
@@ -116,7 +180,13 @@ local function create_user_command(name, fn, opts)
 end
 
 create_user_command('Lint', function()
-  lint.try_lint()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local ft_linters = linters_for_buf(bufnr)
+  if #ft_linters == 0 then
+    return
+  end
+
+  lint.try_lint(ft_linters)
 end, { desc = 'Run linters for current buffer' })
 
 local function set_enabled(value)

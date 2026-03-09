@@ -219,6 +219,21 @@ else
   log.warn('Failed to load configs.lsp module for lspconfig')
 end
 
+local ok_codesettings, codesettings = pcall(require, 'codesettings')
+if ok_codesettings then
+  vim.lsp.config('*', {
+    before_init = function(_, config)
+      if not config.root_dir or not config.name then
+        return
+      end
+
+      codesettings.loader():root_dir(config.root_dir):with_local_settings(config.name, config)
+    end,
+  })
+else
+  log.warn('Failed to load codesettings.nvim for project-local LSP settings', 'lspconfig')
+end
+
 for _, lspconfig in pairs(lspconfigs) do
   local server_name = lspconfig.server
   -- Only add valid server configurations
