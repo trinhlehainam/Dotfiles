@@ -8,7 +8,7 @@ return {
       jsonls_integration = true,
       lua_ls_integration = true,
       root_dir = function()
-        return require('configs.project_json').find_root(0)
+        return require('configs.project.json').find_root(0)
       end,
     }
   end,

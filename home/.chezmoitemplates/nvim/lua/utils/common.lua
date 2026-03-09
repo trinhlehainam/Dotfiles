@@ -129,6 +129,14 @@ function M.merge_unique_strings(base, extra)
   return merged
 end
 
+---@param tbl table|nil
+---@return string[]
+function M.sorted_keys(tbl)
+  local keys = vim.tbl_keys(tbl or {})
+  table.sort(keys)
+  return keys
+end
+
 ---@param extension? string
 ---@return string
 function M.create_temp_file(extension)

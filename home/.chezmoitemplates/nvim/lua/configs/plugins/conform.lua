@@ -1,6 +1,6 @@
 local log = require('utils.log')
 local common = require('utils.common')
-local project_settings = require('configs.project_settings')
+local project = require('configs.project')
 
 -- Safely load formatters configuration
 local ok, lsp_config = pcall(require, 'configs.lsp')
@@ -21,24 +21,21 @@ end
 
 local base_star_formatters = vim.deepcopy(formatters_by_ft['*'] or {})
 formatters_by_ft['*'] = function(bufnr)
-  project_settings.ensure_conform_overrides(bufnr)
-  return common.merge_unique_strings(
-    base_star_formatters,
-    project_settings.get_project_formatters(bufnr)
-  )
+  project.ensure_conform_overrides(bufnr)
+  return common.merge_unique_strings(base_star_formatters, project.get_project_formatters(bufnr))
 end
 
 require('conform').setup({
   notify_on_error = false,
   format_on_save = function(bufnr)
-    project_settings.ensure_conform_overrides(bufnr)
+    project.ensure_conform_overrides(bufnr)
 
-    local tooling_format_on_save = project_settings.get_tooling_format_on_save(bufnr)
+    local tooling_format_on_save = project.get_tooling_format_on_save(bufnr)
     if tooling_format_on_save == false then
       return nil
     end
 
-    local editor_format_on_save = project_settings.get_editor_format_on_save(bufnr)
+    local editor_format_on_save = project.get_editor_format_on_save(bufnr)
     if tooling_format_on_save == nil and editor_format_on_save == false then
       return nil
     end

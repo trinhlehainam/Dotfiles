@@ -22,7 +22,7 @@ end
 
 local log = require('utils.log')
 local common = require('utils.common')
-local project_settings = require('configs.project_settings')
+local project = require('configs.project')
 
 -- Load linter configuration (do not hard-fail)
 local linters = {}
@@ -103,15 +103,15 @@ local function resolve_base_lint_on_save(filetype)
 end
 
 local function linters_for_buf(bufnr)
-  project_settings.ensure_lint_overrides(bufnr)
+  project.ensure_lint_overrides(bufnr)
   return common.merge_unique_strings(
     resolve_base_linters(vim.bo[bufnr].filetype),
-    project_settings.get_project_linters(bufnr)
+    project.get_project_linters(bufnr)
   )
 end
 
 local function lint_on_save_enabled(bufnr)
-  local tooling_lint_on_save = project_settings.get_tooling_lint_on_save(bufnr)
+  local tooling_lint_on_save = project.get_tooling_lint_on_save(bufnr)
   if tooling_lint_on_save ~= nil then
     return tooling_lint_on_save
   end

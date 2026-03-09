@@ -1,6 +1,6 @@
 require('configs.options')
 require('configs.keymaps')
-require('configs.project_settings').setup()
+require('configs.project').setup()
 require('configs.lazy')
 
 if vim.g.vscode then
