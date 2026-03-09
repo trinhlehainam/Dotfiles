@@ -1,12 +1,64 @@
 local log = require('utils.log')
+local buffer_utils = require('utils.buffer')
 local common = require('utils.common')
 local project_json = require('configs.project_json')
 
 local M = {}
 
+-- Project-local JSON settings have two timing constraints:
+-- 1. filetype associations must be registered during setup so startup detection sees them.
+-- 2. buffer-local options can only be applied after Neovim knows the file path and filetype.
+
 local VSCODE_SETTINGS = '.vscode/settings.json'
 local TOOLING_SETTINGS = '.nvim/tooling.json'
 local TITLE = 'project-settings'
+
+---@class ProjectAssociation
+---@field filetype string
+---@field has_slash boolean
+---@field path_pattern string
+---@field raw string
+
+---@class ProjectEditorLanguageSettings
+---@field insert_spaces? boolean
+---@field tab_size? number
+---@field detect_indentation? boolean
+---@field format_on_save? boolean
+---@field auto_guess_encoding? boolean
+---@field candidate_guess_encodings? string[]
+---@field encoding? string
+
+---@class ProjectEditorSettings
+---@field associations ProjectAssociation[]
+---@field languages table<string, ProjectEditorLanguageSettings>
+
+---@class ProjectToolArgs
+---@field args? string[]
+---@field args_append? string[]
+
+---@class ProjectToolingDefaults
+---@field format_on_save? boolean
+---@field lint_on_save? boolean
+
+---@class ProjectToolingFiletypeSettings
+---@field formatters? string[]
+---@field linters? string[]
+---@field format_on_save? boolean
+---@field lint_on_save? boolean
+
+---@class ProjectToolingSettings
+---@field defaults ProjectToolingDefaults
+---@field filetypes table<string, ProjectToolingFiletypeSettings>
+---@field formatters table<string, ProjectToolArgs>
+---@field linters table<string, ProjectToolArgs>
+
+---@class ProjectResolvedToolingSettings
+---@field formatters string[]
+---@field linters string[]
+---@field format_on_save? boolean
+---@field lint_on_save? boolean
+---@field formatter_overrides table<string, ProjectToolArgs>
+---@field linter_overrides table<string, ProjectToolArgs>
 
 local editor_cache = {}
 local tooling_cache = {}
@@ -32,20 +84,30 @@ local encoding_aliases = {
   windows1252 = 'latin1',
 }
 
+-- Shared helpers --------------------------------------------------------------
+
+---@param path string|nil
+---@return string
 local function normalize_path(path)
   return (path or ''):gsub('\\', '/')
 end
 
+---@param tbl table|nil
+---@return string[]
 local function sorted_keys(tbl)
   local keys = vim.tbl_keys(tbl or {})
   table.sort(keys)
   return keys
 end
 
+---@param relpath string
+---@param key string
 local function warn_ignored(relpath, key)
   log.warn(('Ignored unsupported key "%s" in %s'):format(key, relpath), TITLE)
 end
 
+---@param value any
+---@return string|nil
 local function normalize_encoding(value)
   if type(value) ~= 'string' or value == '' then
     return nil
@@ -55,6 +117,8 @@ local function normalize_encoding(value)
   return encoding_aliases[normalized] or value
 end
 
+---@param values string[]|nil
+---@return string[]
 local function normalize_encoding_list(values)
   local normalized = {}
   local seen = {}
@@ -70,18 +134,27 @@ local function normalize_encoding_list(values)
   return normalized
 end
 
+---@param path string
+---@return string|nil
 local function get_root_for_path(path)
   return project_json.find_root_for_path(path)
 end
 
+---@param bufnr? integer
+---@return string|nil
 local function get_root(bufnr)
   return project_json.find_root(bufnr)
 end
 
+---@param text string
+---@return string
 local function escape_lua_pattern(text)
   return (normalize_path(text):gsub('([%^%$%(%)%%%.%[%]%+%-%?])', '%%%1'))
 end
 
+---@param glob string
+---@param anchored? boolean
+---@return string
 local function glob_to_lua_pattern(glob, anchored)
   local chars = anchored == false and {} or { '^' }
   local idx = 1
@@ -112,6 +185,8 @@ local function glob_to_lua_pattern(glob, anchored)
   return table.concat(chars)
 end
 
+---@param raw table
+---@return ProjectAssociation[]
 local function parse_associations(raw)
   local associations = {}
 
@@ -145,6 +220,11 @@ local function parse_associations(raw)
   return associations
 end
 
+-- Editor settings -------------------------------------------------------------
+
+---@param key string
+---@param raw table
+---@param editor ProjectEditorSettings
 local function parse_language_block(key, raw, editor)
   if type(raw) ~= 'table' then
     warn_ignored(VSCODE_SETTINGS, key)
@@ -189,6 +269,8 @@ local function parse_language_block(key, raw, editor)
   end
 end
 
+---@param root string
+---@return ProjectEditorSettings
 local function load_editor_settings(root)
   if editor_cache[root] then
     return editor_cache[root]
@@ -242,6 +324,8 @@ local function register_filetype_patterns(root)
 
   for pattern in pairs(previous) do
     if current[pattern] == nil then
+      -- `vim.filetype.add()` only overwrites existing entries; registering a
+      -- nil matcher lets reloads remove stale patterns from the active registry.
       patterns[pattern] = function()
         return nil
       end
@@ -272,6 +356,13 @@ local function ensure_filetype_patterns_for_path(path)
   register_filetype_patterns(root)
 end
 
+-- Tooling settings ------------------------------------------------------------
+
+---@param relpath string
+---@param key string
+---@param value any
+---@param dest table
+---@param field string
 local function parse_boolean_setting(relpath, key, value, dest, field)
   if type(value) == 'boolean' then
     dest[field] = value
@@ -280,6 +371,10 @@ local function parse_boolean_setting(relpath, key, value, dest, field)
   end
 end
 
+---@param relpath string
+---@param key string
+---@param value any
+---@return string[]
 local function parse_name_list(relpath, key, value)
   if not vim.islist(value) then
     warn_ignored(relpath, key)
@@ -298,6 +393,10 @@ local function parse_name_list(relpath, key, value)
   return names
 end
 
+---@param relpath string
+---@param scope string
+---@param raw table
+---@return ProjectToolArgs
 local function parse_tool_args(relpath, scope, raw)
   if type(raw) ~= 'table' then
     warn_ignored(relpath, scope)
@@ -320,6 +419,83 @@ local function parse_tool_args(relpath, scope, raw)
   return parsed
 end
 
+---@param raw table
+---@param defaults ProjectToolingDefaults
+local function parse_tooling_defaults(raw, defaults)
+  if type(raw) ~= 'table' then
+    warn_ignored(TOOLING_SETTINGS, 'defaults')
+    return
+  end
+
+  for _, key in ipairs(sorted_keys(raw)) do
+    if key == 'format_on_save' then
+      parse_boolean_setting(
+        TOOLING_SETTINGS,
+        'defaults.format_on_save',
+        raw[key],
+        defaults,
+        'format_on_save'
+      )
+    elseif key == 'lint_on_save' then
+      parse_boolean_setting(
+        TOOLING_SETTINGS,
+        'defaults.lint_on_save',
+        raw[key],
+        defaults,
+        'lint_on_save'
+      )
+    else
+      warn_ignored(TOOLING_SETTINGS, ('defaults.%s'):format(key))
+    end
+  end
+end
+
+---@param filetype string
+---@param raw table
+---@return ProjectToolingFiletypeSettings|nil
+local function parse_tooling_filetype(filetype, raw)
+  if type(raw) ~= 'table' then
+    warn_ignored(TOOLING_SETTINGS, ('filetypes.%s'):format(filetype))
+    return nil
+  end
+
+  local parsed = {}
+
+  for _, key in ipairs(sorted_keys(raw)) do
+    local value = raw[key]
+
+    if key == 'formatters' then
+      parsed.formatters =
+        parse_name_list(TOOLING_SETTINGS, ('filetypes.%s.formatters'):format(filetype), value)
+    elseif key == 'linters' then
+      parsed.linters =
+        parse_name_list(TOOLING_SETTINGS, ('filetypes.%s.linters'):format(filetype), value)
+    elseif key == 'format_on_save' then
+      parse_boolean_setting(
+        TOOLING_SETTINGS,
+        ('filetypes.%s.format_on_save'):format(filetype),
+        value,
+        parsed,
+        'format_on_save'
+      )
+    elseif key == 'lint_on_save' then
+      parse_boolean_setting(
+        TOOLING_SETTINGS,
+        ('filetypes.%s.lint_on_save'):format(filetype),
+        value,
+        parsed,
+        'lint_on_save'
+      )
+    else
+      warn_ignored(TOOLING_SETTINGS, ('filetypes.%s.%s'):format(filetype, key))
+    end
+  end
+
+  return parsed
+end
+
+---@param root string
+---@return ProjectToolingSettings
 local function load_tooling_settings(root)
   if tooling_cache[root] then
     return tooling_cache[root]
@@ -336,69 +512,12 @@ local function load_tooling_settings(root)
   for _, key in ipairs(sorted_keys(raw)) do
     local value = raw[key]
 
-    if key == 'defaults' and type(value) == 'table' then
-      for _, nested_key in ipairs(sorted_keys(value)) do
-        if nested_key == 'format_on_save' then
-          parse_boolean_setting(
-            TOOLING_SETTINGS,
-            'defaults.format_on_save',
-            value[nested_key],
-            tooling.defaults,
-            'format_on_save'
-          )
-        elseif nested_key == 'lint_on_save' then
-          parse_boolean_setting(
-            TOOLING_SETTINGS,
-            'defaults.lint_on_save',
-            value[nested_key],
-            tooling.defaults,
-            'lint_on_save'
-          )
-        else
-          warn_ignored(TOOLING_SETTINGS, ('defaults.%s'):format(nested_key))
-        end
-      end
+    if key == 'defaults' then
+      parse_tooling_defaults(value, tooling.defaults)
     elseif key == 'filetypes' and type(value) == 'table' then
       for _, filetype in ipairs(sorted_keys(value)) do
-        local filetype_value = value[filetype]
-        if type(filetype_value) ~= 'table' then
-          warn_ignored(TOOLING_SETTINGS, ('filetypes.%s'):format(filetype))
-        else
-          local parsed = {}
-          for _, nested_key in ipairs(sorted_keys(filetype_value)) do
-            local nested_value = filetype_value[nested_key]
-            if nested_key == 'formatters' then
-              parsed.formatters = parse_name_list(
-                TOOLING_SETTINGS,
-                ('filetypes.%s.formatters'):format(filetype),
-                nested_value
-              )
-            elseif nested_key == 'linters' then
-              parsed.linters = parse_name_list(
-                TOOLING_SETTINGS,
-                ('filetypes.%s.linters'):format(filetype),
-                nested_value
-              )
-            elseif nested_key == 'format_on_save' then
-              parse_boolean_setting(
-                TOOLING_SETTINGS,
-                ('filetypes.%s.format_on_save'):format(filetype),
-                nested_value,
-                parsed,
-                'format_on_save'
-              )
-            elseif nested_key == 'lint_on_save' then
-              parse_boolean_setting(
-                TOOLING_SETTINGS,
-                ('filetypes.%s.lint_on_save'):format(filetype),
-                nested_value,
-                parsed,
-                'lint_on_save'
-              )
-            else
-              warn_ignored(TOOLING_SETTINGS, ('filetypes.%s.%s'):format(filetype, nested_key))
-            end
-          end
+        local parsed = parse_tooling_filetype(filetype, value[filetype])
+        if parsed then
           tooling.filetypes[filetype] = parsed
         end
       end
@@ -443,28 +562,23 @@ local function filetype_keys(filetype)
   return keys
 end
 
-local function get_language_settings(bufnr)
-  local root = get_root(bufnr)
-  if not root then
-    return nil
-  end
-
-  local filetype = vim.bo[bufnr].filetype
-  if filetype == '' then
-    return nil
-  end
-
-  local editor = load_editor_settings(root)
+---@param languages table<string, ProjectEditorLanguageSettings>
+---@param filetype string
+---@return ProjectEditorLanguageSettings
+local function merge_language_settings(languages, filetype)
   local merged = {}
 
   for _, key in ipairs(filetype_keys(filetype)) do
-    merged = vim.tbl_extend('force', merged, editor.languages[key] or {})
+    merged = vim.tbl_extend('force', merged, languages[key] or {})
   end
 
   return merged
 end
 
-local function get_tooling_settings(bufnr)
+---@param bufnr integer
+---@return string|nil root
+---@return string|nil filetype
+local function get_buffer_context(bufnr)
   local root = get_root(bufnr)
   if not root then
     return nil
@@ -472,6 +586,30 @@ local function get_tooling_settings(bufnr)
 
   local filetype = vim.bo[bufnr].filetype
   if filetype == '' then
+    return nil
+  end
+
+  return root, filetype
+end
+
+-- Resolved settings -----------------------------------------------------------
+
+---@param bufnr integer
+---@return ProjectEditorLanguageSettings|nil
+local function get_language_settings(bufnr)
+  local root, filetype = get_buffer_context(bufnr)
+  if not root then
+    return nil
+  end
+
+  return merge_language_settings(load_editor_settings(root).languages, filetype)
+end
+
+---@param bufnr integer
+---@return ProjectResolvedToolingSettings|nil
+local function get_tooling_settings(bufnr)
+  local root, filetype = get_buffer_context(bufnr)
+  if not root then
     return nil
   end
 
@@ -500,8 +638,11 @@ local function get_tooling_settings(bufnr)
   return merged
 end
 
+-- Runtime application ---------------------------------------------------------
+
+---@param bufnr integer
 local function apply_editor_settings(bufnr)
-  if not vim.api.nvim_buf_is_valid(bufnr) or vim.bo[bufnr].buftype ~= '' then
+  if not buffer_utils.is_regular(bufnr) then
     return
   end
 
@@ -534,8 +675,10 @@ local function apply_editor_settings(bufnr)
   end
 end
 
+---@param bufnr integer
+---@return string|nil
 local function get_read_fileencodings(bufnr)
-  local name = vim.api.nvim_buf_get_name(bufnr)
+  local name = buffer_utils.name(bufnr)
   if name == '' then
     return nil
   end
@@ -550,11 +693,7 @@ local function get_read_fileencodings(bufnr)
     return nil
   end
 
-  local editor = load_editor_settings(root)
-  local settings = {}
-  for _, key in ipairs(filetype_keys(filetype)) do
-    settings = vim.tbl_extend('force', settings, editor.languages[key] or {})
-  end
+  local settings = merge_language_settings(load_editor_settings(root).languages, filetype)
 
   local encodings = {}
   if settings.encoding then
@@ -573,6 +712,7 @@ local function get_read_fileencodings(bufnr)
   return table.concat(encodings, ',')
 end
 
+---@param bufnr integer
 local function restore_fileencodings(bufnr)
   local previous = fileencodings_stack[bufnr]
   if previous == nil then
@@ -583,8 +723,9 @@ local function restore_fileencodings(bufnr)
   fileencodings_stack[bufnr] = nil
 end
 
+---@param bufnr integer
 local function redetect_filetype(bufnr)
-  local name = vim.api.nvim_buf_get_name(bufnr)
+  local name = buffer_utils.name(bufnr)
   if name == '' then
     return
   end
@@ -601,7 +742,7 @@ end
 
 local function refresh_open_buffers()
   for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
-    if vim.api.nvim_buf_is_valid(bufnr) and vim.bo[bufnr].buftype == '' then
+    if buffer_utils.is_regular(bufnr) then
       redetect_filetype(bufnr)
       apply_editor_settings(bufnr)
     end
@@ -609,6 +750,8 @@ local function refresh_open_buffers()
 end
 
 local function register_startup_filetype_patterns()
+  -- Startup filetype detection runs before later buffer events, so seed the
+  -- current cwd and command-line file arguments here.
   ensure_filetype_patterns_for_path(vim.uv.cwd() or vim.fn.getcwd())
 
   for _, arg in ipairs(vim.fn.argv()) do
@@ -637,6 +780,8 @@ local function create_reload_command()
   end
 end
 
+---@param name string
+---@return fun(bufnr: integer): table|nil
 local function build_conform_override(name)
   return function(bufnr)
     local base = conform_base_overrides[name]
@@ -666,6 +811,8 @@ local function build_conform_override(name)
   end
 end
 
+---@param name string
+---@return fun(): table|nil
 local function build_lint_override(name)
   return function()
     local base = lint_base_overrides[name]
@@ -697,6 +844,7 @@ local function build_lint_override(name)
   end
 end
 
+---@param bufnr integer
 function M.ensure_conform_overrides(bufnr)
   local ok, conform = pcall(require, 'conform')
   if not ok then
@@ -717,6 +865,7 @@ function M.ensure_conform_overrides(bufnr)
   end
 end
 
+---@param bufnr integer
 function M.ensure_lint_overrides(bufnr)
   local ok, lint = pcall(require, 'lint')
   if not ok then
@@ -742,6 +891,8 @@ function M.ensure_lint_overrides(bufnr)
   end
 end
 
+---@param bufnr integer
+---@return string[]
 function M.get_project_formatters(bufnr)
   M.ensure_conform_overrides(bufnr)
 
@@ -753,6 +904,8 @@ function M.get_project_formatters(bufnr)
   return vim.deepcopy(tooling.formatters or {})
 end
 
+---@param bufnr integer
+---@return string[]
 function M.get_project_linters(bufnr)
   M.ensure_lint_overrides(bufnr)
 
@@ -764,6 +917,8 @@ function M.get_project_linters(bufnr)
   return vim.deepcopy(tooling.linters or {})
 end
 
+---@param bufnr integer
+---@return boolean|nil
 function M.get_editor_format_on_save(bufnr)
   local settings = get_language_settings(bufnr)
   if not settings then
@@ -773,6 +928,8 @@ function M.get_editor_format_on_save(bufnr)
   return settings.format_on_save
 end
 
+---@param bufnr integer
+---@return boolean|nil
 function M.get_tooling_format_on_save(bufnr)
   local tooling = get_tooling_settings(bufnr)
   if not tooling then
@@ -782,6 +939,8 @@ function M.get_tooling_format_on_save(bufnr)
   return tooling.format_on_save
 end
 
+---@param bufnr integer
+---@return boolean|nil
 function M.get_tooling_lint_on_save(bufnr)
   local tooling = get_tooling_settings(bufnr)
   if not tooling then
