@@ -223,11 +223,15 @@ local ok_codesettings, codesettings = pcall(require, 'codesettings')
 if ok_codesettings then
   vim.lsp.config('*', {
     before_init = function(_, config)
-      if not config.root_dir or not config.name then
+      if not config.name then
         return
       end
 
-      codesettings.loader():root_dir(config.root_dir):with_local_settings(config.name, config)
+      codesettings
+        .loader()
+        :config_file_paths({ '.vscode/settings.json' })
+        :root_dir(config.root_dir)
+        :with_local_settings(config.name, config)
     end,
   })
 else

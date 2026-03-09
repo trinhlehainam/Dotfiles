@@ -21,6 +21,7 @@ if not ok_lint then
 end
 
 local log = require('utils.log')
+local common = require('utils.common')
 local project_settings = require('configs.project_settings')
 
 -- Load linter configuration (do not hard-fail)
@@ -71,24 +72,6 @@ lint.linters_by_ft = linters_by_ft
 local enabled = true
 local group = vim.api.nvim_create_augroup('nvim-lint', { clear = true })
 
-local function merge_unique(base, extra)
-  local merged = vim.deepcopy(base or {})
-  local seen = {}
-
-  for _, name in ipairs(merged) do
-    seen[name] = true
-  end
-
-  for _, name in ipairs(extra or {}) do
-    if not seen[name] then
-      seen[name] = true
-      table.insert(merged, name)
-    end
-  end
-
-  return merged
-end
-
 local function resolve_base_linters(filetype)
   local exact = linters_by_ft[filetype]
   if exact then
@@ -97,7 +80,7 @@ local function resolve_base_linters(filetype)
 
   local merged = {}
   for _, part in ipairs(vim.split(filetype, '.', { plain = true })) do
-    merged = merge_unique(merged, linters_by_ft[part] or {})
+    merged = common.merge_unique_strings(merged, linters_by_ft[part] or {})
   end
 
   return merged
@@ -121,7 +104,10 @@ end
 
 local function linters_for_buf(bufnr)
   project_settings.ensure_lint_overrides(bufnr)
-  return merge_unique(resolve_base_linters(vim.bo[bufnr].filetype), project_settings.get_project_linters(bufnr))
+  return common.merge_unique_strings(
+    resolve_base_linters(vim.bo[bufnr].filetype),
+    project_settings.get_project_linters(bufnr)
+  )
 end
 
 local function lint_on_save_enabled(bufnr)

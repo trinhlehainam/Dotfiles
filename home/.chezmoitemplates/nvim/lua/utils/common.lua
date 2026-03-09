@@ -108,6 +108,27 @@ function M.load_mods(modname, ignore_mods)
   return M.load_mods_in_dir(mods_dir, ignore_mods)
 end
 
+---@param base? string[]
+---@param extra? string[]
+---@return string[]
+function M.merge_unique_strings(base, extra)
+  local merged = vim.deepcopy(base or {})
+  local seen = {}
+
+  for _, value in ipairs(merged) do
+    seen[value] = true
+  end
+
+  for _, value in ipairs(extra or {}) do
+    if type(value) == 'string' and value ~= '' and not seen[value] then
+      seen[value] = true
+      table.insert(merged, value)
+    end
+  end
+
+  return merged
+end
+
 ---@param extension? string
 ---@return string
 function M.create_temp_file(extension)

@@ -1,4 +1,5 @@
 local log = require('utils.log')
+local common = require('utils.common')
 local project_settings = require('configs.project_settings')
 
 -- Safely load formatters configuration
@@ -12,24 +13,6 @@ local formatters = lsp_config.formatters or {}
 
 local formatters_by_ft = {}
 
-local function merge_unique(base, extra)
-  local merged = vim.deepcopy(base or {})
-  local seen = {}
-
-  for _, name in ipairs(merged) do
-    seen[name] = true
-  end
-
-  for _, name in ipairs(extra or {}) do
-    if not seen[name] then
-      seen[name] = true
-      table.insert(merged, name)
-    end
-  end
-
-  return merged
-end
-
 for _, formatter in ipairs(formatters) do
   if type(formatter.formatters_by_ft) == 'table' then
     formatters_by_ft = vim.tbl_extend('keep', formatters_by_ft, formatter.formatters_by_ft)
@@ -39,7 +22,7 @@ end
 local base_star_formatters = vim.deepcopy(formatters_by_ft['*'] or {})
 formatters_by_ft['*'] = function(bufnr)
   project_settings.ensure_conform_overrides(bufnr)
-  return merge_unique(base_star_formatters, project_settings.get_project_formatters(bufnr))
+  return common.merge_unique_strings(base_star_formatters, project_settings.get_project_formatters(bufnr))
 end
 
 require('conform').setup({

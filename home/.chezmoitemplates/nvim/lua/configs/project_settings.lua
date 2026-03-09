@@ -1,9 +1,9 @@
 local log = require('utils.log')
+local common = require('utils.common')
 local project_json = require('configs.project_json')
 
 local M = {}
 
-local ROOT_MARKERS = { '.git', '.jj', '.nvim', '.vscode' }
 local VSCODE_SETTINGS = '.vscode/settings.json'
 local TOOLING_SETTINGS = '.nvim/tooling.json'
 local TITLE = 'project-settings'
@@ -69,35 +69,8 @@ local function normalize_encoding_list(values)
   return normalized
 end
 
-local function merge_unique(base, extra)
-  local merged = vim.deepcopy(base or {})
-  local seen = {}
-
-  for _, name in ipairs(merged) do
-    seen[name] = true
-  end
-
-  for _, name in ipairs(extra or {}) do
-    if type(name) == 'string' and name ~= '' and not seen[name] then
-      seen[name] = true
-      table.insert(merged, name)
-    end
-  end
-
-  return merged
-end
-
 local function get_root_for_path(path)
-  if path == nil or path == '' then
-    return nil
-  end
-
-  local ok, root = pcall(vim.fs.root, path, ROOT_MARKERS)
-  if ok then
-    return root
-  end
-
-  return nil
+  return project_json.find_root_for_path(path)
 end
 
 local function get_root(bufnr)
@@ -409,8 +382,8 @@ local function get_tooling_settings(bufnr)
   for _, key in ipairs(filetype_keys(filetype)) do
     local filetype_settings = tooling.filetypes[key]
     if filetype_settings then
-      merged.formatters = merge_unique(merged.formatters, filetype_settings.formatters)
-      merged.linters = merge_unique(merged.linters, filetype_settings.linters)
+      merged.formatters = common.merge_unique_strings(merged.formatters, filetype_settings.formatters)
+      merged.linters = common.merge_unique_strings(merged.linters, filetype_settings.linters)
       if filetype_settings.format_on_save ~= nil then
         merged.format_on_save = filetype_settings.format_on_save
       end
@@ -519,7 +492,7 @@ local function get_read_fileencodings(bufnr)
     return #encodings > 0 and table.concat(encodings, ',') or nil
   end
 
-  encodings = merge_unique(encodings, settings.candidate_guess_encodings or {})
+  encodings = common.merge_unique_strings(encodings, settings.candidate_guess_encodings or {})
   if #encodings == 0 then
     return nil
   end
