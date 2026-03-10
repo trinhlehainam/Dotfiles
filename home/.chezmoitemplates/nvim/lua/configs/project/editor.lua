@@ -8,11 +8,16 @@ local M = {}
 local TITLE = 'project-settings'
 local VSCODE_SETTINGS = '.vscode/settings.json'
 
----@class ProjectAssociation
+---@class ProjectPatternAssociation
 ---@field filetype string
 ---@field has_slash boolean
 ---@field path_pattern string
 ---@field raw string
+
+---@class ProjectEditorAssociations
+---@field extensions table<string, string>
+---@field filenames table<string, string>
+---@field patterns ProjectPatternAssociation[]
 
 ---@class ProjectEditorLanguageSettings
 ---@field insert_spaces? boolean
@@ -24,13 +29,17 @@ local VSCODE_SETTINGS = '.vscode/settings.json'
 ---@field encoding? string
 
 ---@class ProjectEditorSettings
----@field associations ProjectAssociation[]
+---@field associations ProjectEditorAssociations
 ---@field languages table<string, ProjectEditorLanguageSettings>
 
 ---@type table<string, ProjectEditorSettings>
 local editor_cache = {}
 ---@type table<string, table<string, boolean>>
 local filetype_patterns_by_root = {}
+---@type table<string, boolean>
+local filetype_extensions = {}
+---@type table<string, boolean>
+local filetype_filenames = {}
 ---@type table<integer, string>
 local fileencodings_stack = {}
 
@@ -90,6 +99,42 @@ end
 ---@return string
 local function escape_lua_pattern(text)
   return (normalize_path(text):gsub('([%^%$%(%)%%%.%[%]%+%-%?])', '%%%1'))
+end
+
+---@param glob string
+---@return string|nil
+local function simple_extension_key(glob)
+  glob = normalize_path(glob)
+  if glob:find('/') ~= nil or not glob:match('^%*%.') then
+    return nil
+  end
+
+  local extension = glob:sub(3)
+  if extension == '' or extension:find('%.') ~= nil or extension:find('[%*%?]') ~= nil then
+    return nil
+  end
+
+  return extension
+end
+
+---@param glob string
+---@return string|nil
+local function simple_filename_key(glob)
+  glob = normalize_path(glob)
+  if glob == '' or glob:find('/') ~= nil or glob:find('[%*%?]') ~= nil then
+    return nil
+  end
+
+  return glob
+end
+
+---@return ProjectEditorAssociations
+local function empty_associations()
+  return {
+    extensions = {},
+    filenames = {},
+    patterns = {},
+  }
 end
 
 ---@param glob string
@@ -164,30 +209,43 @@ local function merge_language_settings(languages, filetype)
 end
 
 ---@param raw table
----@return ProjectAssociation[]
+---@return ProjectEditorAssociations
 local function parse_associations(raw)
-  local associations = {}
+  local associations = empty_associations()
 
   if type(raw) ~= 'table' then
     warn_ignored('files.associations')
     return associations
   end
 
+  -- Only lower exact `*.ext` and exact basename entries into Neovim's
+  -- extension/filename tables. Anything path-sensitive or glob-like stays on
+  -- the pattern path so the root-aware matcher keeps the original behavior.
   for _, pattern in ipairs(common.sorted_keys(raw)) do
     local filetype = raw[pattern]
     if type(filetype) == 'string' and filetype ~= '' then
-      table.insert(associations, {
-        filetype = filetype,
-        has_slash = normalize_path(pattern):find('/') ~= nil,
-        path_pattern = glob_to_lua_pattern(pattern, false),
-        raw = pattern,
-      })
+      local normalized = normalize_path(pattern)
+      local extension = simple_extension_key(normalized)
+      local filename = extension == nil and simple_filename_key(normalized) or nil
+
+      if extension then
+        associations.extensions[extension] = filetype
+      elseif filename then
+        associations.filenames[filename] = filetype
+      else
+        table.insert(associations.patterns, {
+          filetype = filetype,
+          has_slash = normalized:find('/') ~= nil,
+          path_pattern = glob_to_lua_pattern(normalized, false),
+          raw = normalized,
+        })
+      end
     else
       warn_ignored(('files.associations.%s'):format(pattern))
     end
   end
 
-  table.sort(associations, function(left, right)
+  table.sort(associations.patterns, function(left, right)
     if #left.raw == #right.raw then
       return left.raw > right.raw
     end
@@ -254,7 +312,7 @@ local function load_editor_settings(root)
 
   local raw = project_json.read_json(root, VSCODE_SETTINGS)
   local editor = {
-    associations = {},
+    associations = empty_associations(),
     languages = {},
   }
 
@@ -270,6 +328,60 @@ local function load_editor_settings(root)
   return editor
 end
 
+---@param path string
+---@param resolver fun(associations: ProjectEditorAssociations): string|nil
+---@return string|nil
+local function resolve_filetype_for_path(path, resolver)
+  local root = project_json.find_root_for_path(path)
+  if not root then
+    return nil
+  end
+
+  return resolver(load_editor_settings(root).associations)
+end
+
+---@param extensions table<string, string>
+local function register_filetype_extensions(extensions)
+  local mapping = {}
+
+  for extension in pairs(extensions) do
+    if not filetype_extensions[extension] then
+      filetype_extensions[extension] = true
+      mapping[extension] = function(path)
+        return resolve_filetype_for_path(path, function(associations)
+          return associations.extensions[extension]
+        end)
+      end
+    end
+  end
+
+  if next(mapping) ~= nil then
+    -- Simple `*.ext` rules can use Neovim's extension dispatch as long as the
+    -- function re-checks the current project root before returning a filetype.
+    vim.filetype.add({ extension = mapping })
+  end
+end
+
+---@param filenames table<string, string>
+local function register_filetype_filenames(filenames)
+  local mapping = {}
+
+  for filename in pairs(filenames) do
+    if not filetype_filenames[filename] then
+      filetype_filenames[filename] = true
+      mapping[filename] = function(path)
+        return resolve_filetype_for_path(path, function(associations)
+          return associations.filenames[filename]
+        end)
+      end
+    end
+  end
+
+  if next(mapping) ~= nil then
+    vim.filetype.add({ filename = mapping })
+  end
+end
+
 ---@param root string
 ---@return table<string, { [1]: string, [2]: { priority: integer } }>
 local function build_filetype_patterns(root)
@@ -277,7 +389,7 @@ local function build_filetype_patterns(root)
   local patterns = {}
   local root_pattern = escape_lua_pattern(root)
 
-  for _, association in ipairs(editor.associations) do
+  for _, association in ipairs(editor.associations.patterns) do
     local value = { association.filetype, { priority = 1000 + #association.raw } }
     local path_pattern = root_pattern .. '/' .. association.path_pattern
 
@@ -323,13 +435,16 @@ local function register_filetype_patterns(root)
 end
 
 ---@param path string
-local function ensure_filetype_patterns_for_path(path)
+local function ensure_filetype_mappings_for_path(path)
   if type(path) ~= 'string' or path == '' then
     return
   end
 
   local root = project_json.find_root_for_path(path)
   if root then
+    local associations = load_editor_settings(root).associations
+    register_filetype_extensions(associations.extensions)
+    register_filetype_filenames(associations.filenames)
     register_filetype_patterns(root)
   end
 end
@@ -446,7 +561,7 @@ local function redetect_filetype(bufnr)
     return
   end
 
-  ensure_filetype_patterns_for_path(name)
+  ensure_filetype_mappings_for_path(name)
   local detected, on_detect = vim.filetype.match({ buf = bufnr, filename = name })
   if detected and detected ~= vim.bo[bufnr].filetype then
     vim.bo[bufnr].filetype = detected
@@ -456,14 +571,14 @@ local function redetect_filetype(bufnr)
   end
 end
 
-local function register_startup_filetype_patterns()
+local function register_startup_filetype_mappings()
   -- Startup filetype detection runs before later buffer events, so seed the
   -- current cwd and command-line file arguments here.
-  ensure_filetype_patterns_for_path(vim.uv.cwd() or vim.fn.getcwd())
+  ensure_filetype_mappings_for_path(vim.uv.cwd() or vim.fn.getcwd())
 
   for _, arg in ipairs(vim.fn.argv()) do
     if type(arg) == 'string' and arg ~= '' and arg ~= '-' then
-      ensure_filetype_patterns_for_path(vim.fn.fnamemodify(arg, ':p'))
+      ensure_filetype_mappings_for_path(vim.fn.fnamemodify(arg, ':p'))
     end
   end
 end
@@ -497,7 +612,7 @@ function M.setup(group)
   vim.api.nvim_create_autocmd('BufReadPre', {
     group = group,
     callback = function(args)
-      ensure_filetype_patterns_for_path(args.file)
+      ensure_filetype_mappings_for_path(args.file)
 
       local fileencodings = get_read_fileencodings(args.buf)
       if not fileencodings then
@@ -514,7 +629,7 @@ function M.setup(group)
   vim.api.nvim_create_autocmd('BufNewFile', {
     group = group,
     callback = function(args)
-      ensure_filetype_patterns_for_path(args.file)
+      ensure_filetype_mappings_for_path(args.file)
     end,
   })
 
@@ -532,7 +647,7 @@ function M.setup(group)
     end,
   })
 
-  register_startup_filetype_patterns()
+  register_startup_filetype_mappings()
 end
 
 return M
