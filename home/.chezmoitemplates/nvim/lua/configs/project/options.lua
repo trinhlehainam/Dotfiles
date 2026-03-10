@@ -187,8 +187,25 @@ local function load_filetype_settings(root)
   return filetype_settings
 end
 
+---@param root string
+---@param filetype string
+---@return ProjectFiletypeSettings|nil
+local function get_root_filetype_settings(root, filetype)
+  if type(root) ~= 'string' or root == '' or type(filetype) ~= 'string' or filetype == '' then
+    return nil
+  end
+
+  local merged = merge_filetype_settings(load_filetype_settings(root), filetype)
+  if next(merged) == nil then
+    return nil
+  end
+
+  return merged
+end
+
 ---@param bufnr integer
 ---@return ProjectFiletypeSettings|nil
+---@return string|nil
 local function get_buffer_filetype_settings(bufnr)
   local root = project_json.find_root(bufnr)
   if not root then
@@ -200,12 +217,7 @@ local function get_buffer_filetype_settings(bufnr)
     return nil
   end
 
-  local merged = merge_filetype_settings(load_filetype_settings(root), filetype)
-  if next(merged) == nil then
-    return nil
-  end
-
-  return merged
+  return get_root_filetype_settings(root, filetype), filetype
 end
 
 ---@param bufnr integer
@@ -225,6 +237,25 @@ local function reset_indent_options(bufnr, filetype)
 
   if not ok then
     error(err)
+  end
+end
+
+---@param bufnr integer
+---@param filetype string
+---@param filetype_settings ProjectFiletypeSettings
+local function apply_resolved_filetype_settings(bufnr, filetype, filetype_settings)
+  if filetype_settings.detect_indentation == false and filetype ~= '' then
+    reset_indent_options(bufnr, filetype)
+  end
+
+  if filetype_settings.insert_spaces ~= nil then
+    vim.bo[bufnr].expandtab = filetype_settings.insert_spaces
+  end
+
+  if filetype_settings.tab_size ~= nil then
+    vim.bo[bufnr].tabstop = filetype_settings.tab_size
+    vim.bo[bufnr].shiftwidth = filetype_settings.tab_size
+    vim.bo[bufnr].softtabstop = filetype_settings.tab_size
   end
 end
 
@@ -256,26 +287,28 @@ function M.apply_filetype_settings(bufnr)
     return
   end
 
-  local filetype_settings = get_buffer_filetype_settings(bufnr)
+  local filetype_settings, filetype = get_buffer_filetype_settings(bufnr)
   if not filetype_settings then
     return
   end
 
+  apply_resolved_filetype_settings(bufnr, filetype, filetype_settings)
+end
+
+---@param bufnr integer
+---@param root string
+function M.apply_filetype_settings_for_root(bufnr, root)
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    return
+  end
+
   local filetype = vim.bo[bufnr].filetype
-
-  if filetype_settings.detect_indentation == false and filetype ~= '' then
-    reset_indent_options(bufnr, filetype)
+  local filetype_settings = get_root_filetype_settings(root, filetype)
+  if not filetype_settings then
+    return
   end
 
-  if filetype_settings.insert_spaces ~= nil then
-    vim.bo[bufnr].expandtab = filetype_settings.insert_spaces
-  end
-
-  if filetype_settings.tab_size ~= nil then
-    vim.bo[bufnr].tabstop = filetype_settings.tab_size
-    vim.bo[bufnr].shiftwidth = filetype_settings.tab_size
-    vim.bo[bufnr].softtabstop = filetype_settings.tab_size
-  end
+  apply_resolved_filetype_settings(bufnr, filetype, filetype_settings)
 end
 
 function M.invalidate()

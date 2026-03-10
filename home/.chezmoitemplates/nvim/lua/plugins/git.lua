@@ -15,6 +15,7 @@ return {
     },
     config = function()
       local neogit = require('neogit')
+      local project_options = require('configs.project.options')
 
       --- @source https://github.com/NeogitOrg/neogit?tab=readme-ov-file#configuration
       neogit.setup({
@@ -90,6 +91,24 @@ return {
         end
 
         return is_sjis_fenc(vim.bo[main_buf].fileencoding)
+      end
+
+      ---@param bufnr integer
+      local function apply_diffview_project_settings(bufnr)
+        if not ok_lib then
+          return
+        end
+
+        local view = diffview_lib.get_current_view()
+        -- `ctx.toplevel` is Diffview's resolved worktree root for the current
+        -- repository. Use it instead of parsing the `diffview://` buffer name or
+        -- `ctx.dir` so project-local settings follow the real repo root.
+        local root = view and view.adapter and view.adapter.ctx and view.adapter.ctx.toplevel or nil
+        if type(root) ~= 'string' or root == '' then
+          return
+        end
+
+        project_options.apply_filetype_settings_for_root(bufnr, root)
       end
 
       -- force=true: trust SJIS signal from main buffer and decode directly.
@@ -201,6 +220,7 @@ return {
             end
 
             decode_buffer_once(bufnr, is_main_sjis())
+            apply_diffview_project_settings(bufnr)
             apply_pending_blame_jump(bufnr)
           end,
         },
