@@ -15,8 +15,8 @@ end
 function M.refresh_open_buffers()
   for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
     if buffer_utils.is_regular(bufnr) then
-      detector.redetect(bufnr)
-      options.apply(bufnr)
+      detector.redetect_filetype(bufnr)
+      options.apply_filetype_settings(bufnr)
     end
   end
 end
@@ -24,7 +24,7 @@ end
 ---@param bufnr integer
 ---@return boolean|nil
 function M.get_format_on_save(bufnr)
-  return options.get_format_on_save(bufnr)
+  return options.get_filetype_format_on_save(bufnr)
 end
 
 ---@param group integer

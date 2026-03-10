@@ -1,3 +1,5 @@
+require('configs.project.types')
+
 local buffer_utils = require('utils.buffer')
 local common = require('utils.common')
 local log = require('utils.log')
@@ -8,14 +10,8 @@ local M = {}
 local TITLE = 'project-settings'
 local VSCODE_SETTINGS = '.vscode/settings.json'
 
----@class ProjectEditorLanguageSettings
----@field insert_spaces? boolean
----@field tab_size? number
----@field detect_indentation? boolean
----@field format_on_save? boolean
-
----@type table<string, table<string, ProjectEditorLanguageSettings>>
-local language_cache = {}
+---@type table<string, ProjectFiletypeSettingsMap>
+local filetype_settings_cache = {}
 
 ---@param key string
 local function warn_ignored(key)
@@ -24,7 +20,7 @@ end
 
 ---@param filetype string
 ---@return string[]
-local function filetype_keys(filetype)
+local function expand_filetype_keys(filetype)
   if type(filetype) ~= 'string' or filetype == '' then
     return {}
   end
@@ -46,14 +42,14 @@ local function filetype_keys(filetype)
   return keys
 end
 
----@param languages table<string, ProjectEditorLanguageSettings>
+---@param filetype_settings ProjectFiletypeSettingsMap
 ---@param filetype string
----@return ProjectEditorLanguageSettings
-local function merge_language_settings(languages, filetype)
+---@return ProjectFiletypeSettings
+local function merge_filetype_settings(filetype_settings, filetype)
   local merged = {}
 
-  for _, key in ipairs(filetype_keys(filetype)) do
-    merged = vim.tbl_extend('force', merged, languages[key] or {})
+  for _, key in ipairs(expand_filetype_keys(filetype)) do
+    merged = vim.tbl_extend('force', merged, filetype_settings[key] or {})
   end
 
   return merged
@@ -61,8 +57,8 @@ end
 
 ---@param key string
 ---@param raw any
----@param languages table<string, ProjectEditorLanguageSettings>
-local function parse_language_block(key, raw, languages)
+---@param filetype_settings ProjectFiletypeSettingsMap
+local function parse_filetype_settings_block(key, raw, filetype_settings)
   if type(raw) ~= 'table' then
     warn_ignored(key)
     return
@@ -96,33 +92,34 @@ local function parse_language_block(key, raw, languages)
   end
 
   for _, filetype in ipairs(filetypes) do
-    languages[filetype] = vim.tbl_extend('force', languages[filetype] or {}, settings)
+    filetype_settings[filetype] =
+      vim.tbl_extend('force', filetype_settings[filetype] or {}, settings)
   end
 end
 
 ---@param root string
----@return table<string, ProjectEditorLanguageSettings>
-local function load_languages(root)
-  if language_cache[root] then
-    return language_cache[root]
+---@return ProjectFiletypeSettingsMap
+local function load_filetype_settings(root)
+  if filetype_settings_cache[root] then
+    return filetype_settings_cache[root]
   end
 
   local raw = project_json.read_json(root, VSCODE_SETTINGS)
-  local languages = {}
+  local filetype_settings = {}
 
   for _, key in ipairs(common.sorted_keys(raw)) do
     if key:match('^%[.+%]$') then
-      parse_language_block(key, raw[key], languages)
+      parse_filetype_settings_block(key, raw[key], filetype_settings)
     end
   end
 
-  language_cache[root] = languages
-  return languages
+  filetype_settings_cache[root] = filetype_settings
+  return filetype_settings
 end
 
 ---@param bufnr integer
----@return ProjectEditorLanguageSettings|nil
-local function get_language_settings(bufnr)
+---@return ProjectFiletypeSettings|nil
+local function get_buffer_filetype_settings(bufnr)
   local root = project_json.find_root(bufnr)
   if not root then
     return nil
@@ -133,53 +130,53 @@ local function get_language_settings(bufnr)
     return nil
   end
 
-  return merge_language_settings(load_languages(root), filetype)
+  return merge_filetype_settings(load_filetype_settings(root), filetype)
 end
 
 ---@param bufnr integer
-function M.apply(bufnr)
+function M.apply_filetype_settings(bufnr)
   if not buffer_utils.is_regular(bufnr) then
     return
   end
 
-  local settings = get_language_settings(bufnr)
-  if not settings then
+  local filetype_settings = get_buffer_filetype_settings(bufnr)
+  if not filetype_settings then
     return
   end
 
   local filetype = vim.bo[bufnr].filetype
 
-  if settings.detect_indentation == false and filetype ~= '' then
+  if filetype_settings.detect_indentation == false and filetype ~= '' then
     vim.bo[bufnr].expandtab = vim.filetype.get_option(filetype, 'expandtab')
     vim.bo[bufnr].tabstop = vim.filetype.get_option(filetype, 'tabstop')
     vim.bo[bufnr].shiftwidth = vim.filetype.get_option(filetype, 'shiftwidth')
     vim.bo[bufnr].softtabstop = vim.filetype.get_option(filetype, 'softtabstop')
   end
 
-  if settings.insert_spaces ~= nil then
-    vim.bo[bufnr].expandtab = settings.insert_spaces
+  if filetype_settings.insert_spaces ~= nil then
+    vim.bo[bufnr].expandtab = filetype_settings.insert_spaces
   end
 
-  if settings.tab_size ~= nil then
-    vim.bo[bufnr].tabstop = settings.tab_size
-    vim.bo[bufnr].shiftwidth = settings.tab_size
-    vim.bo[bufnr].softtabstop = settings.tab_size
+  if filetype_settings.tab_size ~= nil then
+    vim.bo[bufnr].tabstop = filetype_settings.tab_size
+    vim.bo[bufnr].shiftwidth = filetype_settings.tab_size
+    vim.bo[bufnr].softtabstop = filetype_settings.tab_size
   end
 end
 
 function M.invalidate()
-  language_cache = {}
+  filetype_settings_cache = {}
 end
 
 ---@param bufnr integer
 ---@return boolean|nil
-function M.get_format_on_save(bufnr)
-  local settings = get_language_settings(bufnr)
-  if not settings then
+function M.get_filetype_format_on_save(bufnr)
+  local filetype_settings = get_buffer_filetype_settings(bufnr)
+  if not filetype_settings then
     return nil
   end
 
-  return settings.format_on_save
+  return filetype_settings.format_on_save
 end
 
 ---@param group integer
@@ -189,7 +186,7 @@ function M.setup(group)
     callback = function(args)
       -- These settings are buffer-local and depend on the detected filetype,
       -- so applying them on `FileType` is sufficient.
-      M.apply(args.buf)
+      M.apply_filetype_settings(args.buf)
     end,
   })
 end

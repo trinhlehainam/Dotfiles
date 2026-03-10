@@ -1,3 +1,5 @@
+require('configs.project.types')
+
 local common = require('utils.common')
 local log = require('utils.log')
 local project_json = require('configs.project.json')
@@ -7,19 +9,8 @@ local M = {}
 local TITLE = 'project-settings'
 local VSCODE_SETTINGS = '.vscode/settings.json'
 
----@class ProjectPatternAssociation
----@field filetype string
----@field has_slash boolean
----@field path_pattern string
----@field raw string
-
----@class ProjectFiletypeAssociations
----@field extensions table<string, string>
----@field filenames table<string, string>
----@field patterns ProjectPatternAssociation[]
-
----@type table<string, ProjectFiletypeAssociations>
-local association_cache = {}
+---@type table<string, ProjectFilesAssociations>
+local files_associations_cache = {}
 ---@type table<string, table<string, boolean>>
 local filetype_patterns_by_root = {}
 ---@type table<string, boolean>
@@ -46,7 +37,7 @@ end
 
 ---@param glob string
 ---@return string|nil
-local function simple_extension_key(glob)
+local function extract_simple_extension_from_glob(glob)
   glob = normalize_path(glob)
   if glob:find('/') ~= nil or not glob:match('^%*%.') then
     return nil
@@ -62,7 +53,7 @@ end
 
 ---@param glob string
 ---@return string|nil
-local function simple_filename_key(glob)
+local function extract_simple_filename_from_glob(glob)
   glob = normalize_path(glob)
   if glob == '' or glob:find('/') ~= nil or glob:find('[%*%?]') ~= nil then
     return nil
@@ -71,8 +62,8 @@ local function simple_filename_key(glob)
   return glob
 end
 
----@return ProjectFiletypeAssociations
-local function empty_associations()
+---@return ProjectFilesAssociations
+local function empty_files_associations()
   return {
     extensions = {},
     filenames = {},
@@ -115,17 +106,17 @@ local function glob_to_lua_pattern(glob, anchored)
 end
 
 ---@param raw any
----@return ProjectFiletypeAssociations
-local function parse_associations(raw)
-  local associations = empty_associations()
+---@return ProjectFilesAssociations
+local function parse_files_associations(raw)
+  local files_associations = empty_files_associations()
 
   if raw == nil then
-    return associations
+    return files_associations
   end
 
   if type(raw) ~= 'table' then
     warn_ignored('files.associations')
-    return associations
+    return files_associations
   end
 
   -- Lower exact `*.ext` and exact basename entries into Neovim's fast
@@ -135,15 +126,15 @@ local function parse_associations(raw)
     local filetype = raw[pattern]
     if type(filetype) == 'string' and filetype ~= '' then
       local normalized = normalize_path(pattern)
-      local extension = simple_extension_key(normalized)
-      local filename = extension == nil and simple_filename_key(normalized) or nil
+      local extension = extract_simple_extension_from_glob(normalized)
+      local filename = extension == nil and extract_simple_filename_from_glob(normalized) or nil
 
       if extension then
-        associations.extensions[extension] = filetype
+        files_associations.extensions[extension] = filetype
       elseif filename then
-        associations.filenames[filename] = filetype
+        files_associations.filenames[filename] = filetype
       else
-        table.insert(associations.patterns, {
+        table.insert(files_associations.patterns, {
           filetype = filetype,
           has_slash = normalized:find('/') ~= nil,
           path_pattern = glob_to_lua_pattern(normalized, false),
@@ -155,7 +146,7 @@ local function parse_associations(raw)
     end
   end
 
-  table.sort(associations.patterns, function(left, right)
+  table.sort(files_associations.patterns, function(left, right)
     if #left.raw == #right.raw then
       return left.raw > right.raw
     end
@@ -163,44 +154,44 @@ local function parse_associations(raw)
     return #left.raw > #right.raw
   end)
 
-  return associations
+  return files_associations
 end
 
 ---@param root string
----@return ProjectFiletypeAssociations
-local function load_associations(root)
-  if association_cache[root] then
-    return association_cache[root]
+---@return ProjectFilesAssociations
+local function load_files_associations(root)
+  if files_associations_cache[root] then
+    return files_associations_cache[root]
   end
 
   local raw = project_json.read_json(root, VSCODE_SETTINGS)
-  local associations = parse_associations(raw['files.associations'])
-  association_cache[root] = associations
-  return associations
+  local files_associations = parse_files_associations(raw['files.associations'])
+  files_associations_cache[root] = files_associations
+  return files_associations
 end
 
 ---@param path string
----@param resolver fun(associations: ProjectFiletypeAssociations): string|nil
+---@param resolver fun(files_associations: ProjectFilesAssociations): string|nil
 ---@return string|nil
-local function resolve_filetype_for_path(path, resolver)
+local function resolve_filetype_from_files_associations(path, resolver)
   local root = project_json.find_root_for_path(path)
   if not root then
     return nil
   end
 
-  return resolver(load_associations(root))
+  return resolver(load_files_associations(root))
 end
 
 ---@param extensions table<string, string>
-local function register_filetype_extensions(extensions)
+local function register_extension_filetypes(extensions)
   local mapping = {}
 
   for extension in pairs(extensions) do
     if not filetype_extensions[extension] then
       filetype_extensions[extension] = true
       mapping[extension] = function(path)
-        return resolve_filetype_for_path(path, function(associations)
-          return associations.extensions[extension]
+        return resolve_filetype_from_files_associations(path, function(files_associations)
+          return files_associations.extensions[extension]
         end)
       end
     end
@@ -214,15 +205,15 @@ local function register_filetype_extensions(extensions)
 end
 
 ---@param filenames table<string, string>
-local function register_filetype_filenames(filenames)
+local function register_filename_filetypes(filenames)
   local mapping = {}
 
   for filename in pairs(filenames) do
     if not filetype_filenames[filename] then
       filetype_filenames[filename] = true
       mapping[filename] = function(path)
-        return resolve_filetype_for_path(path, function(associations)
-          return associations.filenames[filename]
+        return resolve_filetype_from_files_associations(path, function(files_associations)
+          return files_associations.filenames[filename]
         end)
       end
     end
@@ -234,13 +225,13 @@ local function register_filetype_filenames(filenames)
 end
 
 ---@param root string
----@return table<string, { [1]: string, [2]: { priority: integer } }>
-local function build_filetype_patterns(root)
-  local associations = load_associations(root)
+---@return table<string, vim.filetype.mapping> }>
+local function build_pattern_filetypes(root)
+  local files_associations = load_files_associations(root)
   local patterns = {}
   local root_pattern = escape_lua_pattern(root)
 
-  for _, association in ipairs(associations.patterns) do
+  for _, association in ipairs(files_associations.patterns) do
     local value = { association.filetype, { priority = 1000 + #association.raw } }
     local path_pattern = root_pattern .. '/' .. association.path_pattern
 
@@ -255,12 +246,12 @@ local function build_filetype_patterns(root)
 end
 
 ---@param root string
-local function register_filetype_patterns(root)
+local function register_pattern_filetypes(root)
   if type(root) ~= 'string' or root == '' then
     return
   end
 
-  local current = build_filetype_patterns(root)
+  local current = build_pattern_filetypes(root)
   local previous = filetype_patterns_by_root[root] or {}
   local patterns = vim.deepcopy(current)
 
@@ -286,7 +277,7 @@ local function register_filetype_patterns(root)
 end
 
 ---@param path string
-function M.ensure_for_path(path)
+function M.ensure_filetype_detection_for_path(path)
   if type(path) ~= 'string' or path == '' then
     return
   end
@@ -296,20 +287,20 @@ function M.ensure_for_path(path)
     return
   end
 
-  local associations = load_associations(root)
-  register_filetype_extensions(associations.extensions)
-  register_filetype_filenames(associations.filenames)
-  register_filetype_patterns(root)
+  local files_associations = load_files_associations(root)
+  register_extension_filetypes(files_associations.extensions)
+  register_filename_filetypes(files_associations.filenames)
+  register_pattern_filetypes(root)
 end
 
 ---@param bufnr integer
-function M.redetect(bufnr)
+function M.redetect_filetype(bufnr)
   local name = vim.api.nvim_buf_get_name(bufnr)
   if name == '' then
     return
   end
 
-  M.ensure_for_path(name)
+  M.ensure_filetype_detection_for_path(name)
 
   local detected, on_detect = vim.filetype.match({ buf = bufnr, filename = name })
   if detected and detected ~= vim.bo[bufnr].filetype then
@@ -320,39 +311,39 @@ function M.redetect(bufnr)
   end
 end
 
-local function register_startup_mappings()
+local function register_startup_filetype_detection()
   -- Startup file detection happens before later buffer events, so seed the
   -- cwd and CLI file arguments up front.
-  M.ensure_for_path(vim.uv.cwd() or vim.fn.getcwd())
+  M.ensure_filetype_detection_for_path(vim.uv.cwd() or vim.fn.getcwd())
 
   for _, arg in ipairs(vim.fn.argv()) do
     if type(arg) == 'string' and arg ~= '' and arg ~= '-' then
-      M.ensure_for_path(vim.fn.fnamemodify(arg, ':p'))
+      M.ensure_filetype_detection_for_path(vim.fn.fnamemodify(arg, ':p'))
     end
   end
 end
 
 function M.invalidate()
-  association_cache = {}
+  files_associations_cache = {}
+end
+
+local function ensure_path_filetype_detection(args)
+  M.ensure_filetype_detection_for_path(args.file)
 end
 
 ---@param group integer
 function M.setup(group)
   vim.api.nvim_create_autocmd('BufReadPre', {
     group = group,
-    callback = function(args)
-      M.ensure_for_path(args.file)
-    end,
+    callback = ensure_path_filetype_detection,
   })
 
   vim.api.nvim_create_autocmd('BufNewFile', {
     group = group,
-    callback = function(args)
-      M.ensure_for_path(args.file)
-    end,
+    callback = ensure_path_filetype_detection,
   })
 
-  register_startup_mappings()
+  register_startup_filetype_detection()
 end
 
 return M
