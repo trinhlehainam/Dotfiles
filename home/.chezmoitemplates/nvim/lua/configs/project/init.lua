@@ -48,4 +48,6 @@ M.get_editor_format_on_save = editor.get_format_on_save
 M.get_tooling_format_on_save = tooling.get_format_on_save
 M.get_tooling_lint_on_save = tooling.get_lint_on_save
 
+M.setup()
+
 return M
