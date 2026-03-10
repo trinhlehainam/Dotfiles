@@ -12,6 +12,13 @@ local VSCODE_SETTINGS = '.vscode/settings.json'
 
 ---@type table<string, ProjectFiletypeSettingsMap>
 local filetype_settings_cache = {}
+---@type table<string, table<string, boolean>>
+local filetype_patterns_by_root = {}
+---@type integer|nil
+local filetype_autocmd_id
+---@type integer|nil
+local options_group
+local suspend_filetype_apply = false
 
 ---@param key string
 local function warn_ignored(key)
@@ -40,6 +47,68 @@ local function expand_filetype_keys(filetype)
   end
 
   return keys
+end
+
+---@param patterns table<string, boolean>
+---@return string[]
+local function sorted_patterns(patterns)
+  local items = {}
+
+  for pattern in pairs(patterns) do
+    table.insert(items, pattern)
+  end
+
+  table.sort(items)
+  return items
+end
+
+local function refresh_filetype_autocmd()
+  if filetype_autocmd_id then
+    pcall(vim.api.nvim_del_autocmd, filetype_autocmd_id)
+    filetype_autocmd_id = nil
+  end
+
+  if not options_group then
+    return
+  end
+
+  local active_patterns = {}
+  for _, patterns in pairs(filetype_patterns_by_root) do
+    for pattern in pairs(patterns) do
+      active_patterns[pattern] = true
+    end
+  end
+
+  local pattern = sorted_patterns(active_patterns)
+  if #pattern == 0 then
+    return
+  end
+
+  filetype_autocmd_id = vim.api.nvim_create_autocmd('FileType', {
+    group = options_group,
+    pattern = pattern,
+    callback = function(args)
+      if suspend_filetype_apply then
+        return
+      end
+
+      -- These settings are buffer-local and depend on the detected filetype.
+      M.apply_filetype_settings(args.buf)
+    end,
+  })
+end
+
+---@param root string
+---@param filetype_settings ProjectFiletypeSettingsMap
+local function sync_root_filetype_patterns(root, filetype_settings)
+  local patterns = {}
+
+  for filetype in pairs(filetype_settings) do
+    patterns[filetype] = true
+  end
+
+  filetype_patterns_by_root[root] = patterns
+  refresh_filetype_autocmd()
 end
 
 ---@param filetype_settings ProjectFiletypeSettingsMap
@@ -114,6 +183,7 @@ local function load_filetype_settings(root)
   end
 
   filetype_settings_cache[root] = filetype_settings
+  sync_root_filetype_patterns(root, filetype_settings)
   return filetype_settings
 end
 
@@ -130,7 +200,54 @@ local function get_buffer_filetype_settings(bufnr)
     return nil
   end
 
-  return merge_filetype_settings(load_filetype_settings(root), filetype)
+  local merged = merge_filetype_settings(load_filetype_settings(root), filetype)
+  if next(merged) == nil then
+    return nil
+  end
+
+  return merged
+end
+
+---@param bufnr integer
+---@param filetype string
+local function reset_indent_options(bufnr, filetype)
+  -- `vim.filetype.get_option()` caches the result after triggering `FileType`
+  -- once, so suppress this module's project-local callback during the lookup to
+  -- avoid polluting the global cache with root-specific values.
+  suspend_filetype_apply = true
+  local ok, err = xpcall(function()
+    vim.bo[bufnr].expandtab = vim.filetype.get_option(filetype, 'expandtab')
+    vim.bo[bufnr].tabstop = vim.filetype.get_option(filetype, 'tabstop')
+    vim.bo[bufnr].shiftwidth = vim.filetype.get_option(filetype, 'shiftwidth')
+    vim.bo[bufnr].softtabstop = vim.filetype.get_option(filetype, 'softtabstop')
+  end, debug.traceback)
+  suspend_filetype_apply = false
+
+  if not ok then
+    error(err)
+  end
+end
+
+local function register_startup_filetype_patterns()
+  local seen_roots = {}
+
+  local function load_from_path(path)
+    local root = project_json.find_root_for_path(path)
+    if not root or seen_roots[root] then
+      return
+    end
+
+    seen_roots[root] = true
+    load_filetype_settings(root)
+  end
+
+  load_from_path(vim.uv.cwd() or vim.fn.getcwd())
+
+  for _, arg in ipairs(vim.fn.argv()) do
+    if type(arg) == 'string' and arg ~= '' and arg ~= '-' then
+      load_from_path(vim.fn.fnamemodify(arg, ':p'))
+    end
+  end
 end
 
 ---@param bufnr integer
@@ -147,10 +264,7 @@ function M.apply_filetype_settings(bufnr)
   local filetype = vim.bo[bufnr].filetype
 
   if filetype_settings.detect_indentation == false and filetype ~= '' then
-    vim.bo[bufnr].expandtab = vim.filetype.get_option(filetype, 'expandtab')
-    vim.bo[bufnr].tabstop = vim.filetype.get_option(filetype, 'tabstop')
-    vim.bo[bufnr].shiftwidth = vim.filetype.get_option(filetype, 'shiftwidth')
-    vim.bo[bufnr].softtabstop = vim.filetype.get_option(filetype, 'softtabstop')
+    reset_indent_options(bufnr, filetype)
   end
 
   if filetype_settings.insert_spaces ~= nil then
@@ -166,6 +280,8 @@ end
 
 function M.invalidate()
   filetype_settings_cache = {}
+  filetype_patterns_by_root = {}
+  refresh_filetype_autocmd()
 end
 
 ---@param bufnr integer
@@ -181,14 +297,10 @@ end
 
 ---@param group integer
 function M.setup(group)
-  vim.api.nvim_create_autocmd('FileType', {
-    group = group,
-    callback = function(args)
-      -- These settings are buffer-local and depend on the detected filetype,
-      -- so applying them on `FileType` is sufficient.
-      M.apply_filetype_settings(args.buf)
-    end,
-  })
+  options_group = group
+
+  register_startup_filetype_patterns()
+  refresh_filetype_autocmd()
 end
 
 return M
