@@ -271,7 +271,10 @@ local function update_buffer_filetype_state(bufnr)
   end
 
   local project_filetype = resolve_project_filetype(name)
-  set_filetype_managed(bufnr, project_filetype ~= nil and project_filetype == vim.bo[bufnr].filetype)
+  set_filetype_managed(
+    bufnr,
+    project_filetype ~= nil and project_filetype == vim.bo[bufnr].filetype
+  )
 end
 
 ---@param path string
@@ -290,7 +293,12 @@ end
 ---@param association_key 'extensions'|'filenames'
 ---@param seen_entries table<string, boolean>
 ---@param files_associations ProjectFilesAssociations
-local function register_literal_filetypes(vim_filetype_key, association_key, seen_entries, files_associations)
+local function register_literal_filetypes(
+  vim_filetype_key,
+  association_key,
+  seen_entries,
+  files_associations
+)
   local mapping = {}
 
   for key in pairs(files_associations[association_key]) do
@@ -407,7 +415,10 @@ function M.redetect_filetype(bufnr)
     vim.bo[bufnr].filetype = ''
   end
 
-  set_filetype_managed(bufnr, detected ~= nil and project_filetype ~= nil and detected == project_filetype)
+  set_filetype_managed(
+    bufnr,
+    detected ~= nil and project_filetype ~= nil and detected == project_filetype
+  )
 end
 
 function M.invalidate()

@@ -1,7 +1,8 @@
 local init_path = vim.fn.fnamemodify(debug.getinfo(1, 'S').source:sub(2), ':p')
 local test_root = vim.fn.fnamemodify(init_path, ':h')
 local repo_root = vim.fn.fnamemodify(test_root, ':h:h')
-local plenary_dir = vim.env.PLENARY_DIR ~= '' and vim.env.PLENARY_DIR or (vim.fn.stdpath('data') .. '/lazy/plenary.nvim')
+local plenary_dir = vim.env.PLENARY_DIR ~= '' and vim.env.PLENARY_DIR
+  or (vim.fn.stdpath('data') .. '/lazy/plenary.nvim')
 local codesettings_dir = vim.env.CODESETTINGS_DIR ~= '' and vim.env.CODESETTINGS_DIR
   or (vim.fn.stdpath('data') .. '/lazy/codesettings.nvim')
 

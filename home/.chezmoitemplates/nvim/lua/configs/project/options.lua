@@ -161,7 +161,12 @@ local function parse_filetype_settings_block(filetype, raw, filetype_settings)
   local has_editor_keys = type(raw.editor) == 'table'
   if not has_editor_keys then
     for key in pairs(editor_settings) do
-      if key == 'editor.insertSpaces' or key == 'editor.tabSize' or key == 'editor.detectIndentation' or key == 'editor.formatOnSave' then
+      if
+        key == 'editor.insertSpaces'
+        or key == 'editor.tabSize'
+        or key == 'editor.detectIndentation'
+        or key == 'editor.formatOnSave'
+      then
         has_editor_keys = true
         break
       end
@@ -176,16 +181,24 @@ local function parse_filetype_settings_block(filetype, raw, filetype_settings)
   for _, nested_key in ipairs(common.sorted_keys(editor_settings)) do
     local value = editor_settings[nested_key]
 
-    if (nested_key == 'insertSpaces' or nested_key == 'editor.insertSpaces') and type(value) == 'boolean' then
+    if
+      (nested_key == 'insertSpaces' or nested_key == 'editor.insertSpaces')
+      and type(value) == 'boolean'
+    then
       settings.insert_spaces = value
-    elseif (nested_key == 'tabSize' or nested_key == 'editor.tabSize') and type(value) == 'number' then
+    elseif
+      (nested_key == 'tabSize' or nested_key == 'editor.tabSize') and type(value) == 'number'
+    then
       settings.tab_size = value
     elseif
       (nested_key == 'detectIndentation' or nested_key == 'editor.detectIndentation')
       and type(value) == 'boolean'
     then
       settings.detect_indentation = value
-    elseif (nested_key == 'formatOnSave' or nested_key == 'editor.formatOnSave') and type(value) == 'boolean' then
+    elseif
+      (nested_key == 'formatOnSave' or nested_key == 'editor.formatOnSave')
+      and type(value) == 'boolean'
+    then
       settings.format_on_save = value
     elseif type(raw.editor) == 'table' then
       warn_ignored(('%s.editor.%s'):format(filetype, nested_key))
@@ -193,7 +206,8 @@ local function parse_filetype_settings_block(filetype, raw, filetype_settings)
   end
 
   if next(settings) ~= nil then
-    filetype_settings[filetype] = vim.tbl_extend('force', filetype_settings[filetype] or {}, settings)
+    filetype_settings[filetype] =
+      vim.tbl_extend('force', filetype_settings[filetype] or {}, settings)
   end
 end
 

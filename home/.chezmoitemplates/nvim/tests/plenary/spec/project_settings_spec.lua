@@ -36,7 +36,11 @@ describe('project settings regression', function()
     }
 
     h.wait_for_filetype(bufnr, 'php', 'php filetype should be detected')
-    h.wait_for_indent(bufnr, expected, 'project settings should win after BufReadPost indentation changes')
+    h.wait_for_indent(
+      bufnr,
+      expected,
+      'project settings should win after BufReadPost indentation changes'
+    )
 
     assert.same(expected, h.read_indent(bufnr))
   end)
@@ -63,7 +67,11 @@ describe('project settings regression', function()
     }
 
     h.wait_for_filetype(bufnr, 'php', 'later-opened root should still detect php')
-    h.wait_for_indent(bufnr, expected, 'later-opened root should apply project indentation on first open')
+    h.wait_for_indent(
+      bufnr,
+      expected,
+      'later-opened root should apply project indentation on first open'
+    )
 
     assert.same(expected, h.read_indent(bufnr))
   end)
@@ -105,7 +113,7 @@ describe('project settings regression', function()
     })
 
     local file = h.join(root, 'reset.php')
-    h.write_file(file, "<?php\n\treturn 1;\n")
+    h.write_file(file, '<?php\n\treturn 1;\n')
 
     local bufnr = h.edit(file)
     local overridden = {
@@ -115,13 +123,21 @@ describe('project settings regression', function()
       softtabstop = 8,
     }
 
-    h.wait_for_indent(bufnr, overridden, 'project-local indent override should apply before reload reset')
+    h.wait_for_indent(
+      bufnr,
+      overridden,
+      'project-local indent override should apply before reload reset'
+    )
     assert.same(overridden, h.read_indent(bufnr))
 
     h.write_json(settings, {})
     h.reload()
 
-    h.wait_for_indent(bufnr, defaults, 'reload should restore default php indentation after removing project override')
+    h.wait_for_indent(
+      bufnr,
+      defaults,
+      'reload should restore default php indentation after removing project override'
+    )
     assert.same(defaults, h.read_indent(bufnr))
   end)
 
@@ -158,7 +174,11 @@ describe('project settings regression', function()
     h.write_file(file, "<?php\n  echo 'manual';\n")
 
     local bufnr = h.edit(file)
-    h.wait_for_filetype(bufnr, 'php', 'php filetype should be detected before manual indent override')
+    h.wait_for_filetype(
+      bufnr,
+      'php',
+      'php filetype should be detected before manual indent override'
+    )
 
     local manual = {
       expandtab = false,
@@ -186,14 +206,17 @@ describe('project settings regression', function()
     local root = h.mktemp_root(base, 'jsonc-line-comments-root')
     local settings = h.join(root, '.vscode', 'settings.json')
 
-    write_vscode_settings(settings, [[
+    write_vscode_settings(
+      settings,
+      [[
 {
   // Project-local association should survive JSONC comments.
   "files.associations": {
     "*.foojsonc": "php"
   }
 }
-]])
+]]
+    )
 
     local file = h.join(root, 'sample.foojsonc')
     h.write_file(file, "<?php\n  echo 'jsonc';\n")
@@ -207,7 +230,9 @@ describe('project settings regression', function()
     local root = h.mktemp_root(base, 'jsonc-block-comments-root')
     local settings = h.join(root, '.vscode', 'settings.json')
 
-    write_vscode_settings(settings, [[
+    write_vscode_settings(
+      settings,
+      [[
 {
   /* Project-local indentation should survive block comments. */
   "[php]": {
@@ -216,7 +241,8 @@ describe('project settings regression', function()
     "editor.detectIndentation": false
   }
 }
-]])
+]]
+    )
 
     local file = h.join(root, 'sample.php')
     h.write_file(file, "<?php\n    echo 'jsonc';\n")
@@ -238,7 +264,9 @@ describe('project settings regression', function()
     local root = h.mktemp_root(base, 'jsonc-trailing-commas-root')
     local settings = h.join(root, '.vscode', 'settings.json')
 
-    write_vscode_settings(settings, [[
+    write_vscode_settings(
+      settings,
+      [[
 {
   "files.associations": {
     "*.trailjsonc": "php",
@@ -249,7 +277,8 @@ describe('project settings regression', function()
     "editor.detectIndentation": false,
   },
 }
-]])
+]]
+    )
 
     local file = h.join(root, 'sample.trailjsonc')
     h.write_file(file, "<?php\n\techo 'trail';\n")
@@ -271,7 +300,9 @@ describe('project settings regression', function()
     local root = h.mktemp_root(base, 'jsonc-string-root')
     local settings = h.join(root, '.vscode', 'settings.json')
 
-    write_vscode_settings(settings, [[
+    write_vscode_settings(
+      settings,
+      [[
 {
   "projectSettingsUrl": "http://example.com//still-a-string",
   "files.associations": {
@@ -283,7 +314,8 @@ describe('project settings regression', function()
     "editor.detectIndentation": false
   }
 }
-]])
+]]
+    )
 
     local file = h.join(root, 'sample.stringjsonc')
     h.write_file(file, "<?php\n  echo 'string';\n")
@@ -297,7 +329,11 @@ describe('project settings regression', function()
     }
 
     h.wait_for_filetype(bufnr, 'php', 'comment-like text inside strings must not break decoding')
-    h.wait_for_indent(bufnr, expected, 'comment-like text inside strings must not disable editor settings')
+    h.wait_for_indent(
+      bufnr,
+      expected,
+      'comment-like text inside strings must not disable editor settings'
+    )
     assert.same(expected, h.read_indent(bufnr))
   end)
 
@@ -445,5 +481,83 @@ describe('project settings regression', function()
     if not ok then
       error(err)
     end
+  end)
+
+  it('loads startup-root project settings through init without codesettings warning', function()
+    local root = h.mktemp_root(base, 'startup-order-root')
+    local settings = h.join(root, '.vscode', 'settings.json')
+    local file = h.join(root, 'sample.startupcheck')
+    local repo = vim.g.project_settings_test_repo_root
+    local lazy_dir = vim.fn.stdpath('data') .. '/lazy/lazy.nvim'
+    local codesettings_dir = vim.g.project_settings_test_codesettings_dir
+
+    h.write_json(settings, {
+      ['files.associations'] = {
+        ['*.startupcheck'] = 'php',
+      },
+    })
+    h.write_file(file, "<?php\n  echo 'startup';\n")
+
+    local child_init = string.format(
+      [[
+local repo = %q
+local lazy_dir = %q
+local codesettings_dir = %q
+local file = %q
+
+vim.cmd('cd ' .. vim.fn.fnameescape(%q))
+vim.opt.runtimepath:prepend(repo)
+vim.opt.runtimepath:prepend(lazy_dir)
+require('configs.bootstrap').setup({
+  lazy = {
+    specs = {
+      {
+        dir = codesettings_dir,
+        name = 'codesettings.nvim',
+        lazy = false,
+        opts = {
+          config_file_paths = { '.vscode/settings.json' },
+          live_reload = false,
+          jsonls_integration = false,
+          lua_ls_integration = false,
+          root_dir = function()
+            return require('configs.project.json').find_root(0)
+          end,
+        },
+        config = function(_, opts)
+          require('codesettings').setup(opts)
+        end,
+      },
+    },
+  },
+})
+vim.cmd('edit ' .. vim.fn.fnameescape(file))
+
+local ok = vim.wait(1000, function()
+  return vim.bo.filetype == 'php'
+end, 10, false)
+if not ok then
+  error('startup root did not apply file association: ' .. vim.bo.filetype)
+end
+
+local messages = vim.api.nvim_exec2('messages', { output = true }).output
+if messages:find('codesettings%%.nvim is unavailable') then
+  error('unexpected startup warning: ' .. messages)
+end
+]],
+      repo,
+      lazy_dir,
+      codesettings_dir,
+      file,
+      root
+    )
+
+    local result = h.run_child_nvim({
+      cwd = root,
+      init = child_init,
+      args = { '+qa!' },
+    })
+
+    assert.equals(0, result.code, result.stderr ~= '' and result.stderr or result.stdout)
   end)
 end)

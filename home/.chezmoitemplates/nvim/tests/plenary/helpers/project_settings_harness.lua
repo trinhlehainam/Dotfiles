@@ -113,6 +113,47 @@ function M.write_json(path, value)
   write_file(path, vim.json.encode(value))
 end
 
+---@param opts { cwd?: string, init: string, args?: string[], env?: table<string, string> }
+---@return { code: integer, signal: integer, stdout: string, stderr: string }
+function M.run_child_nvim(opts)
+  assert(type(opts) == 'table', 'opts must be a table')
+  assert(type(opts.init) == 'string' and opts.init ~= '', 'opts.init must be a non-empty string')
+
+  local temp_root = join(vim.fn.tempname(), 'project-settings-child')
+  local cache_dir = join(temp_root, 'cache')
+  local state_dir = join(temp_root, 'state')
+  local init_path = join(temp_root, 'child_init.lua')
+
+  ensure_dir(cache_dir)
+  ensure_dir(state_dir)
+  write_file(init_path, opts.init)
+
+  local env = vim.tbl_extend('force', vim.fn.environ(), {
+    XDG_CACHE_HOME = cache_dir,
+    XDG_STATE_HOME = state_dir,
+  }, opts.env or {})
+
+  local command = { 'nvim', '--headless', '--noplugin', '-u', init_path }
+  for _, arg in ipairs(opts.args or {}) do
+    table.insert(command, arg)
+  end
+
+  local result = vim
+    .system(command, {
+      cwd = opts.cwd,
+      env = env,
+      text = true,
+    })
+    :wait()
+
+  return {
+    code = result.code,
+    signal = result.signal,
+    stdout = result.stdout or '',
+    stderr = result.stderr or '',
+  }
+end
+
 function M.edit(path)
   vim.cmd('edit ' .. vim.fn.fnameescape(path))
   return vim.api.nvim_get_current_buf()

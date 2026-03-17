@@ -54,8 +54,7 @@ local function load_settings(root)
         TITLE
       )
     end
-    settings_cache[root] = {}
-    return settings_cache[root]
+    return {}
   end
 
   local ok_settings, settings = pcall(function()
@@ -66,10 +65,7 @@ local function load_settings(root)
   end)
 
   if not ok_settings then
-    log.warn(
-      ('Invalid JSON in %s: %s'):format(path, tostring(settings)),
-      TITLE
-    )
+    log.warn(('Invalid JSON in %s: %s'):format(path, tostring(settings)), TITLE)
     settings_cache[root] = {}
     return settings_cache[root]
   end
