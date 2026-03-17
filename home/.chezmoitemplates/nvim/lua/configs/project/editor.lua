@@ -1,6 +1,7 @@
 local buffer_utils = require('utils.buffer')
 local detector = require('configs.project.detector')
 local options = require('configs.project.options')
+local vscode_settings = require('configs.project.vscode_settings')
 
 local M = {}
 
@@ -8,6 +9,7 @@ local M = {}
 -- not need to know about the detector/options split.
 
 function M.invalidate()
+  vscode_settings.invalidate()
   detector.invalidate()
   options.invalidate()
 end

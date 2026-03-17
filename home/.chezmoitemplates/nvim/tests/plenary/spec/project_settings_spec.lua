@@ -2,6 +2,10 @@ local h = require('project_settings_harness')
 
 h.setup()
 
+local function write_vscode_settings(path, content)
+  h.write_file(path, content)
+end
+
 describe('project settings regression', function()
   local base
 
@@ -176,5 +180,270 @@ describe('project settings regression', function()
     h.reload()
 
     assert.same(manual, h.read_indent(bufnr))
+  end)
+
+  it('parses JSONC line comments for project file associations', function()
+    local root = h.mktemp_root(base, 'jsonc-line-comments-root')
+    local settings = h.join(root, '.vscode', 'settings.json')
+
+    write_vscode_settings(settings, [[
+{
+  // Project-local association should survive JSONC comments.
+  "files.associations": {
+    "*.foojsonc": "php"
+  }
+}
+]])
+
+    local file = h.join(root, 'sample.foojsonc')
+    h.write_file(file, "<?php\n  echo 'jsonc';\n")
+
+    local bufnr = h.edit(file)
+    h.wait_for_filetype(bufnr, 'php', 'JSONC comments should not disable project file associations')
+    assert.equals('php', vim.bo[bufnr].filetype)
+  end)
+
+  it('parses JSONC block comments for per-filetype editor settings', function()
+    local root = h.mktemp_root(base, 'jsonc-block-comments-root')
+    local settings = h.join(root, '.vscode', 'settings.json')
+
+    write_vscode_settings(settings, [[
+{
+  /* Project-local indentation should survive block comments. */
+  "[php]": {
+    "editor.insertSpaces": false,
+    "editor.tabSize": 6,
+    "editor.detectIndentation": false
+  }
+}
+]])
+
+    local file = h.join(root, 'sample.php')
+    h.write_file(file, "<?php\n    echo 'jsonc';\n")
+
+    local bufnr = h.edit(file)
+    local expected = {
+      expandtab = false,
+      tabstop = 6,
+      shiftwidth = 6,
+      softtabstop = 6,
+    }
+
+    h.wait_for_filetype(bufnr, 'php', 'php filetype should still be detected')
+    h.wait_for_indent(bufnr, expected, 'JSONC block comments should not disable editor settings')
+    assert.same(expected, h.read_indent(bufnr))
+  end)
+
+  it('parses JSONC trailing commas for file associations and editor settings', function()
+    local root = h.mktemp_root(base, 'jsonc-trailing-commas-root')
+    local settings = h.join(root, '.vscode', 'settings.json')
+
+    write_vscode_settings(settings, [[
+{
+  "files.associations": {
+    "*.trailjsonc": "php",
+  },
+  "[php]": {
+    "editor.insertSpaces": true,
+    "editor.tabSize": 5,
+    "editor.detectIndentation": false,
+  },
+}
+]])
+
+    local file = h.join(root, 'sample.trailjsonc')
+    h.write_file(file, "<?php\n\techo 'trail';\n")
+
+    local bufnr = h.edit(file)
+    local expected = {
+      expandtab = true,
+      tabstop = 5,
+      shiftwidth = 5,
+      softtabstop = 5,
+    }
+
+    h.wait_for_filetype(bufnr, 'php', 'JSONC trailing commas should not disable file associations')
+    h.wait_for_indent(bufnr, expected, 'JSONC trailing commas should not disable editor settings')
+    assert.same(expected, h.read_indent(bufnr))
+  end)
+
+  it('preserves comment-like text inside JSON strings', function()
+    local root = h.mktemp_root(base, 'jsonc-string-root')
+    local settings = h.join(root, '.vscode', 'settings.json')
+
+    write_vscode_settings(settings, [[
+{
+  "projectSettingsUrl": "http://example.com//still-a-string",
+  "files.associations": {
+    "*.stringjsonc": "php"
+  },
+  "[php]": {
+    "editor.insertSpaces": false,
+    "editor.tabSize": 3,
+    "editor.detectIndentation": false
+  }
+}
+]])
+
+    local file = h.join(root, 'sample.stringjsonc')
+    h.write_file(file, "<?php\n  echo 'string';\n")
+
+    local bufnr = h.edit(file)
+    local expected = {
+      expandtab = false,
+      tabstop = 3,
+      shiftwidth = 3,
+      softtabstop = 3,
+    }
+
+    h.wait_for_filetype(bufnr, 'php', 'comment-like text inside strings must not break decoding')
+    h.wait_for_indent(bufnr, expected, 'comment-like text inside strings must not disable editor settings')
+    assert.same(expected, h.read_indent(bufnr))
+  end)
+
+  it('expands brace globs in project file associations', function()
+    local root = h.mktemp_root(base, 'brace-expansion-root')
+    local settings = h.join(root, '.vscode', 'settings.json')
+
+    h.write_json(settings, {
+      ['files.associations'] = {
+        ['*.{fooassoc,barassoc}'] = 'php',
+      },
+    })
+
+    local foo = h.join(root, 'sample.fooassoc')
+    h.write_file(foo, "<?php\n  echo 'foo';\n")
+    local foo_bufnr = h.edit(foo)
+    h.wait_for_filetype(foo_bufnr, 'php', 'brace expansion should match the first alternative')
+    assert.equals('php', vim.bo[foo_bufnr].filetype)
+
+    local bar = h.join(root, 'sample.barassoc')
+    h.write_file(bar, "<?php\n  echo 'bar';\n")
+    local bar_bufnr = h.edit(bar)
+    h.wait_for_filetype(bar_bufnr, 'php', 'brace expansion should match the second alternative')
+    assert.equals('php', vim.bo[bar_bufnr].filetype)
+  end)
+
+  it('restores tooling bases on reload before reinstalling overrides', function()
+    local project = require('configs.project')
+    local tooling = require('configs.project.tooling')
+    local root = h.mktemp_root(base, 'tooling-reload-root')
+    local tooling_path = h.join(root, '.nvim', 'tooling.json')
+    local file = h.join(root, 'sample.php')
+
+    local base_formatter = function()
+      return {
+        command = 'stubfmt',
+        args = { '--base' },
+      }
+    end
+
+    local base_linter = function()
+      return {
+        cmd = 'stublint',
+        args = { '--base' },
+      }
+    end
+
+    local conform = {
+      formatters = {
+        stubfmt = base_formatter,
+      },
+    }
+    local lint = {
+      linters = {
+        stublint = base_linter,
+      },
+    }
+
+    local original_conform = package.loaded.conform
+    local original_lint = package.loaded.lint
+    package.loaded.conform = conform
+    package.loaded.lint = lint
+
+    local ok, err = xpcall(function()
+      h.write_json(tooling_path, {
+        filetypes = {
+          php = {
+            formatters = { 'stubfmt' },
+            linters = { 'stublint' },
+          },
+        },
+        formatters = {
+          stubfmt = {
+            args_append = { '--project-1' },
+          },
+        },
+        linters = {
+          stublint = {
+            args_append = { '--project-1' },
+          },
+        },
+      })
+
+      h.write_file(file, "<?php\n  echo 'tooling';\n")
+      local bufnr = h.edit(file)
+      h.wait_for_filetype(bufnr, 'php', 'php filetype should be detected for tooling reload test')
+
+      project.ensure_conform_overrides(bufnr)
+      project.ensure_lint_overrides(bufnr)
+
+      local conform_wrapper = conform.formatters.stubfmt
+      local lint_wrapper = lint.linters.stublint
+
+      assert.is_function(conform_wrapper)
+      assert.is_function(lint_wrapper)
+      assert.are_not.equal(base_formatter, conform_wrapper)
+      assert.are_not.equal(base_linter, lint_wrapper)
+      assert.same({ '--project-1' }, conform_wrapper(bufnr).append_args)
+      assert.same({ '--base', '--project-1' }, lint_wrapper().args)
+
+      h.write_json(tooling_path, {
+        filetypes = {
+          php = {
+            formatters = { 'stubfmt' },
+            linters = { 'stublint' },
+          },
+        },
+        formatters = {
+          stubfmt = {
+            args_append = { '--project-2' },
+          },
+        },
+        linters = {
+          stublint = {
+            args_append = { '--project-2' },
+          },
+        },
+      })
+
+      h.reload()
+
+      assert.equal(base_formatter, conform.formatters.stubfmt)
+      assert.equal(base_linter, lint.linters.stublint)
+
+      project.ensure_conform_overrides(bufnr)
+      project.ensure_lint_overrides(bufnr)
+
+      local reinstalled_conform_wrapper = conform.formatters.stubfmt
+      local reinstalled_lint_wrapper = lint.linters.stublint
+
+      assert.is_function(reinstalled_conform_wrapper)
+      assert.is_function(reinstalled_lint_wrapper)
+      assert.are_not.equal(base_formatter, reinstalled_conform_wrapper)
+      assert.are_not.equal(base_linter, reinstalled_lint_wrapper)
+      assert.are_not.equal(conform_wrapper, reinstalled_conform_wrapper)
+      assert.are_not.equal(lint_wrapper, reinstalled_lint_wrapper)
+      assert.same({ '--project-2' }, reinstalled_conform_wrapper(bufnr).append_args)
+      assert.same({ '--base', '--project-2' }, reinstalled_lint_wrapper().args)
+    end, debug.traceback)
+
+    tooling.invalidate()
+    package.loaded.conform = original_conform
+    package.loaded.lint = original_lint
+
+    if not ok then
+      error(err)
+    end
   end)
 end)

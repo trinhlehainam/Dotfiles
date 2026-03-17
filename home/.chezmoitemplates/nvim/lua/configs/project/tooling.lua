@@ -370,8 +370,36 @@ local function build_lint_override(name)
   end
 end
 
+---@param hooks table<string, boolean>
+---@param bases table<string, any>
+---@param target table<string, any>|nil
+local function restore_override_bases(hooks, bases, target)
+  if not target then
+    return
+  end
+
+  for name in pairs(hooks) do
+    target[name] = bases[name]
+  end
+end
+
 function M.invalidate()
   tooling_cache = {}
+
+  local ok_conform, conform = pcall(require, 'conform')
+  if ok_conform and type(conform.formatters) == 'table' then
+    restore_override_bases(conform_override_hooks, conform_base_overrides, conform.formatters)
+  end
+
+  local ok_lint, lint = pcall(require, 'lint')
+  if ok_lint and type(lint.linters) == 'table' then
+    restore_override_bases(lint_override_hooks, lint_base_overrides, lint.linters)
+  end
+
+  conform_override_hooks = {}
+  conform_base_overrides = {}
+  lint_override_hooks = {}
+  lint_base_overrides = {}
 end
 
 ---@param bufnr integer

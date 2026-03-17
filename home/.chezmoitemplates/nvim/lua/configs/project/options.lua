@@ -4,6 +4,7 @@ local buffer_utils = require('utils.buffer')
 local common = require('utils.common')
 local log = require('utils.log')
 local project_json = require('configs.project.json')
+local vscode_settings = require('configs.project.vscode_settings')
 
 local M = {}
 
@@ -148,45 +149,51 @@ local function merge_filetype_settings(filetype_settings, filetype)
   return merged
 end
 
----@param key string
+---@param filetype string
 ---@param raw any
 ---@param filetype_settings ProjectFiletypeSettingsMap
-local function parse_filetype_settings_block(key, raw, filetype_settings)
+local function parse_filetype_settings_block(filetype, raw, filetype_settings)
   if type(raw) ~= 'table' then
-    warn_ignored(key)
     return
   end
 
-  local filetypes = {}
-  for filetype in key:gmatch('%[([^%]]+)%]') do
-    table.insert(filetypes, filetype)
+  local editor_settings = type(raw.editor) == 'table' and raw.editor or raw
+  local has_editor_keys = type(raw.editor) == 'table'
+  if not has_editor_keys then
+    for key in pairs(editor_settings) do
+      if key == 'editor.insertSpaces' or key == 'editor.tabSize' or key == 'editor.detectIndentation' or key == 'editor.formatOnSave' then
+        has_editor_keys = true
+        break
+      end
+    end
   end
 
-  if #filetypes == 0 then
-    warn_ignored(key)
+  if not has_editor_keys then
     return
   end
 
   local settings = {}
-  for _, nested_key in ipairs(common.sorted_keys(raw)) do
-    local value = raw[nested_key]
+  for _, nested_key in ipairs(common.sorted_keys(editor_settings)) do
+    local value = editor_settings[nested_key]
 
-    if nested_key == 'editor.insertSpaces' and type(value) == 'boolean' then
+    if (nested_key == 'insertSpaces' or nested_key == 'editor.insertSpaces') and type(value) == 'boolean' then
       settings.insert_spaces = value
-    elseif nested_key == 'editor.tabSize' and type(value) == 'number' then
+    elseif (nested_key == 'tabSize' or nested_key == 'editor.tabSize') and type(value) == 'number' then
       settings.tab_size = value
-    elseif nested_key == 'editor.detectIndentation' and type(value) == 'boolean' then
+    elseif
+      (nested_key == 'detectIndentation' or nested_key == 'editor.detectIndentation')
+      and type(value) == 'boolean'
+    then
       settings.detect_indentation = value
-    elseif nested_key == 'editor.formatOnSave' and type(value) == 'boolean' then
+    elseif (nested_key == 'formatOnSave' or nested_key == 'editor.formatOnSave') and type(value) == 'boolean' then
       settings.format_on_save = value
-    else
-      warn_ignored(('%s.%s'):format(key, nested_key))
+    elseif type(raw.editor) == 'table' then
+      warn_ignored(('%s.editor.%s'):format(filetype, nested_key))
     end
   end
 
-  for _, filetype in ipairs(filetypes) do
-    filetype_settings[filetype] =
-      vim.tbl_extend('force', filetype_settings[filetype] or {}, settings)
+  if next(settings) ~= nil then
+    filetype_settings[filetype] = vim.tbl_extend('force', filetype_settings[filetype] or {}, settings)
   end
 end
 
@@ -197,11 +204,11 @@ local function load_filetype_settings(root)
     return filetype_settings_cache[root]
   end
 
-  local raw = project_json.read_json(root, VSCODE_SETTINGS)
+  local raw = vscode_settings.read(root)
   local filetype_settings = {}
 
   for _, key in ipairs(common.sorted_keys(raw)) do
-    if key:match('^%[.+%]$') then
+    if type(raw[key]) == 'table' then
       parse_filetype_settings_block(key, raw[key], filetype_settings)
     end
   end

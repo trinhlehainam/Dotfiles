@@ -3,6 +3,7 @@ require('configs.project.types')
 local common = require('utils.common')
 local log = require('utils.log')
 local project_json = require('configs.project.json')
+local vscode_settings = require('configs.project.vscode_settings')
 
 local M = {}
 
@@ -84,6 +85,27 @@ local function empty_files_associations()
   }
 end
 
+---Expand a single top-level `{a,b,c}` brace group in a glob string.
+---@param glob string
+---@return string[]
+local function expand_braces(glob)
+  local prefix, alternatives, suffix = glob:match('^(.-)%{([^}]+)%}(.*)$')
+  if not prefix then
+    return { glob }
+  end
+
+  local expanded = {}
+  for alt in alternatives:gmatch('[^,]+') do
+    table.insert(expanded, prefix .. alt .. suffix)
+  end
+
+  if #expanded == 0 then
+    return { glob }
+  end
+
+  return expanded
+end
+
 ---@param glob string
 ---@param anchored? boolean
 ---@return string
@@ -138,21 +160,23 @@ local function parse_files_associations(raw)
   for _, pattern in ipairs(common.sorted_keys(raw)) do
     local filetype = raw[pattern]
     if type(filetype) == 'string' and filetype ~= '' then
-      local normalized = normalize_path(pattern)
-      local extension = extract_simple_extension_from_glob(normalized)
-      local filename = extension == nil and extract_simple_filename_from_glob(normalized) or nil
+      for _, expanded_pattern in ipairs(expand_braces(pattern)) do
+        local normalized = normalize_path(expanded_pattern)
+        local extension = extract_simple_extension_from_glob(normalized)
+        local filename = extension == nil and extract_simple_filename_from_glob(normalized) or nil
 
-      if extension then
-        files_associations.extensions[extension] = filetype
-      elseif filename then
-        files_associations.filenames[filename] = filetype
-      else
-        table.insert(files_associations.patterns, {
-          filetype = filetype,
-          has_slash = normalized:find('/') ~= nil,
-          path_pattern = glob_to_lua_pattern(normalized, false),
-          raw = normalized,
-        })
+        if extension then
+          files_associations.extensions[extension] = filetype
+        elseif filename then
+          files_associations.filenames[filename] = filetype
+        else
+          table.insert(files_associations.patterns, {
+            filetype = filetype,
+            has_slash = normalized:find('/') ~= nil,
+            path_pattern = glob_to_lua_pattern(normalized, false),
+            raw = normalized,
+          })
+        end
       end
     else
       warn_ignored(('files.associations.%s'):format(pattern))
@@ -177,7 +201,7 @@ local function load_files_associations(root)
     return files_associations_cache[root]
   end
 
-  local raw = project_json.read_json(root, VSCODE_SETTINGS)
+  local raw = vscode_settings.read(root)
   local files_associations = parse_files_associations(raw['files.associations'])
   files_associations_cache[root] = files_associations
   return files_associations
