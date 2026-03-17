@@ -9,6 +9,7 @@ local M = {}
 
 local TITLE = 'project-settings'
 local VSCODE_SETTINGS = '.vscode/settings.json'
+local BUFFER_INDENT_MANAGED_KEY = 'project_settings_indent_managed'
 
 ---@type table<string, ProjectFiletypeSettingsMap>
 local filetype_settings_cache = {}
@@ -96,6 +97,29 @@ local function refresh_filetype_autocmd()
       M.apply_filetype_settings(args.buf)
     end,
   })
+end
+
+---@param filetype_settings ProjectFiletypeSettings|nil
+---@return boolean
+local function is_indent_managed_by_settings(filetype_settings)
+  return type(filetype_settings) == 'table'
+    and (
+      filetype_settings.detect_indentation == false
+      or filetype_settings.insert_spaces ~= nil
+      or filetype_settings.tab_size ~= nil
+    )
+end
+
+---@param bufnr integer
+---@return boolean
+local function is_indent_managed(bufnr)
+  return vim.b[bufnr][BUFFER_INDENT_MANAGED_KEY] == true
+end
+
+---@param bufnr integer
+---@param managed boolean
+local function set_indent_managed(bufnr, managed)
+  vim.b[bufnr][BUFFER_INDENT_MANAGED_KEY] = managed or nil
 end
 
 ---@param root string
@@ -187,6 +211,20 @@ local function load_filetype_settings(root)
   return filetype_settings
 end
 
+---@param root string|nil
+local function ensure_filetype_settings_for_root(root)
+  if type(root) ~= 'string' or root == '' then
+    return
+  end
+
+  load_filetype_settings(root)
+end
+
+---@param path string
+function M.ensure_filetype_settings_for_path(path)
+  ensure_filetype_settings_for_root(project_json.find_root_for_path(path))
+end
+
 ---@param root string
 ---@param filetype string
 ---@return ProjectFiletypeSettings|nil
@@ -204,17 +242,17 @@ local function get_root_filetype_settings(root, filetype)
 end
 
 ---@param bufnr integer
+---@param root string|nil
 ---@return ProjectFiletypeSettings|nil
----@return string|nil
-local function get_buffer_filetype_settings(bufnr)
-  local root = project_json.find_root(bufnr)
-  if not root then
-    return nil
-  end
-
+---@return string
+local function resolve_buffer_filetype_settings(bufnr, root)
   local filetype = vim.bo[bufnr].filetype
   if filetype == '' then
-    return nil
+    return nil, filetype
+  end
+
+  if type(root) ~= 'string' or root == '' then
+    return nil, filetype
   end
 
   return get_root_filetype_settings(root, filetype), filetype
@@ -223,6 +261,14 @@ end
 ---@param bufnr integer
 ---@param filetype string
 local function reset_indent_options(bufnr, filetype)
+  if filetype == '' then
+    vim.bo[bufnr].expandtab = vim.go.expandtab
+    vim.bo[bufnr].tabstop = vim.go.tabstop
+    vim.bo[bufnr].shiftwidth = vim.go.shiftwidth
+    vim.bo[bufnr].softtabstop = vim.go.softtabstop
+    return
+  end
+
   -- `vim.filetype.get_option()` caches the result after triggering `FileType`
   -- once, so suppress this module's project-local callback during the lookup to
   -- avoid polluting the global cache with root-specific values.
@@ -241,13 +287,8 @@ local function reset_indent_options(bufnr, filetype)
 end
 
 ---@param bufnr integer
----@param filetype string
 ---@param filetype_settings ProjectFiletypeSettings
-local function apply_resolved_filetype_settings(bufnr, filetype, filetype_settings)
-  if filetype_settings.detect_indentation == false and filetype ~= '' then
-    reset_indent_options(bufnr, filetype)
-  end
-
+local function apply_resolved_filetype_settings(bufnr, filetype_settings)
   if filetype_settings.insert_spaces ~= nil then
     vim.bo[bufnr].expandtab = filetype_settings.insert_spaces
   end
@@ -259,26 +300,42 @@ local function apply_resolved_filetype_settings(bufnr, filetype, filetype_settin
   end
 end
 
-local function register_startup_filetype_patterns()
-  local seen_roots = {}
-
-  local function load_from_path(path)
-    local root = project_json.find_root_for_path(path)
-    if not root or seen_roots[root] then
-      return
-    end
-
-    seen_roots[root] = true
-    load_filetype_settings(root)
+---@param bufnr integer
+---@param filetype string
+---@param filetype_settings ProjectFiletypeSettings|nil
+local function sync_buffer_filetype_settings(bufnr, filetype, filetype_settings)
+  local managed = is_indent_managed_by_settings(filetype_settings)
+  if managed or is_indent_managed(bufnr) then
+    reset_indent_options(bufnr, filetype)
   end
 
-  load_from_path(vim.uv.cwd() or vim.fn.getcwd())
-
-  for _, arg in ipairs(vim.fn.argv()) do
-    if type(arg) == 'string' and arg ~= '' and arg ~= '-' then
-      load_from_path(vim.fn.fnamemodify(arg, ':p'))
-    end
+  if filetype_settings then
+    apply_resolved_filetype_settings(bufnr, filetype_settings)
   end
+
+  set_indent_managed(bufnr, managed)
+end
+
+---@param bufnr integer
+---@param root string|nil
+local function sync_buffer_settings_for_root(bufnr, root)
+  local filetype_settings, filetype = resolve_buffer_filetype_settings(bufnr, root)
+  if not filetype_settings and not is_indent_managed(bufnr) then
+    return
+  end
+
+  sync_buffer_filetype_settings(bufnr, filetype, filetype_settings)
+end
+
+---@param bufnr integer
+local function schedule_filetype_apply(bufnr)
+  -- Run after the current autocmd stack so project-local settings win even if
+  -- another `BufReadPost`/`BufWritePost` handler updates indentation later.
+  vim.schedule(function()
+    if vim.api.nvim_buf_is_valid(bufnr) then
+      M.apply_filetype_settings(bufnr)
+    end
+  end)
 end
 
 ---@param bufnr integer
@@ -287,12 +344,7 @@ function M.apply_filetype_settings(bufnr)
     return
   end
 
-  local filetype_settings, filetype = get_buffer_filetype_settings(bufnr)
-  if not filetype_settings then
-    return
-  end
-
-  apply_resolved_filetype_settings(bufnr, filetype, filetype_settings)
+  sync_buffer_settings_for_root(bufnr, project_json.find_root(bufnr))
 end
 
 ---@param bufnr integer
@@ -302,13 +354,7 @@ function M.apply_filetype_settings_for_root(bufnr, root)
     return
   end
 
-  local filetype = vim.bo[bufnr].filetype
-  local filetype_settings = get_root_filetype_settings(root, filetype)
-  if not filetype_settings then
-    return
-  end
-
-  apply_resolved_filetype_settings(bufnr, filetype, filetype_settings)
+  sync_buffer_settings_for_root(bufnr, root)
 end
 
 function M.invalidate()
@@ -320,7 +366,7 @@ end
 ---@param bufnr integer
 ---@return boolean|nil
 function M.get_filetype_format_on_save(bufnr)
-  local filetype_settings = get_buffer_filetype_settings(bufnr)
+  local filetype_settings = resolve_buffer_filetype_settings(bufnr, project_json.find_root(bufnr))
   if not filetype_settings then
     return nil
   end
@@ -332,7 +378,21 @@ end
 function M.setup(group)
   options_group = group
 
-  register_startup_filetype_patterns()
+  vim.api.nvim_create_autocmd({ 'BufReadPre', 'BufNewFile' }, {
+    group = group,
+    callback = function(args)
+      M.ensure_filetype_settings_for_path(args.file)
+    end,
+  })
+
+  vim.api.nvim_create_autocmd({ 'BufReadPost', 'BufWritePost' }, {
+    group = group,
+    callback = function(args)
+      schedule_filetype_apply(args.buf)
+    end,
+  })
+
+  project_json.for_each_startup_root(ensure_filetype_settings_for_root)
   refresh_filetype_autocmd()
 end
 

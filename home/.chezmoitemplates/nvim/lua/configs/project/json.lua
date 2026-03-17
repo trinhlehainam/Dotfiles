@@ -128,6 +128,33 @@ function M.find_root(bufnr)
   return find_root_from_path(vim.uv.cwd() or vim.fn.getcwd())
 end
 
+---@param callback fun(root: string)
+function M.for_each_startup_root(callback)
+  if type(callback) ~= 'function' then
+    return
+  end
+
+  local seen_roots = {}
+
+  local function visit(path)
+    local root = find_root_from_path(path)
+    if not root or seen_roots[root] then
+      return
+    end
+
+    seen_roots[root] = true
+    callback(root)
+  end
+
+  visit(vim.uv.cwd() or vim.fn.getcwd())
+
+  for _, arg in ipairs(vim.fn.argv()) do
+    if type(arg) == 'string' and arg ~= '' and arg ~= '-' then
+      visit(vim.fn.fnamemodify(arg, ':p'))
+    end
+  end
+end
+
 ---@param root string
 ---@param relpath string
 ---@return table

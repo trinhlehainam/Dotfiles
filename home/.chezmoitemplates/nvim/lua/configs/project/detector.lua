@@ -8,6 +8,7 @@ local M = {}
 
 local TITLE = 'project-settings'
 local VSCODE_SETTINGS = '.vscode/settings.json'
+local BUFFER_FILETYPE_MANAGED_KEY = 'project_settings_filetype_managed'
 
 ---@type table<string, ProjectFilesAssociations>
 local files_associations_cache = {}
@@ -17,6 +18,18 @@ local filetype_patterns_by_root = {}
 local filetype_extensions = {}
 ---@type table<string, boolean>
 local filetype_filenames = {}
+
+---@param bufnr integer
+---@return boolean
+local function is_filetype_managed(bufnr)
+  return vim.b[bufnr][BUFFER_FILETYPE_MANAGED_KEY] == true
+end
+
+---@param bufnr integer
+---@param managed boolean
+local function set_filetype_managed(bufnr, managed)
+  vim.b[bufnr][BUFFER_FILETYPE_MANAGED_KEY] = managed or nil
+end
 
 ---@param path string|nil
 ---@return string
@@ -171,6 +184,73 @@ local function load_files_associations(root)
 end
 
 ---@param path string
+---@param root string
+---@param association { filetype: string, has_slash: boolean, path_pattern: string, raw: string }
+---@return boolean
+local function pattern_matches_path(path, root, association)
+  local normalized_path = normalize_path(path)
+  local normalized_root = normalize_path(root)
+  local prefix = normalized_root .. '/'
+
+  if normalized_path:sub(1, #prefix) ~= prefix then
+    return false
+  end
+
+  local relative = normalized_path:sub(#prefix + 1)
+  if association.has_slash then
+    return relative:match('^' .. association.path_pattern .. '$') ~= nil
+  end
+
+  return vim.fs.basename(relative):match('^' .. association.path_pattern .. '$') ~= nil
+end
+
+---@param path string
+---@return string|nil
+local function resolve_project_filetype(path)
+  local root = project_json.find_root_for_path(path)
+  if not root then
+    return nil
+  end
+
+  local files_associations = load_files_associations(root)
+  local basename = vim.fs.basename(normalize_path(path))
+
+  local filename_filetype = files_associations.filenames[basename]
+  if filename_filetype then
+    return filename_filetype
+  end
+
+  for _, association in ipairs(files_associations.patterns) do
+    if pattern_matches_path(path, root, association) then
+      return association.filetype
+    end
+  end
+
+  local extension = basename:match('%.([^.]+)$')
+  if not extension then
+    return nil
+  end
+
+  return files_associations.extensions[extension]
+end
+
+---@param bufnr integer
+local function update_buffer_filetype_state(bufnr)
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    return
+  end
+
+  local name = vim.api.nvim_buf_get_name(bufnr)
+  if name == '' then
+    set_filetype_managed(bufnr, false)
+    return
+  end
+
+  local project_filetype = resolve_project_filetype(name)
+  set_filetype_managed(bufnr, project_filetype ~= nil and project_filetype == vim.bo[bufnr].filetype)
+end
+
+---@param path string
 ---@param resolver fun(files_associations: ProjectFilesAssociations): string|nil
 ---@return string|nil
 local function resolve_filetype_from_files_associations(path, resolver)
@@ -182,45 +262,28 @@ local function resolve_filetype_from_files_associations(path, resolver)
   return resolver(load_files_associations(root))
 end
 
----@param extensions table<string, string>
-local function register_extension_filetypes(extensions)
+---@param vim_filetype_key 'extension'|'filename'
+---@param association_key 'extensions'|'filenames'
+---@param seen_entries table<string, boolean>
+---@param files_associations ProjectFilesAssociations
+local function register_literal_filetypes(vim_filetype_key, association_key, seen_entries, files_associations)
   local mapping = {}
 
-  for extension in pairs(extensions) do
-    if not filetype_extensions[extension] then
-      filetype_extensions[extension] = true
-      mapping[extension] = function(path)
+  for key in pairs(files_associations[association_key]) do
+    if not seen_entries[key] then
+      seen_entries[key] = true
+      mapping[key] = function(path)
         return resolve_filetype_from_files_associations(path, function(files_associations)
-          return files_associations.extensions[extension]
+          return files_associations[association_key][key]
         end)
       end
     end
   end
 
   if next(mapping) ~= nil then
-    -- `vim.filetype.add({ extension = ... })` is global, so each dispatcher
+    -- `vim.filetype.add()` installs global literal mappings, so each dispatcher
     -- re-checks the current root and returns nil outside matching projects.
-    vim.filetype.add({ extension = mapping })
-  end
-end
-
----@param filenames table<string, string>
-local function register_filename_filetypes(filenames)
-  local mapping = {}
-
-  for filename in pairs(filenames) do
-    if not filetype_filenames[filename] then
-      filetype_filenames[filename] = true
-      mapping[filename] = function(path)
-        return resolve_filetype_from_files_associations(path, function(files_associations)
-          return files_associations.filenames[filename]
-        end)
-      end
-    end
-  end
-
-  if next(mapping) ~= nil then
-    vim.filetype.add({ filename = mapping })
+    vim.filetype.add({ [vim_filetype_key] = mapping })
   end
 end
 
@@ -276,21 +339,25 @@ local function register_pattern_filetypes(root)
   filetype_patterns_by_root[root] = active
 end
 
+---@param root string|nil
+local function ensure_filetype_detection_for_root(root)
+  if type(root) ~= 'string' or root == '' then
+    return
+  end
+
+  local files_associations = load_files_associations(root)
+  register_literal_filetypes('extension', 'extensions', filetype_extensions, files_associations)
+  register_literal_filetypes('filename', 'filenames', filetype_filenames, files_associations)
+  register_pattern_filetypes(root)
+end
+
 ---@param path string
 function M.ensure_filetype_detection_for_path(path)
   if type(path) ~= 'string' or path == '' then
     return
   end
 
-  local root = project_json.find_root_for_path(path)
-  if not root then
-    return
-  end
-
-  local files_associations = load_files_associations(root)
-  register_extension_filetypes(files_associations.extensions)
-  register_filename_filetypes(files_associations.filenames)
-  register_pattern_filetypes(root)
+  ensure_filetype_detection_for_root(project_json.find_root_for_path(path))
 end
 
 ---@param bufnr integer
@@ -302,6 +369,8 @@ function M.redetect_filetype(bufnr)
 
   M.ensure_filetype_detection_for_path(name)
 
+  local was_managed = is_filetype_managed(bufnr)
+  local project_filetype = resolve_project_filetype(name)
   local detected, on_detect = vim.filetype.match({ buf = bufnr, filename = name })
   if detected and detected ~= vim.bo[bufnr].filetype then
     vim.bo[bufnr].filetype = detected
@@ -309,18 +378,12 @@ function M.redetect_filetype(bufnr)
       on_detect(bufnr)
     end
   end
-end
 
-local function register_startup_filetype_detection()
-  -- Startup file detection happens before later buffer events, so seed the
-  -- cwd and CLI file arguments up front.
-  M.ensure_filetype_detection_for_path(vim.uv.cwd() or vim.fn.getcwd())
-
-  for _, arg in ipairs(vim.fn.argv()) do
-    if type(arg) == 'string' and arg ~= '' and arg ~= '-' then
-      M.ensure_filetype_detection_for_path(vim.fn.fnamemodify(arg, ':p'))
-    end
+  if not detected and was_managed then
+    vim.bo[bufnr].filetype = ''
   end
+
+  set_filetype_managed(bufnr, detected ~= nil and project_filetype ~= nil and detected == project_filetype)
 end
 
 function M.invalidate()
@@ -333,17 +396,21 @@ end
 
 ---@param group integer
 function M.setup(group)
-  vim.api.nvim_create_autocmd('BufReadPre', {
+  vim.api.nvim_create_autocmd({ 'BufReadPre', 'BufNewFile' }, {
     group = group,
     callback = ensure_path_filetype_detection,
   })
 
-  vim.api.nvim_create_autocmd('BufNewFile', {
+  vim.api.nvim_create_autocmd('FileType', {
     group = group,
-    callback = ensure_path_filetype_detection,
+    callback = function(args)
+      update_buffer_filetype_state(args.buf)
+    end,
   })
 
-  register_startup_filetype_detection()
+  -- Seed cwd/argv roots up front so the first open in those projects sees the
+  -- project-local filetype rules without waiting for a later reload.
+  project_json.for_each_startup_root(ensure_filetype_detection_for_root)
 end
 
 return M
