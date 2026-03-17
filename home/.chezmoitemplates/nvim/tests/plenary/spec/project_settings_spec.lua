@@ -79,7 +79,7 @@ describe('project settings regression', function()
     })
 
     local file = h.join(root, 'sample.templ')
-    h.write_file(file, "<div>{{ value }}</div>\n")
+    h.write_file(file, '<div>value</div>\n')
 
     local bufnr = h.edit(file)
     h.wait_for_filetype(bufnr, 'php', 'project file association should set filetype')
