@@ -9,6 +9,16 @@ local VSCODE_SETTINGS = '.vscode/settings.json'
 local settings_cache = {}
 local warned_missing_codesettings = false
 
+---@return table|nil
+local function load_codesettings_util()
+  local ok, codesettings_util = pcall(require, 'codesettings.util')
+  if not ok then
+    return nil
+  end
+
+  return codesettings_util
+end
+
 ---@param path string
 ---@return string|nil
 local function read_text_file(path)
@@ -43,8 +53,8 @@ local function load_settings(root)
     return settings_cache[root]
   end
 
-  local ok_codesettings, codesettings_util = pcall(require, 'codesettings.util')
-  if not ok_codesettings then
+  local codesettings_util = load_codesettings_util()
+  if not codesettings_util then
     if not warned_missing_codesettings then
       warned_missing_codesettings = true
       log.warn(
@@ -54,7 +64,8 @@ local function load_settings(root)
         TITLE
       )
     end
-    return {}
+    settings_cache[root] = {}
+    return settings_cache[root]
   end
 
   local ok_settings, settings = pcall(function()
@@ -82,6 +93,11 @@ function M.read(root)
   end
 
   return vim.deepcopy(load_settings(root))
+end
+
+---@return boolean
+function M.is_available()
+  return load_codesettings_util() ~= nil
 end
 
 ---@param root? string

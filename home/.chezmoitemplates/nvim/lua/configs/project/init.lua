@@ -2,6 +2,7 @@ local log = require('utils.log')
 local editor = require('configs.project.editor')
 local project_json = require('configs.project.json')
 local tooling = require('configs.project.tooling')
+local vscode_settings = require('configs.project.vscode_settings')
 
 local M = {}
 
@@ -31,7 +32,7 @@ local function create_reload_command()
 end
 
 function M.setup()
-  if setup_done then
+  if setup_done or not vscode_settings.is_available() then
     return
   end
 
@@ -47,7 +48,5 @@ M.get_project_linters = tooling.get_linters
 M.get_editor_format_on_save = editor.get_format_on_save
 M.get_tooling_format_on_save = tooling.get_format_on_save
 M.get_tooling_lint_on_save = tooling.get_lint_on_save
-
-M.setup()
 
 return M

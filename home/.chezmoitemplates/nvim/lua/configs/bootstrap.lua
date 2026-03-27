@@ -7,7 +7,7 @@ function M.setup(opts)
   require('configs.options')
   require('configs.keymaps')
   require('configs.lazy').setup(opts.lazy)
-  require('configs.project')
+  require('configs.project').setup()
 
   if vim.g.vscode then
     require('configs.vscode')

@@ -560,4 +560,55 @@ end
 
     assert.equals(0, result.code, result.stderr ~= '' and result.stderr or result.stdout)
   end)
+
+  it('skips project bootstrap in vscode sessions without codesettings', function()
+    local root = h.mktemp_root(base, 'vscode-skip-root')
+    local settings = h.join(root, '.vscode', 'settings.json')
+    local file = h.join(root, 'sample.vscodeskip')
+    local repo = vim.g.project_settings_test_repo_root
+    local lazy_dir = vim.fn.stdpath('data') .. '/lazy/lazy.nvim'
+
+    h.write_json(settings, {
+      ['files.associations'] = {
+        ['*.vscodeskip'] = 'php',
+      },
+    })
+    h.write_file(file, "<?php\n  echo 'skip';\n")
+
+    local child_init = string.format(
+      [[
+local repo = %q
+local lazy_dir = %q
+local file = %q
+
+vim.g.vscode = true
+vim.cmd('cd ' .. vim.fn.fnameescape(%q))
+vim.opt.runtimepath:prepend(repo)
+vim.opt.runtimepath:prepend(lazy_dir)
+require('configs.bootstrap').setup({
+  lazy = {
+    specs = {},
+  },
+})
+vim.cmd('edit ' .. vim.fn.fnameescape(file))
+
+local messages = vim.api.nvim_exec2('messages', { output = true }).output
+if messages:find('codesettings%%.nvim is unavailable') then
+  error('unexpected vscode warning: ' .. messages)
+end
+]],
+      repo,
+      lazy_dir,
+      file,
+      root
+    )
+
+    local result = h.run_child_nvim({
+      cwd = root,
+      init = child_init,
+      args = { '+qa!' },
+    })
+
+    assert.equals(0, result.code, result.stderr ~= '' and result.stderr or result.stdout)
+  end)
 end)

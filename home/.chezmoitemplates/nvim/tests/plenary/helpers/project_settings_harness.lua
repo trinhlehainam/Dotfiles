@@ -74,7 +74,7 @@ function M.setup()
   ensure_dir(outside_dir)
   vim.cmd('cd ' .. vim.fn.fnameescape(outside_dir))
 
-  require('configs.project')
+  require('configs.project').setup()
   setup_indent_race_fixture(vim.api.nvim_create_augroup('project-settings-test', { clear = true }))
   setup_done = true
 end
