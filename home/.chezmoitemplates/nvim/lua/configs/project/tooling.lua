@@ -63,23 +63,31 @@ end
 ---@param relpath string
 ---@param key string
 ---@param value any
----@return string[]
-local function parse_name_list(relpath, key, value)
+---@return string[]|nil
+local function parse_string_list(relpath, key, value)
   if not vim.islist(value) then
     log.warn(('Ignored unsupported key "%s" in %s'):format(key, relpath), TITLE)
-    return {}
+    return nil
   end
 
-  local names = {}
+  local items = {}
   for _, item in ipairs(value) do
     if type(item) == 'string' and item ~= '' then
-      table.insert(names, item)
+      table.insert(items, item)
     else
       log.warn(('Ignored unsupported key "%s" in %s'):format(key, relpath), TITLE)
     end
   end
 
-  return names
+  return items
+end
+
+---@param relpath string
+---@param key string
+---@param value any
+---@return string[]
+local function parse_name_list(relpath, key, value)
+  return parse_string_list(relpath, key, value) or {}
 end
 
 ---@param relpath string
@@ -96,10 +104,16 @@ local function parse_tool_args(relpath, scope, raw)
   for _, key in ipairs(common.sorted_keys(raw)) do
     local value = raw[key]
 
-    if key == 'args' and vim.islist(value) then
-      parsed.args = vim.deepcopy(value)
-    elseif key == 'args_append' and vim.islist(value) then
-      parsed.args_append = vim.deepcopy(value)
+    if key == 'args' then
+      local args = parse_string_list(relpath, ('%s.args'):format(scope), value)
+      if args then
+        parsed.args = args
+      end
+    elseif key == 'args_append' then
+      local args_append = parse_string_list(relpath, ('%s.args_append'):format(scope), value)
+      if args_append then
+        parsed.args_append = args_append
+      end
     else
       log.warn(
         ('Ignored unsupported key "%s" in %s'):format(('%s.%s'):format(scope, key), relpath),

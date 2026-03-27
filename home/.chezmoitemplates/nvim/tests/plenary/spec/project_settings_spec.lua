@@ -483,6 +483,94 @@ describe('project settings regression', function()
     end
   end)
 
+  it('filters invalid formatter and linter argv overrides from tooling settings', function()
+    local project = require('configs.project')
+    local tooling = require('configs.project.tooling')
+    local root = h.mktemp_root(base, 'tooling-argv-root')
+    local tooling_path = h.join(root, '.nvim', 'tooling.json')
+    local file = h.join(root, 'sample.php')
+
+    local base_formatter = function()
+      return {
+        command = 'stubfmt',
+        args = { '--base' },
+      }
+    end
+
+    local base_linter = function()
+      return {
+        cmd = 'stublint',
+        args = { '--base' },
+      }
+    end
+
+    local conform = {
+      formatters = {
+        stubfmt = base_formatter,
+      },
+    }
+    local lint = {
+      linters = {
+        stublint = base_linter,
+      },
+    }
+
+    local original_conform = package.loaded.conform
+    local original_lint = package.loaded.lint
+    package.loaded.conform = conform
+    package.loaded.lint = lint
+
+    local ok, err = xpcall(function()
+      h.write_json(tooling_path, {
+        filetypes = {
+          php = {
+            formatters = { 'stubfmt' },
+            linters = { 'stublint' },
+          },
+        },
+        formatters = {
+          stubfmt = {
+            args = { '--project-1', '', 42, true, '--project-2' },
+          },
+        },
+        linters = {
+          stublint = {
+            args_append = { '--append-1', '', 42, false, '--append-2' },
+          },
+        },
+      })
+
+      h.write_file(file, "<?php\n  echo 'tooling argv';\n")
+      local bufnr = h.edit(file)
+      h.wait_for_filetype(bufnr, 'php', 'php filetype should be detected for tooling argv test')
+
+      project.ensure_conform_overrides(bufnr)
+      project.ensure_lint_overrides(bufnr)
+
+      local conform_wrapper = conform.formatters.stubfmt
+      local lint_wrapper = lint.linters.stublint
+
+      assert.same({ '--project-1', '--project-2' }, conform_wrapper(bufnr).args)
+      assert.same({ '--base', '--append-1', '--append-2' }, lint_wrapper().args)
+
+      local warned = vim.wait(1000, function()
+        local messages = vim.api.nvim_exec2('messages', { output = true }).output
+        return messages:find('formatters%.stubfmt%.args') ~= nil
+          and messages:find('linters%.stublint%.args_append') ~= nil
+      end, 10, false)
+
+      assert.is_true(warned)
+    end, debug.traceback)
+
+    tooling.invalidate()
+    package.loaded.conform = original_conform
+    package.loaded.lint = original_lint
+
+    if not ok then
+      error(err)
+    end
+  end)
+
   it('loads startup-root project settings through init without codesettings warning', function()
     local root = h.mktemp_root(base, 'startup-order-root')
     local settings = h.join(root, '.vscode', 'settings.json')
