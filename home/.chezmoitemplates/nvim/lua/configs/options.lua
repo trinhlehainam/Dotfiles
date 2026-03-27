@@ -98,10 +98,8 @@ vim.o.wrap = false
 -- Indicate limit number of character in oneline shouldn't be crossed
 vim.o.colorcolumn = '80'
 
--- Enables project-local configuration
--- See https://neovim.io/doc/user/options.html#'exrc'
--- Since version 0.9.0 Neovim has built-in secure, see https://neovim.io/doc/user/lua.html#vim.secure
-vim.o.exrc = true
+-- Project-local config is JSON-only; do not execute local Lua or Ex files.
+vim.o.exrc = false
 
 vim.o.spelllang = 'en_us'
 vim.o.spell = false
