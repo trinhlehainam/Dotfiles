@@ -21,17 +21,34 @@ local function make_buf(lines)
   return bufnr
 end
 
+local function join_chunks(chunks)
+  local parts = {}
+
+  for _, chunk in ipairs(chunks or {}) do
+    parts[#parts + 1] = chunk[1]
+  end
+
+  return table.concat(parts)
+end
+
 local function get_rendered_rows(bufnr)
   local ns = vim.api.nvim_get_namespaces()[namespace]
   local extmarks = vim.api.nvim_buf_get_extmarks(bufnr, ns, 0, -1, { details = true })
   local rows = {}
 
   for _, extmark in ipairs(extmarks) do
-    local chunks = {}
-    for _, chunk in ipairs(extmark[4].virt_text or {}) do
-      chunks[#chunks + 1] = chunk[1]
+    local details = extmark[4]
+    if details.virt_text then
+      rows[extmark[2]] = {
+        placement = 'eol',
+        text = join_chunks(details.virt_text),
+      }
+    elseif details.virt_lines and details.virt_lines[1] then
+      rows[extmark[2]] = {
+        placement = 'above',
+        text = join_chunks(details.virt_lines[1]),
+      }
     end
-    rows[extmark[2]] = table.concat(chunks)
   end
 
   return rows
@@ -63,7 +80,7 @@ describe('utils.lsp_codelens', function()
     end
   end)
 
-  it('renders same-line virtual text aggregated across clients', function()
+  it('renders above-line virtual text aggregated across clients by default', function()
     local bufnr = make_buf({ 'local value = 1', 'return value' })
     table.insert(buffers, bufnr)
 
@@ -72,7 +89,7 @@ describe('utils.lsp_codelens', function()
       supports_method = function(_, method)
         return method == Methods.textDocument_codeLens
       end,
-      request = function(_, method, _, callback)
+      request = function(_, _, _, callback)
         callback(nil, {
           {
             range = { start = { line = 0, character = 0 }, ['end'] = { line = 0, character = 0 } },
@@ -87,7 +104,7 @@ describe('utils.lsp_codelens', function()
       supports_method = function(_, method)
         return method == Methods.textDocument_codeLens
       end,
-      request = function(_, method, _, callback)
+      request = function(_, _, _, callback)
         callback(nil, {
           {
             range = { start = { line = 0, character = 6 }, ['end'] = { line = 0, character = 6 } },
@@ -106,8 +123,59 @@ describe('utils.lsp_codelens', function()
 
     wait_for('expected aggregated codelens render', function()
       local rows = get_rendered_rows(bufnr)
-      return rows[0] == '  3 References | 1 Implementation' and rows[1] == '  Run Test'
+      return rows[0]
+        and rows[0].placement == 'above'
+        and rows[0].text == '3 References | 1 Implementation'
+        and rows[1]
+        and rows[1].placement == 'above'
+        and rows[1].text == 'Run Test'
     end)
+  end)
+
+  it('switches placement from above to eol and back without new requests', function()
+    local bufnr = make_buf({ 'local value = 1' })
+    table.insert(buffers, bufnr)
+
+    local request_count = 0
+    clients[1] = {
+      id = 1,
+      supports_method = function(_, method)
+        return method == Methods.textDocument_codeLens
+      end,
+      request = function(_, _, _, callback)
+        request_count = request_count + 1
+        callback(nil, {
+          {
+            range = { start = { line = 0, character = 0 }, ['end'] = { line = 0, character = 0 } },
+            command = { title = 'Lens Title' },
+          },
+        })
+      end,
+    }
+
+    codelens.attach(clients[1], bufnr)
+
+    wait_for('expected default above-line codelens', function()
+      local row = get_rendered_rows(bufnr)[0]
+      return row and row.placement == 'above' and row.text == 'Lens Title'
+    end)
+    assert.equals(1, request_count)
+
+    codelens.set_context(bufnr, 'diffview', 'eol')
+
+    wait_for('expected eol codelens override', function()
+      local row = get_rendered_rows(bufnr)[0]
+      return row and row.placement == 'eol' and row.text == '  Lens Title'
+    end)
+    assert.equals(1, request_count)
+
+    codelens.clear_context(bufnr, 'diffview')
+
+    wait_for('expected above-line codelens after clearing override', function()
+      local row = get_rendered_rows(bufnr)[0]
+      return row and row.placement == 'above' and row.text == 'Lens Title'
+    end)
+    assert.equals(1, request_count)
   end)
 
   it('clears while editing and ignores stale responses from older refreshes', function()
@@ -122,7 +190,7 @@ describe('utils.lsp_codelens', function()
       supports_method = function(_, method)
         return method == Methods.textDocument_codeLens
       end,
-      request = function(_, method, _, callback)
+      request = function(_, _, _, callback)
         request_count = request_count + 1
         if request_count == 1 then
           first_callback = callback
@@ -146,7 +214,8 @@ describe('utils.lsp_codelens', function()
     vim.api.nvim_exec_autocmds('InsertLeave', { buffer = bufnr })
 
     wait_for('expected fresh codelens after insert leave', function()
-      return get_rendered_rows(bufnr)[0] == '  Fresh Lens'
+      local row = get_rendered_rows(bufnr)[0]
+      return row and row.placement == 'above' and row.text == 'Fresh Lens'
     end)
 
     first_callback(nil, {
@@ -160,7 +229,8 @@ describe('utils.lsp_codelens', function()
       return false
     end, 10, false)
 
-    assert.equals('  Fresh Lens', get_rendered_rows(bufnr)[0])
+    local row = get_rendered_rows(bufnr)[0]
+    assert.same({ placement = 'above', text = 'Fresh Lens' }, row)
   end)
 
   it('resolves unresolved lenses before rendering their titles', function()
@@ -198,7 +268,8 @@ describe('utils.lsp_codelens', function()
     codelens.attach(clients[1], bufnr)
 
     wait_for('expected resolved codelens title', function()
-      return get_rendered_rows(bufnr)[0] == '  Resolved Lens'
+      local row = get_rendered_rows(bufnr)[0]
+      return row and row.placement == 'above' and row.text == 'Resolved Lens'
     end)
   end)
 
@@ -211,7 +282,7 @@ describe('utils.lsp_codelens', function()
       supports_method = function(_, method)
         return method == Methods.textDocument_codeLens
       end,
-      request = function(_, method, _, callback)
+      request = function(_, _, _, callback)
         callback(nil, {
           {
             range = { start = { line = 0, character = 0 }, ['end'] = { line = 0, character = 0 } },
@@ -224,7 +295,8 @@ describe('utils.lsp_codelens', function()
     codelens.attach(clients[1], bufnr)
 
     wait_for('expected initial codelens render', function()
-      return get_rendered_rows(bufnr)[0] == '  Detached Lens'
+      local row = get_rendered_rows(bufnr)[0]
+      return row and row.placement == 'above' and row.text == 'Detached Lens'
     end)
 
     codelens.detach(bufnr, 1)

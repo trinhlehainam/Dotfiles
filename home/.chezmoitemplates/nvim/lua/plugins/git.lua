@@ -1,6 +1,7 @@
 -- One-shot target line used by blame -> Diffview handoff.
 ---@type integer|nil
 local pending_blame_diffview_lnum = nil
+local lsp_codelens = require('utils.lsp_codelens')
 -- Monotonic id for blame->Diffview jump requests.
 -- Deferred cleanup only clears state when its captured id is still current.
 ---@type integer
@@ -60,6 +61,55 @@ return {
 
         local view = diffview_lib.get_current_view()
         return view and view.cur_layout or nil
+      end
+
+      ---@param view? { cur_layout?: DiffviewLayoutLike }
+      ---@return integer|nil
+      local function current_main_bufnr(view)
+        local layout = view and view.cur_layout or current_layout()
+        if not layout then
+          return nil
+        end
+
+        local ok_main, main_win = pcall(function()
+          return layout:get_main_win()
+        end)
+        if not ok_main or not main_win then
+          return nil
+        end
+
+        local main_buf = main_win.file and main_win.file.bufnr
+        if not main_buf or not vim.api.nvim_buf_is_valid(main_buf) then
+          return nil
+        end
+
+        return main_buf
+      end
+
+      ---@type integer|nil
+      local diffview_codelens_bufnr = nil
+
+      local function clear_diffview_codelens()
+        if not diffview_codelens_bufnr then
+          return
+        end
+
+        lsp_codelens.clear_context(diffview_codelens_bufnr, 'diffview')
+        diffview_codelens_bufnr = nil
+      end
+
+      ---@param view? { cur_layout?: DiffviewLayoutLike }
+      local function sync_diffview_codelens(view)
+        local main_buf = current_main_bufnr(view)
+        if diffview_codelens_bufnr == main_buf then
+          return
+        end
+
+        clear_diffview_codelens()
+        if main_buf then
+          lsp_codelens.set_context(main_buf, 'diffview', 'eol')
+          diffview_codelens_bufnr = main_buf
+        end
       end
 
       -- Diffview hooks also run for local file buffers; filter to virtual diffview buffers.
@@ -212,7 +262,21 @@ return {
 
       diffview.setup({
         hooks = {
+          view_opened = function(view)
+            sync_diffview_codelens(view)
+          end,
+          view_closed = function()
+            clear_diffview_codelens()
+          end,
+          view_enter = function(view)
+            sync_diffview_codelens(view)
+          end,
+          view_leave = function()
+            clear_diffview_codelens()
+          end,
           diff_buf_read = function(bufnr, _)
+            sync_diffview_codelens()
+
             -- diff_buf_read also fires for local file buffers; only process
             -- Diffview virtual buffers here.
             if not is_diffview_buf(bufnr) then
@@ -426,6 +490,9 @@ return {
           return
         end
 
+        if source_buf and vim.api.nvim_buf_is_valid(source_buf) then
+          lsp_codelens.clear_context(source_buf, 'gitsigns_blame')
+        end
         in_source_win(restore_plugins)
         blame_count = 0
         source_win = nil
@@ -441,6 +508,9 @@ return {
             -- Capture source window and buffer (alternate window when blame split is created)
             source_win = vim.fn.win_getid(vim.fn.winnr('#'))
             source_buf = vim.api.nvim_win_get_buf(source_win)
+            if vim.api.nvim_buf_is_valid(source_buf) then
+              lsp_codelens.set_context(source_buf, 'gitsigns_blame', 'eol')
+            end
             in_source_win(function()
               for _, p in ipairs(loaded) do
                 p.was_active = p.is_active(p.module)

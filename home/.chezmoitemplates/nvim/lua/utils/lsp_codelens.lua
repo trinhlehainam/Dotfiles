@@ -6,6 +6,14 @@ local M = {}
 local namespace = api.nvim_create_namespace('dotfiles.lsp.codelens')
 local augroup = api.nvim_create_augroup('dotfiles-lsp-codelens', { clear = false })
 local refresh_delay_ms = 200
+local default_placement = 'above'
+
+local context_priority = {
+  gitsigns_blame = 20,
+  diffview = 10,
+}
+
+---@alias dotfiles.LspCodeLensPlacement 'above'|'eol'
 
 ---@class dotfiles.LspCodeLensEntry
 ---@field col integer
@@ -14,6 +22,7 @@ local refresh_delay_ms = 200
 ---@class dotfiles.LspCodeLensState
 ---@field clients table<integer, true>
 ---@field client_rows table<integer, table<integer, dotfiles.LspCodeLensEntry[]>>
+---@field contexts table<string, dotfiles.LspCodeLensPlacement>
 ---@field refresh_seq integer
 ---@field timer? uv.uv_timer_t
 
@@ -71,6 +80,7 @@ local function ensure_state(bufnr)
   state = {
     clients = {},
     client_rows = {},
+    contexts = {},
     refresh_seq = 0,
   }
   states[bufnr] = state
@@ -120,6 +130,23 @@ local function ensure_state(bufnr)
 end
 
 ---@param state dotfiles.LspCodeLensState
+---@return dotfiles.LspCodeLensPlacement
+local function get_placement(state)
+  local best_priority = -1
+  local placement = default_placement
+
+  for key, override in pairs(state.contexts) do
+    local priority = context_priority[key] or 0
+    if override and priority > best_priority then
+      best_priority = priority
+      placement = override
+    end
+  end
+
+  return placement
+end
+
+---@param state dotfiles.LspCodeLensState
 ---@param seq integer
 ---@param tick integer
 ---@return boolean
@@ -151,9 +178,35 @@ local function add_entry(rows, lens)
   rows[line] = entries
 end
 
+---@param entries dotfiles.LspCodeLensEntry[]
+---@param placement dotfiles.LspCodeLensPlacement
+---@return [string, string][]
+local function build_chunks(entries, placement)
+  ---@type [string, string][]
+  local virt_text = {}
+
+  if placement == 'above' then
+    local indent = math.max(entries[1].col, 0)
+    if indent > 0 then
+      virt_text[#virt_text + 1] = { string.rep(' ', indent), 'LspCodeLensSeparator' }
+    end
+  else
+    virt_text[#virt_text + 1] = { '  ', 'LspCodeLensSeparator' }
+  end
+
+  for index, entry in ipairs(entries) do
+    virt_text[#virt_text + 1] = { entry.title, 'LspCodeLens' }
+    if index < #entries then
+      virt_text[#virt_text + 1] = { ' | ', 'LspCodeLensSeparator' }
+    end
+  end
+
+  return virt_text
+end
+
 ---@param bufnr integer
----@param client_rows table<integer, table<integer, dotfiles.LspCodeLensEntry[]>>
-local function render(bufnr, client_rows)
+---@param state dotfiles.LspCodeLensState
+local function render(bufnr, state)
   if not api.nvim_buf_is_valid(bufnr) then
     return
   end
@@ -162,7 +215,7 @@ local function render(bufnr, client_rows)
 
   ---@type table<integer, dotfiles.LspCodeLensEntry[]>
   local merged_rows = {}
-  for _, rows in pairs(client_rows) do
+  for _, rows in pairs(state.client_rows) do
     for line, entries in pairs(rows) do
       local merged = merged_rows[line] or {}
       vim.list_extend(merged, entries)
@@ -170,6 +223,7 @@ local function render(bufnr, client_rows)
     end
   end
 
+  local placement = get_placement(state)
   for line, entries in pairs(merged_rows) do
     table.sort(entries, function(a, b)
       if a.col == b.col then
@@ -179,20 +233,19 @@ local function render(bufnr, client_rows)
       return a.col < b.col
     end)
 
-    ---@type [string, string][]
-    local virt_text = { { '  ', 'LspCodeLensSeparator' } }
-    for index, entry in ipairs(entries) do
-      virt_text[#virt_text + 1] = { entry.title, 'LspCodeLens' }
-      if index < #entries then
-        virt_text[#virt_text + 1] = { ' | ', 'LspCodeLensSeparator' }
-      end
+    local opts = { hl_mode = 'combine' }
+    local chunks = build_chunks(entries, placement)
+
+    if placement == 'above' then
+      opts.virt_lines = { chunks }
+      opts.virt_lines_above = true
+      opts.virt_lines_overflow = 'scroll'
+    else
+      opts.virt_text = chunks
+      opts.virt_text_pos = 'eol'
     end
 
-    api.nvim_buf_set_extmark(bufnr, namespace, line, 0, {
-      virt_text = virt_text,
-      virt_text_pos = 'eol',
-      hl_mode = 'combine',
-    })
+    api.nvim_buf_set_extmark(bufnr, namespace, line, 0, opts)
   end
 end
 
@@ -260,7 +313,7 @@ local function refresh_now(bufnr)
 
         if err then
           state.client_rows[client_id] = {}
-          render(bufnr, state.client_rows)
+          render(bufnr, state)
           return
         end
 
@@ -270,7 +323,7 @@ local function refresh_now(bufnr)
           end
 
           state.client_rows[client_id] = rows
-          render(bufnr, state.client_rows)
+          render(bufnr, state)
         end)
       end, bufnr)
     end
@@ -336,12 +389,49 @@ function M.detach(bufnr, client_id)
   state.client_rows[client_id] = nil
 
   if next(state.clients) == nil then
-    M.detach_all(bufnr)
+    M.clear(bufnr)
+    if next(state.contexts) == nil then
+      M.detach_all(bufnr)
+    end
     return
   end
 
   M.clear(bufnr)
   refresh_now(bufnr)
+end
+
+---@param bufnr integer
+---@param key string
+---@param placement dotfiles.LspCodeLensPlacement
+function M.set_context(bufnr, key, placement)
+  if not api.nvim_buf_is_valid(bufnr) then
+    return
+  end
+
+  local state = ensure_state(bufnr)
+  if state.contexts[key] == placement then
+    return
+  end
+
+  state.contexts[key] = placement
+  render(bufnr, state)
+end
+
+---@param bufnr integer
+---@param key string
+function M.clear_context(bufnr, key)
+  local state = get_state(bufnr)
+  if not state or not state.contexts[key] then
+    return
+  end
+
+  state.contexts[key] = nil
+  if next(state.clients) == nil and next(state.contexts) == nil then
+    M.detach_all(bufnr)
+    return
+  end
+
+  render(bufnr, state)
 end
 
 ---@param bufnr integer
