@@ -67,7 +67,10 @@ local function register_commands_once()
     end
 
     local root_dir = client.config.root_dir
-    vim.lsp.stop_client(client.id)
+    -- Prefer a graceful shutdown here: forcing termination while the server is
+    -- writing cache/index files risks corruption. The explicit false keeps this
+    -- behavior independent of any future client exit_timeout setting.
+    client:stop(false)
 
     local stopped = vim.wait(STOP_TIMEOUT, function()
       return client:is_stopped()
@@ -294,7 +297,8 @@ intelephense.config = {
     register_commands_once()
   end,
 
-  on_exit = function(_, _, client_id)
+  -- LSP on_exit may run in a fast event; schedule all editor-state cleanup.
+  on_exit = vim.schedule_wrap(function(_, _, client_id)
     local bufnr = active_clients[client_id]
     active_clients[client_id] = nil
 
@@ -302,18 +306,14 @@ intelephense.config = {
       pcall(vim.api.nvim_clear_autocmds, { group = unused_refs_augroup, buffer = bufnr })
       if vim.api.nvim_buf_is_valid(bufnr) then
         vim.b[bufnr].intelephense_unused_refs_autocmd = nil
+        vim.diagnostic.set(unused_refs_ns, bufnr, {})
       end
-      vim.schedule(function()
-        if vim.api.nvim_buf_is_valid(bufnr) then
-          vim.diagnostic.set(unused_refs_ns, bufnr, {})
-        end
-      end)
     end
 
     if next(active_clients) == nil then
       unregister_commands()
     end
-  end,
+  end),
 }
 
 M.lspconfigs = { intelephense }
