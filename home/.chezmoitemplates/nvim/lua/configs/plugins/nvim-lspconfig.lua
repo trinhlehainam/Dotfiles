@@ -98,7 +98,7 @@ vim.api.nvim_create_autocmd('LspAttach', {
       codelens_clients[client.id] = true
       vim.b[event.buf].lsp_codelens_clients = codelens_clients
 
-      vim.lsp.codelens.refresh({ bufnr = event.buf })
+      vim.lsp.codelens.enable(true, { bufnr = event.buf })
 
       -- Only create autocmds once per buffer (first codelens-capable client)
       if vim.tbl_count(codelens_clients) == 1 then
@@ -107,7 +107,7 @@ vim.api.nvim_create_autocmd('LspAttach', {
           buffer = event.buf,
           group = codelens_augroup,
           callback = function()
-            vim.lsp.codelens.refresh({ bufnr = event.buf })
+            vim.lsp.codelens.enable(true, { bufnr = event.buf })
           end,
         })
       end
@@ -141,7 +141,7 @@ vim.api.nvim_create_autocmd('LspDetach', {
       codelens_clients[client_id] = nil
       if next(codelens_clients) == nil then
         pcall(vim.api.nvim_clear_autocmds, { group = 'lsp-codelens', buffer = bufnr })
-        vim.lsp.codelens.clear(nil, bufnr)
+        vim.lsp.codelens.enable(false, { bufnr = bufnr, client_id = client_id })
         vim.b[bufnr].lsp_codelens_clients = nil
       else
         vim.b[bufnr].lsp_codelens_clients = codelens_clients
@@ -167,8 +167,11 @@ vim.diagnostic.config({
   virtual_lines = {
     current_line = true,
   },
-  -- TODO: Neovim 0.12+ jump.on_jump (see https://github.com/neovim/neovim/issues/33154)
-  jump = { float = true },
+  jump = {
+    on_jump = function(_, bufnr)
+      vim.diagnostic.open_float({ bufnr = bufnr, scope = 'cursor', focus = false })
+    end,
+  },
 })
 
 -- Diagnostic keymaps

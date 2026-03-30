@@ -39,8 +39,6 @@ local CMD = {
 -- State
 local commands_registered = false
 local indexing_in_progress = false
-local codelens_display_registered = false
-local original_codelens_display
 local active_clients = {}
 
 local function get_client()
@@ -167,6 +165,8 @@ end
 -- Unused Function Diagnostics (via Intelephense CodeLens)
 -- ============================================================================
 local unused_refs_ns = vim.api.nvim_create_namespace('intelephense_unused_refs')
+local unused_refs_augroup =
+  vim.api.nvim_create_augroup('intelephense-unused-refs', { clear = false })
 
 -- Extract symbol name from buffer at position
 local function get_symbol_at(bufnr, line, col)
@@ -179,74 +179,89 @@ local function get_symbol_at(bufnr, line, col)
   return text:match('^%$?[%w_]+')
 end
 
-local function register_codelens_display_once()
-  if codelens_display_registered then
-    return
-  end
+local function set_unused_reference_diagnostics(bufnr, client_id, lenses)
+  -- Lines with existing intelephense diagnostics
+  local existing =
+    vim.diagnostic.get(bufnr, { namespace = vim.lsp.diagnostic.get_namespace(client_id) })
+  local diag_lines = vim.iter(existing):fold({}, function(acc, d)
+    acc[d.lnum] = true
+    return acc
+  end)
+  local has_existing = next(diag_lines) ~= nil
 
-  original_codelens_display = vim.lsp.codelens.display
-  vim.lsp.codelens.display = function(lenses, bufnr, client_id)
-    original_codelens_display(lenses, bufnr, client_id)
-
-    local client = vim.lsp.get_client_by_id(client_id)
-    if not client or client.name ~= 'intelephense' then
-      return
-    end
-
-    vim.diagnostic.reset(unused_refs_ns, bufnr)
-    if not lenses or #lenses == 0 then
-      return
-    end
-
-    -- Lines with existing intelephense diagnostics
-    local existing =
-      vim.diagnostic.get(bufnr, { namespace = vim.lsp.diagnostic.get_namespace(client_id) })
-    local diag_lines = vim.iter(existing):fold({}, function(acc, d)
-      acc[d.lnum] = true
-      return acc
-    end)
-    local has_existing = next(diag_lines) ~= nil
-
-    -- Single pass: filter + map in one fold (3x fewer function calls)
-    local diagnostics = vim.iter(lenses):fold({}, function(acc, lens)
-      local cmd = lens.command
-      if cmd and cmd.title and cmd.title:match('^0 References') then
-        local pos = lens.range.start
-        if not has_existing or not diag_lines[pos.line] then
-          local symbol = get_symbol_at(bufnr, pos.line, pos.character) or 'symbol'
-          acc[#acc + 1] = {
-            lnum = pos.line,
-            col = pos.character,
-            message = ("Symbol '%s' is declared but not used."):format(symbol),
-            severity = vim.diagnostic.severity.HINT,
-            source = 'intelephense',
-            code = 'P1003',
-          }
-        end
+  -- Single pass: filter + map in one fold (3x fewer function calls)
+  local diagnostics = vim.iter(lenses or {}):fold({}, function(acc, lens)
+    local cmd = lens.command
+    if cmd and cmd.title and cmd.title:match('^0 References') then
+      local pos = lens.range.start
+      if not has_existing or not diag_lines[pos.line] then
+        local symbol = get_symbol_at(bufnr, pos.line, pos.character) or 'symbol'
+        acc[#acc + 1] = {
+          lnum = pos.line,
+          col = pos.character,
+          message = ("Symbol '%s' is declared but not used."):format(symbol),
+          severity = vim.diagnostic.severity.HINT,
+          source = 'intelephense',
+          code = 'P1003',
+        }
       end
-      return acc
-    end)
+    end
+    return acc
+  end)
 
-    vim.diagnostic.set(unused_refs_ns, bufnr, diagnostics)
-  end
-
-  codelens_display_registered = true
+  vim.diagnostic.set(unused_refs_ns, bufnr, diagnostics)
 end
 
-local function unregister_codelens_display()
-  if not codelens_display_registered then
+local function refresh_unused_reference_diagnostics(client, bufnr)
+  if
+    client.name ~= 'intelephense'
+    or not vim.api.nvim_buf_is_valid(bufnr)
+    or not client:supports_method(vim.lsp.protocol.Methods.textDocument_codeLens, bufnr)
+  then
     return
   end
 
-  if original_codelens_display then
-    vim.lsp.codelens.display = original_codelens_display
-  end
-  codelens_display_registered = false
+  local tick = vim.api.nvim_buf_get_changedtick(bufnr)
+  local params = { textDocument = vim.lsp.util.make_text_document_params(bufnr) }
+  client:request(vim.lsp.protocol.Methods.textDocument_codeLens, params, function(err, result)
+    if err or not vim.api.nvim_buf_is_valid(bufnr) then
+      return
+    end
 
-  -- Schedule: diagnostic.reset uses buf API, unsafe in fast-event context
-  vim.schedule(function()
-    vim.diagnostic.reset(unused_refs_ns)
-  end)
+    if vim.api.nvim_buf_get_changedtick(bufnr) ~= tick then
+      return
+    end
+
+    set_unused_reference_diagnostics(bufnr, client.id, result)
+  end, bufnr)
+end
+
+local function register_unused_reference_autocmd_once(bufnr)
+  if vim.b[bufnr].intelephense_unused_refs_autocmd then
+    return
+  end
+
+  vim.b[bufnr].intelephense_unused_refs_autocmd = true
+  vim.api.nvim_create_autocmd({ 'InsertLeave', 'BufWritePost' }, {
+    buffer = bufnr,
+    group = unused_refs_augroup,
+    callback = function()
+      local client = vim.lsp.get_clients({ bufnr = bufnr, name = 'intelephense' })[1]
+      if client then
+        refresh_unused_reference_diagnostics(client, bufnr)
+      end
+    end,
+  })
+end
+
+local function has_active_client_in_buffer(bufnr)
+  for _, active_bufnr in pairs(active_clients) do
+    if active_bufnr == bufnr then
+      return true
+    end
+  end
+
+  return false
 end
 
 intelephense.config = {
@@ -270,16 +285,32 @@ intelephense.config = {
     ['indexingEnded'] = on_indexing_ended,
   },
 
-  on_attach = function(client, _)
-    active_clients[client.id] = true
-    register_codelens_display_once()
+  on_attach = function(client, bufnr)
+    active_clients[client.id] = bufnr
+    if client:supports_method(vim.lsp.protocol.Methods.textDocument_codeLens, bufnr) then
+      register_unused_reference_autocmd_once(bufnr)
+      refresh_unused_reference_diagnostics(client, bufnr)
+    end
     register_commands_once()
   end,
 
   on_exit = function(_, _, client_id)
+    local bufnr = active_clients[client_id]
     active_clients[client_id] = nil
+
+    if bufnr and not has_active_client_in_buffer(bufnr) then
+      pcall(vim.api.nvim_clear_autocmds, { group = unused_refs_augroup, buffer = bufnr })
+      if vim.api.nvim_buf_is_valid(bufnr) then
+        vim.b[bufnr].intelephense_unused_refs_autocmd = nil
+      end
+      vim.schedule(function()
+        if vim.api.nvim_buf_is_valid(bufnr) then
+          vim.diagnostic.set(unused_refs_ns, bufnr, {})
+        end
+      end)
+    end
+
     if next(active_clients) == nil then
-      unregister_codelens_display()
       unregister_commands()
     end
   end,
