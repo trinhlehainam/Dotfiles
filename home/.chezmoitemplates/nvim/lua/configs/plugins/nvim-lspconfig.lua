@@ -1,3 +1,5 @@
+local lsp_codelens = require('utils.lsp_codelens')
+
 -- LSP buffer-local setup (keymaps, highlights, inlay hints)
 vim.api.nvim_create_autocmd('LspAttach', {
   group = vim.api.nvim_create_augroup('kickstart-lsp-attach', { clear = true }),
@@ -87,30 +89,11 @@ vim.api.nvim_create_autocmd('LspAttach', {
     end
 
     -- CodeLens (if supported)
-    -- TODO: When PR #36469 merges, add { display = { virt_lines = true } } for above-line display
-    -- Track: https://github.com/neovim/neovim/pull/36469
     if
       client
       and client_supports_method(client, vim.lsp.protocol.Methods.textDocument_codeLens, event.buf)
     then
-      -- Track this client as supporting codelens (vim.b returns copies, must reassign)
-      local codelens_clients = vim.b[event.buf].lsp_codelens_clients or {}
-      codelens_clients[client.id] = true
-      vim.b[event.buf].lsp_codelens_clients = codelens_clients
-
-      vim.lsp.codelens.enable(true, { bufnr = event.buf })
-
-      -- Only create autocmds once per buffer (first codelens-capable client)
-      if vim.tbl_count(codelens_clients) == 1 then
-        local codelens_augroup = vim.api.nvim_create_augroup('lsp-codelens', { clear = false })
-        vim.api.nvim_create_autocmd({ 'InsertLeave', 'BufWritePost' }, {
-          buffer = event.buf,
-          group = codelens_augroup,
-          callback = function()
-            vim.lsp.codelens.enable(true, { bufnr = event.buf })
-          end,
-        })
-      end
+      lsp_codelens.attach(client, event.buf)
     end
   end,
 })
@@ -135,18 +118,7 @@ vim.api.nvim_create_autocmd('LspDetach', {
       end
     end
 
-    -- Remove from codelens clients and cleanup if none remain (vim.b returns copies, must reassign)
-    local codelens_clients = vim.b[bufnr].lsp_codelens_clients
-    if codelens_clients and codelens_clients[client_id] then
-      codelens_clients[client_id] = nil
-      if next(codelens_clients) == nil then
-        pcall(vim.api.nvim_clear_autocmds, { group = 'lsp-codelens', buffer = bufnr })
-        vim.lsp.codelens.enable(false, { bufnr = bufnr, client_id = client_id })
-        vim.b[bufnr].lsp_codelens_clients = nil
-      else
-        vim.b[bufnr].lsp_codelens_clients = codelens_clients
-      end
-    end
+    lsp_codelens.detach(bufnr, client_id)
   end,
 })
 
