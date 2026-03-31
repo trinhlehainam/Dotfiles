@@ -359,13 +359,6 @@ function M.refresh(bufnr)
 end
 
 ---@param bufnr integer
----@return boolean
-function M.is_context_active(bufnr)
-  local state = get_state(bufnr)
-  return state ~= nil and has_contexts(state)
-end
-
----@param bufnr integer
 ---@param key string
 ---@param placement 'eol'
 function M.set_context(bufnr, key, placement)

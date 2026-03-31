@@ -1,5 +1,3 @@
-local lsp_codelens = require('utils.lsp_codelens')
-
 -- LSP buffer-local setup (keymaps, highlights, inlay hints)
 vim.api.nvim_create_autocmd('LspAttach', {
   group = vim.api.nvim_create_augroup('kickstart-lsp-attach', { clear = true }),
@@ -87,15 +85,6 @@ vim.api.nvim_create_autocmd('LspAttach', {
         vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled({ bufnr = event.buf }))
       end, '[T]oggle Inlay [H]ints')
     end
-
-    -- CodeLens (if supported)
-    if
-      client
-      and client_supports_method(client, vim.lsp.protocol.Methods.textDocument_codeLens, event.buf)
-      and not lsp_codelens.is_context_active(event.buf)
-    then
-      vim.lsp.codelens.enable(true, { bufnr = event.buf })
-    end
   end,
 })
 
@@ -120,6 +109,9 @@ vim.api.nvim_create_autocmd('LspDetach', {
     end
   end,
 })
+
+-- Enable built-in CodeLens globally; explicit git contexts opt out per-buffer.
+vim.lsp.codelens.enable(true)
 
 vim.diagnostic.config({
   update_in_insert = false,
