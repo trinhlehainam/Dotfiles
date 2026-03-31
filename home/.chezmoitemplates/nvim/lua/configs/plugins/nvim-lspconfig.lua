@@ -92,8 +92,9 @@ vim.api.nvim_create_autocmd('LspAttach', {
     if
       client
       and client_supports_method(client, vim.lsp.protocol.Methods.textDocument_codeLens, event.buf)
+      and not lsp_codelens.is_context_active(event.buf)
     then
-      lsp_codelens.attach(client, event.buf)
+      vim.lsp.codelens.enable(true, { bufnr = event.buf })
     end
   end,
 })
@@ -117,8 +118,6 @@ vim.api.nvim_create_autocmd('LspDetach', {
         vim.b[bufnr].lsp_highlight_clients = highlight_clients
       end
     end
-
-    lsp_codelens.detach(bufnr, client_id)
   end,
 })
 

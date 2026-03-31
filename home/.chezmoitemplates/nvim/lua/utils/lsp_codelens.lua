@@ -6,23 +6,10 @@ local M = {}
 local namespace = api.nvim_create_namespace('dotfiles.lsp.codelens')
 local augroup = api.nvim_create_augroup('dotfiles-lsp-codelens', { clear = false })
 local refresh_delay_ms = 200
-local default_placement = 'above'
-
-local context_priority = {
-  gitsigns_blame = 20,
-  diffview = 10,
-}
-
----@alias dotfiles.LspCodeLensPlacement 'above'|'eol'
-
----@class dotfiles.LspCodeLensEntry
----@field col integer
----@field title string
 
 ---@class dotfiles.LspCodeLensState
----@field clients table<integer, true>
----@field client_rows table<integer, table<integer, dotfiles.LspCodeLensEntry[]>>
----@field contexts table<string, dotfiles.LspCodeLensPlacement>
+---@field contexts table<string, 'eol'>
+---@field client_rows table<integer, table<integer, lsp.CodeLens[]>>
 ---@field refresh_seq integer
 ---@field timer? uv.uv_timer_t
 
@@ -69,6 +56,36 @@ local function get_state(bufnr)
   return nil
 end
 
+---@param lens lsp.CodeLens
+---@return string?
+local function lens_title(lens)
+  if not lens.command or type(lens.command.title) ~= 'string' then
+    return nil
+  end
+
+  local title = vim.trim(lens.command.title)
+  return title ~= '' and title or nil
+end
+
+---@param bufnr integer
+---@param lens lsp.CodeLens
+---@param client vim.lsp.Client
+---@return integer
+local function lens_col(bufnr, lens, client)
+  local ok, range = pcall(vim.range.lsp, bufnr, lens.range, client.offset_encoding)
+  if ok and range and type(range.start_col) == 'number' then
+    return range.start_col
+  end
+
+  return lens.range.start.character
+end
+
+---@param state dotfiles.LspCodeLensState
+---@return boolean
+local function has_contexts(state)
+  return next(state.contexts) ~= nil
+end
+
 ---@param bufnr integer
 ---@return dotfiles.LspCodeLensState
 local function ensure_state(bufnr)
@@ -78,9 +95,8 @@ local function ensure_state(bufnr)
   end
 
   state = {
-    clients = {},
-    client_rows = {},
     contexts = {},
+    client_rows = {},
     refresh_seq = 0,
   }
   states[bufnr] = state
@@ -129,79 +145,17 @@ local function ensure_state(bufnr)
   return state
 end
 
----@param state dotfiles.LspCodeLensState
----@return dotfiles.LspCodeLensPlacement
-local function get_placement(state)
-  local best_priority = -1
-  local placement = default_placement
-
-  for key, override in pairs(state.contexts) do
-    local priority = context_priority[key] or 0
-    if override and priority > best_priority then
-      best_priority = priority
-      placement = override
-    end
-  end
-
-  return placement
-end
-
+---@param bufnr integer
 ---@param state dotfiles.LspCodeLensState
 ---@param seq integer
 ---@param tick integer
 ---@return boolean
 local function is_refresh_current(bufnr, state, seq, tick)
   return states[bufnr] == state
+    and has_contexts(state)
     and state.refresh_seq == seq
     and api.nvim_buf_is_valid(bufnr)
     and api.nvim_buf_get_changedtick(bufnr) == tick
-end
-
----@param rows table<integer, dotfiles.LspCodeLensEntry[]>
----@param lens lsp.CodeLens?
-local function add_entry(rows, lens)
-  if not lens or not lens.command or type(lens.command.title) ~= 'string' then
-    return
-  end
-
-  local title = vim.trim(lens.command.title)
-  if title == '' then
-    return
-  end
-
-  local line = lens.range.start.line
-  local entries = rows[line] or {}
-  entries[#entries + 1] = {
-    col = lens.range.start.character,
-    title = title,
-  }
-  rows[line] = entries
-end
-
----@param entries dotfiles.LspCodeLensEntry[]
----@param placement dotfiles.LspCodeLensPlacement
----@return [string, string][]
-local function build_chunks(entries, placement)
-  ---@type [string, string][]
-  local virt_text = {}
-
-  if placement == 'above' then
-    local indent = math.max(entries[1].col, 0)
-    if indent > 0 then
-      virt_text[#virt_text + 1] = { string.rep(' ', indent), 'LspCodeLensSeparator' }
-    end
-  else
-    virt_text[#virt_text + 1] = { '  ', 'LspCodeLensSeparator' }
-  end
-
-  for index, entry in ipairs(entries) do
-    virt_text[#virt_text + 1] = { entry.title, 'LspCodeLens' }
-    if index < #entries then
-      virt_text[#virt_text + 1] = { ' | ', 'LspCodeLensSeparator' }
-    end
-  end
-
-  return virt_text
 end
 
 ---@param bufnr integer
@@ -213,19 +167,28 @@ local function render(bufnr, state)
 
   clear_extmarks(bufnr)
 
-  ---@type table<integer, dotfiles.LspCodeLensEntry[]>
   local merged_rows = {}
-  for _, rows in pairs(state.client_rows) do
-    for line, entries in pairs(rows) do
-      local merged = merged_rows[line] or {}
-      vim.list_extend(merged, entries)
-      merged_rows[line] = merged
+  for client_id, rows in pairs(state.client_rows) do
+    local client = vim.lsp.get_client_by_id(client_id)
+    if client then
+      for line, lenses in pairs(rows) do
+        local items = merged_rows[line] or {}
+        for _, lens in ipairs(lenses) do
+          local title = lens_title(lens)
+          if title then
+            items[#items + 1] = {
+              col = lens_col(bufnr, lens, client),
+              title = title,
+            }
+          end
+        end
+        merged_rows[line] = items
+      end
     end
   end
 
-  local placement = get_placement(state)
-  for line, entries in pairs(merged_rows) do
-    table.sort(entries, function(a, b)
+  for line, items in pairs(merged_rows) do
+    table.sort(items, function(a, b)
       if a.col == b.col then
         return a.title < b.title
       end
@@ -233,20 +196,39 @@ local function render(bufnr, state)
       return a.col < b.col
     end)
 
-    local opts = { hl_mode = 'combine' }
-    local chunks = build_chunks(entries, placement)
+    if #items > 0 then
+      ---@type [string, string][]
+      local virt_text = { { '  ', 'LspCodeLensSeparator' } }
 
-    if placement == 'above' then
-      opts.virt_lines = { chunks }
-      opts.virt_lines_above = true
-      opts.virt_lines_overflow = 'scroll'
-    else
-      opts.virt_text = chunks
-      opts.virt_text_pos = 'eol'
+      for index, item in ipairs(items) do
+        virt_text[#virt_text + 1] = { item.title, 'LspCodeLens' }
+        if index < #items then
+          virt_text[#virt_text + 1] = { ' | ', 'LspCodeLensSeparator' }
+        end
+      end
+
+      api.nvim_buf_set_extmark(bufnr, namespace, line, 0, {
+        virt_text = virt_text,
+        virt_text_pos = 'eol',
+        hl_mode = 'combine',
+      })
     end
-
-    api.nvim_buf_set_extmark(bufnr, namespace, line, 0, opts)
   end
+end
+
+---@param lenses lsp.CodeLens[]?
+---@return table<integer, lsp.CodeLens[]>
+local function group_lenses(lenses)
+  local rows = {}
+
+  for _, lens in ipairs(lenses or {}) do
+    local line = lens.range.start.line
+    local row_lenses = rows[line] or {}
+    row_lenses[#row_lenses + 1] = lens
+    rows[line] = row_lenses
+  end
+
+  return rows
 end
 
 ---@param client vim.lsp.Client
@@ -254,36 +236,32 @@ end
 ---@param state dotfiles.LspCodeLensState
 ---@param seq integer
 ---@param tick integer
----@param lenses lsp.CodeLens[]?
----@param done fun(rows: table<integer, dotfiles.LspCodeLensEntry[]>)
-local function resolve_rows(client, bufnr, state, seq, tick, lenses, done)
-  ---@type table<integer, dotfiles.LspCodeLensEntry[]>
-  local rows = {}
-  local pending = 1
-  local can_resolve = client:supports_method(Methods.codeLens_resolve, bufnr)
-
-  local function finish()
-    pending = pending - 1
-    if pending == 0 then
-      done(rows)
+---@param unresolved_lens lsp.CodeLens
+local function resolve_lens(client, bufnr, state, seq, tick, unresolved_lens)
+  client:request(Methods.codeLens_resolve, unresolved_lens, function(err, resolved_lens)
+    if err or not resolved_lens or not is_refresh_current(bufnr, state, seq, tick) then
+      return
     end
-  end
 
-  for _, lens in ipairs(lenses or {}) do
-    if lens.command then
-      add_entry(rows, lens)
-    elseif can_resolve then
-      pending = pending + 1
-      client:request(Methods.codeLens_resolve, lens, function(err, resolved_lens)
-        if not err and is_refresh_current(bufnr, state, seq, tick) then
-          add_entry(rows, resolved_lens)
-        end
-        finish()
-      end, bufnr)
+    local client_rows = state.client_rows[client.id]
+    if not client_rows then
+      return
     end
-  end
 
-  finish()
+    local row = unresolved_lens.range.start.line
+    local row_lenses = client_rows[row]
+    if not row_lenses then
+      return
+    end
+
+    for index, lens in ipairs(row_lenses) do
+      if lens == unresolved_lens then
+        row_lenses[index] = resolved_lens
+        render(bufnr, state)
+        return
+      end
+    end
+  end, bufnr)
 end
 
 ---@param bufnr integer
@@ -302,9 +280,8 @@ local function refresh_now(bufnr)
   local params = { textDocument = vim.lsp.util.make_text_document_params(bufnr) }
   local requested = false
 
-  for client_id in pairs(state.clients) do
-    local client = vim.lsp.get_client_by_id(client_id)
-    if client and client:supports_method(Methods.textDocument_codeLens, bufnr) then
+  for _, client in ipairs(vim.lsp.get_clients({ bufnr = bufnr })) do
+    if client:supports_method(Methods.textDocument_codeLens, bufnr) then
       requested = true
       client:request(Methods.textDocument_codeLens, params, function(err, result)
         if not is_refresh_current(bufnr, state, seq, tick) then
@@ -312,19 +289,24 @@ local function refresh_now(bufnr)
         end
 
         if err then
-          state.client_rows[client_id] = {}
+          state.client_rows[client.id] = {}
           render(bufnr, state)
           return
         end
 
-        resolve_rows(client, bufnr, state, seq, tick, result, function(rows)
-          if not is_refresh_current(bufnr, state, seq, tick) then
-            return
-          end
+        local rows = group_lenses(result)
+        state.client_rows[client.id] = rows
+        render(bufnr, state)
 
-          state.client_rows[client_id] = rows
-          render(bufnr, state)
-        end)
+        if client:supports_method(Methods.codeLens_resolve, bufnr) then
+          for _, row_lenses in pairs(rows) do
+            for _, lens in ipairs(row_lenses) do
+              if not lens.command then
+                resolve_lens(client, bufnr, state, seq, tick, lens)
+              end
+            end
+          end
+        end
       end, bufnr)
     end
   end
@@ -335,6 +317,19 @@ local function refresh_now(bufnr)
 end
 
 ---@param bufnr integer
+local function enable_builtin(bufnr)
+  if api.nvim_buf_is_valid(bufnr) then
+    vim.lsp.codelens.enable(true, { bufnr = bufnr })
+  end
+end
+
+---@param bufnr integer
+local function disable_builtin(bufnr)
+  if api.nvim_buf_is_valid(bufnr) then
+    vim.lsp.codelens.enable(false, { bufnr = bufnr })
+  end
+end
+
 function M.clear(bufnr)
   local state = get_state(bufnr)
   if not state then
@@ -347,7 +342,6 @@ function M.clear(bufnr)
   clear_extmarks(bufnr)
 end
 
----@param bufnr integer
 function M.schedule_refresh(bufnr)
   local state = get_state(bufnr)
   if not state then
@@ -360,51 +354,22 @@ function M.schedule_refresh(bufnr)
   end, refresh_delay_ms)
 end
 
----@param bufnr integer
 function M.refresh(bufnr)
   refresh_now(bufnr)
 end
 
----@param client vim.lsp.Client
 ---@param bufnr integer
-function M.attach(client, bufnr)
-  if not client or not api.nvim_buf_is_valid(bufnr) then
-    return
-  end
-
-  local state = ensure_state(bufnr)
-  state.clients[client.id] = true
-  refresh_now(bufnr)
-end
-
----@param bufnr integer
----@param client_id integer
-function M.detach(bufnr, client_id)
+---@return boolean
+function M.is_context_active(bufnr)
   local state = get_state(bufnr)
-  if not state or not state.clients[client_id] then
-    return
-  end
-
-  state.clients[client_id] = nil
-  state.client_rows[client_id] = nil
-
-  if next(state.clients) == nil then
-    M.clear(bufnr)
-    if next(state.contexts) == nil then
-      M.detach_all(bufnr)
-    end
-    return
-  end
-
-  M.clear(bufnr)
-  refresh_now(bufnr)
+  return state ~= nil and has_contexts(state)
 end
 
 ---@param bufnr integer
 ---@param key string
----@param placement dotfiles.LspCodeLensPlacement
+---@param placement 'eol'
 function M.set_context(bufnr, key, placement)
-  if not api.nvim_buf_is_valid(bufnr) then
+  if placement ~= 'eol' or not api.nvim_buf_is_valid(bufnr) then
     return
   end
 
@@ -413,8 +378,15 @@ function M.set_context(bufnr, key, placement)
     return
   end
 
+  local was_inactive = not has_contexts(state)
   state.contexts[key] = placement
-  render(bufnr, state)
+
+  if was_inactive then
+    disable_builtin(bufnr)
+    refresh_now(bufnr)
+  else
+    render(bufnr, state)
+  end
 end
 
 ---@param bufnr integer
@@ -426,12 +398,13 @@ function M.clear_context(bufnr, key)
   end
 
   state.contexts[key] = nil
-  if next(state.clients) == nil and next(state.contexts) == nil then
-    M.detach_all(bufnr)
+  if has_contexts(state) then
+    render(bufnr, state)
     return
   end
 
-  render(bufnr, state)
+  M.detach_all(bufnr)
+  enable_builtin(bufnr)
 end
 
 ---@param bufnr integer
@@ -447,5 +420,15 @@ function M.detach_all(bufnr)
   clear_extmarks(bufnr)
   pcall(api.nvim_clear_autocmds, { group = augroup, buffer = bufnr })
 end
+
+api.nvim_create_autocmd({ 'LspAttach', 'LspDetach' }, {
+  group = augroup,
+  callback = function(args)
+    local state = get_state(args.buf)
+    if state and has_contexts(state) then
+      M.schedule_refresh(args.buf)
+    end
+  end,
+})
 
 return M
