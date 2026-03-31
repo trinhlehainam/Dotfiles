@@ -40,6 +40,11 @@ return {
       ---@field file DiffviewMainFileLike
       ---@class DiffviewLayoutLike
       ---@field get_main_win fun(self: DiffviewLayoutLike): DiffviewMainWinLike
+      ---@class DiffviewEmitterLike
+      ---@field on fun(self: DiffviewEmitterLike, event: string, callback: fun(...))
+      ---@class DiffviewViewLike
+      ---@field cur_layout? DiffviewLayoutLike
+      ---@field emitter? DiffviewEmitterLike
 
       -- Diffview virtual buffers may contain raw CP932 bytes from git.
       -- Convert only when the current main diff buffer is SJIS/CP932.
@@ -88,6 +93,8 @@ return {
 
       ---@type integer|nil
       local diffview_codelens_bufnr = nil
+      ---@type table<DiffviewViewLike, true>
+      local diffview_codelens_views = setmetatable({}, { __mode = 'k' })
 
       local function clear_diffview_codelens()
         if not diffview_codelens_bufnr then
@@ -110,6 +117,24 @@ return {
           lsp_codelens.set_context(main_buf, 'diffview', 'eol')
           diffview_codelens_bufnr = main_buf
         end
+      end
+
+      ---@param view? DiffviewViewLike
+      local function attach_diffview_codelens_listener(view)
+        if type(view) ~= 'table' or diffview_codelens_views[view] then
+          return
+        end
+
+        local ok = pcall(function()
+          view.emitter:on('file_open_post', function()
+            sync_diffview_codelens(view)
+          end)
+        end)
+        if not ok then
+          return
+        end
+
+        diffview_codelens_views[view] = true
       end
 
       -- Diffview hooks also run for local file buffers; filter to virtual diffview buffers.
@@ -263,9 +288,13 @@ return {
       diffview.setup({
         hooks = {
           view_opened = function(view)
+            attach_diffview_codelens_listener(view)
             sync_diffview_codelens(view)
           end,
-          view_closed = function()
+          view_closed = function(view)
+            if type(view) == 'table' then
+              diffview_codelens_views[view] = nil
+            end
             clear_diffview_codelens()
           end,
           view_enter = function(view)
@@ -275,8 +304,6 @@ return {
             clear_diffview_codelens()
           end,
           diff_buf_read = function(bufnr, _)
-            sync_diffview_codelens()
-
             -- diff_buf_read also fires for local file buffers; only process
             -- Diffview virtual buffers here.
             if not is_diffview_buf(bufnr) then
