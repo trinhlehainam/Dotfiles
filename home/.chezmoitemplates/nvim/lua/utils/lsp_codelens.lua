@@ -9,11 +9,15 @@ local namespace = api.nvim_create_namespace('dotfiles.lsp.codelens')
 local augroup = api.nvim_create_augroup('dotfiles-lsp-codelens', { clear = true })
 local refresh_delay_ms = 200
 
+---@alias dotfiles.LspCodeLensEolPlacement 'eol'
+---@alias dotfiles.LspCodeLensRows table<integer, lsp.CodeLens[]>
+---@alias dotfiles.LspCodeLensClientRows table<integer, dotfiles.LspCodeLensRows>
+
 ---@class dotfiles.LspCodeLensState
----@field contexts table<string, 'eol'>
----@field client_rows table<integer, table<integer, lsp.CodeLens[]>>
+---@field contexts table<string, dotfiles.LspCodeLensEolPlacement>
+---@field client_rows dotfiles.LspCodeLensClientRows
 ---@field refresh_seq integer
----@field timer? uv.uv_timer_t
+---@field timer? uv.uv_timer_tdotfiles.LspCodeLensEolPlacementdotfiles.LspCodeLensEolPlacement
 ---@field render_scheduled? boolean
 
 ---@type table<integer, dotfiles.LspCodeLensState>
@@ -249,7 +253,7 @@ render = function(bufnr, state)
 end
 
 ---@param lenses lsp.CodeLens[]?
----@return table<integer, lsp.CodeLens[]>
+---@return dotfiles.LspCodeLensRows
 local function group_lenses(lenses)
   local rows = {}
 

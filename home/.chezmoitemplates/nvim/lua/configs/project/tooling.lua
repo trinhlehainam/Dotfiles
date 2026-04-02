@@ -7,35 +7,35 @@ local M = {}
 local TITLE = 'project-settings'
 local TOOLING_SETTINGS = '.nvim/tooling.json'
 
----@class ProjectToolArgs
+---@class dotfiles.ProjectToolArgs
 ---@field args? string[]
 ---@field args_append? string[]
 
----@class ProjectToolingDefaults
+---@class dotfiles.ProjectToolingDefaults
 ---@field format_on_save? boolean
 ---@field lint_on_save? boolean
 
----@class ProjectToolingFiletypeSettings
+---@class dotfiles.ProjectToolingFiletypeSettings
 ---@field formatters? string[]
 ---@field linters? string[]
 ---@field format_on_save? boolean
 ---@field lint_on_save? boolean
 
----@class ProjectToolingSettings
----@field defaults ProjectToolingDefaults
----@field filetypes table<string, ProjectToolingFiletypeSettings>
----@field formatters table<string, ProjectToolArgs>
----@field linters table<string, ProjectToolArgs>
+---@class dotfiles.ProjectToolingSettings
+---@field defaults dotfiles.ProjectToolingDefaults
+---@field filetypes table<string, dotfiles.ProjectToolingFiletypeSettings>
+---@field formatters table<string, dotfiles.ProjectToolArgs>
+---@field linters table<string, dotfiles.ProjectToolArgs>
 
----@class ProjectResolvedToolingSettings
+---@class dotfiles.ProjectResolvedToolingSettings
 ---@field formatters string[]
 ---@field linters string[]
 ---@field format_on_save? boolean
 ---@field lint_on_save? boolean
----@field formatter_overrides table<string, ProjectToolArgs>
----@field linter_overrides table<string, ProjectToolArgs>
+---@field formatter_overrides table<string, dotfiles.ProjectToolArgs>
+---@field linter_overrides table<string, dotfiles.ProjectToolArgs>
 
----@type table<string, ProjectToolingSettings>
+---@type table<string, dotfiles.ProjectToolingSettings>
 local tooling_cache = {}
 local conform_override_hooks = {}
 local conform_base_overrides = {}
@@ -93,7 +93,7 @@ end
 ---@param relpath string
 ---@param scope string
 ---@param raw table
----@return ProjectToolArgs
+---@return dotfiles.ProjectToolArgs
 local function parse_tool_args(relpath, scope, raw)
   if type(raw) ~= 'table' then
     log.warn(('Ignored unsupported key "%s" in %s'):format(scope, relpath), TITLE)
@@ -126,7 +126,7 @@ local function parse_tool_args(relpath, scope, raw)
 end
 
 ---@param raw table
----@param defaults ProjectToolingDefaults
+---@param defaults dotfiles.ProjectToolingDefaults
 local function parse_tooling_defaults(raw, defaults)
   if type(raw) ~= 'table' then
     warn_ignored('defaults')
@@ -158,7 +158,7 @@ end
 
 ---@param filetype string
 ---@param raw table
----@return ProjectToolingFiletypeSettings|nil
+---@return dotfiles.ProjectToolingFiletypeSettings|nil
 local function parse_tooling_filetype(filetype, raw)
   if type(raw) ~= 'table' then
     warn_ignored(('filetypes.%s'):format(filetype))
@@ -201,7 +201,7 @@ local function parse_tooling_filetype(filetype, raw)
 end
 
 ---@param root string
----@return ProjectToolingSettings
+---@return dotfiles.ProjectToolingSettings
 local function load_tooling_settings(root)
   if tooling_cache[root] then
     return tooling_cache[root]
@@ -288,7 +288,7 @@ local function get_buffer_context(bufnr)
 end
 
 ---@param bufnr integer
----@return ProjectResolvedToolingSettings|nil
+---@return dotfiles.ProjectResolvedToolingSettings|nil
 local function get_tooling_settings(bufnr)
   local root, filetype = get_buffer_context(bufnr)
   if not root then
