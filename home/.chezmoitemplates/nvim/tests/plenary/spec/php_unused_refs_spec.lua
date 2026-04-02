@@ -185,4 +185,5 @@ describe('configs.lsp.php unused reference diagnostics', function()
     assert.equals(1, requests.resolve)
     assert_unused_reference_hint(bufnr)
   end)
+
 end)

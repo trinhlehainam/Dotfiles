@@ -4,7 +4,9 @@ local Methods = vim.lsp.protocol.Methods
 local M = {}
 
 local namespace = api.nvim_create_namespace('dotfiles.lsp.codelens')
-local augroup = api.nvim_create_augroup('dotfiles-lsp-codelens', { clear = false })
+-- Clear on load so re-sourcing this module replaces stale global callbacks
+-- instead of stacking multiple LspAttach/LspDetach handlers.
+local augroup = api.nvim_create_augroup('dotfiles-lsp-codelens', { clear = true })
 local refresh_delay_ms = 200
 
 ---@class dotfiles.LspCodeLensState

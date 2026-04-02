@@ -51,6 +51,7 @@ local indexing_in_progress = false
 local active_clients = {}
 ---@type table<integer, dotfiles.IntelephenseUnusedRefsState>
 local unused_refs_states = {}
+local unused_refs_augroup = vim.api.nvim_create_augroup('dotfiles-intelephense-unused-refs', { clear = true })
 
 local function get_client()
   return vim.lsp.get_clients({ name = 'intelephense' })[1]
@@ -332,12 +333,67 @@ local function codelens_cache_key(lenses)
 end
 
 ---@param client_id integer
+---@return table<integer, true>?
+local function prune_active_client_buffers(client_id)
+  local bufnrs = active_clients[client_id]
+  if not bufnrs then
+    return nil
+  end
+
+  for bufnr in pairs(bufnrs) do
+    if not vim.api.nvim_buf_is_valid(bufnr) then
+      bufnrs[bufnr] = nil
+    end
+  end
+
+  if next(bufnrs) == nil then
+    active_clients[client_id] = nil
+    return nil
+  end
+
+  active_clients[client_id] = bufnrs
+  return bufnrs
+end
+
+---@param client_id integer
 ---@param bufnr integer
 local function track_active_client_buffer(client_id, bufnr)
-  local bufnrs = active_clients[client_id] or {}
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    return
+  end
+
+  local bufnrs = prune_active_client_buffers(client_id) or {}
   bufnrs[bufnr] = true
   active_clients[client_id] = bufnrs
 end
+
+---@param client_id integer
+---@param bufnr integer
+local function untrack_active_client_buffer(client_id, bufnr)
+  local bufnrs = prune_active_client_buffers(client_id)
+  if not bufnrs then
+    return
+  end
+
+  bufnrs[bufnr] = nil
+  if next(bufnrs) == nil then
+    active_clients[client_id] = nil
+    return
+  end
+
+  active_clients[client_id] = bufnrs
+end
+
+---@param bufnr integer
+local function untrack_buffer_from_all_active_clients(bufnr)
+  for client_id in pairs(active_clients) do
+    untrack_active_client_buffer(client_id, bufnr)
+  end
+end
+
+---@param bufnr integer
+---@return boolean
+local has_active_client_in_buffer
 
 ---@param bufnr integer
 ---@param client vim.lsp.Client
@@ -366,7 +422,7 @@ local function resolve_unused_reference_lenses(bufnr, client, state, seq, lenses
   for index, lens in ipairs(resolved_lenses) do
     if not lens.command then
       pending = pending + 1
-      client:request(Methods.codeLens_resolve, lens, function(err, resolved_lens)
+      local ok = client:request(Methods.codeLens_resolve, lens, function(err, resolved_lens)
         if finished or not is_unused_reference_refresh_current(bufnr, state, seq) then
           return
         end
@@ -380,6 +436,13 @@ local function resolve_unused_reference_lenses(bufnr, client, state, seq, lenses
           finish()
         end
       end, bufnr)
+
+      if not ok then
+        pending = pending - 1
+        if pending == 0 then
+          finish()
+        end
+      end
     end
   end
 
@@ -498,6 +561,32 @@ local function attach_unused_reference_updates_once(bufnr)
 
   local state = {}
   unused_refs_states[bufnr] = state
+  pcall(vim.api.nvim_clear_autocmds, { group = unused_refs_augroup, buffer = bufnr })
+  vim.api.nvim_create_autocmd('LspDetach', {
+    group = unused_refs_augroup,
+    buffer = bufnr,
+    callback = function(args)
+      local client_id = args.data and args.data.client_id
+      if not client_id then
+        return
+      end
+
+      local client = vim.lsp.get_client_by_id(client_id)
+      if client and client.name ~= 'intelephense' then
+        return
+      end
+
+      untrack_active_client_buffer(client_id, args.buf)
+      if not has_active_client_in_buffer(args.buf) then
+        clear_unused_reference_state(args.buf)
+        clear_unused_reference_diagnostics(args.buf)
+      end
+
+      if next(active_clients) == nil then
+        unregister_commands()
+      end
+    end,
+  })
   local attached = vim.api.nvim_buf_attach(bufnr, false, {
     on_lines = function(_, buf)
       if unused_refs_states[buf] ~= state then
@@ -514,6 +603,8 @@ local function attach_unused_reference_updates_once(bufnr)
       schedule_unused_reference_refresh(buf, state)
     end,
     on_detach = function(_, buf)
+      untrack_buffer_from_all_active_clients(buf)
+      pcall(vim.api.nvim_clear_autocmds, { group = unused_refs_augroup, buffer = buf })
       clear_unused_reference_state(buf, state)
     end,
   })
@@ -523,9 +614,15 @@ local function attach_unused_reference_updates_once(bufnr)
   end
 end
 
-local function has_active_client_in_buffer(bufnr)
-  for _, active_bufnrs in pairs(active_clients) do
-    if active_bufnrs[bufnr] then
+has_active_client_in_buffer = function(bufnr)
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    untrack_buffer_from_all_active_clients(bufnr)
+    return false
+  end
+
+  for client_id in pairs(active_clients) do
+    local active_bufnrs = prune_active_client_buffers(client_id)
+    if active_bufnrs and active_bufnrs[bufnr] then
       return true
     end
   end
@@ -568,7 +665,7 @@ intelephense.config = {
 
   -- LSP on_exit may run in a fast event; schedule all editor-state cleanup.
   on_exit = vim.schedule_wrap(function(_, _, client_id)
-    local bufnrs = active_clients[client_id] or {}
+    local bufnrs = prune_active_client_buffers(client_id) or {}
     active_clients[client_id] = nil
 
     for bufnr in pairs(bufnrs) do
