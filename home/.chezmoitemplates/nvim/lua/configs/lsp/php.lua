@@ -392,6 +392,21 @@ end
 ---@param client vim.lsp.Client
 ---@param state dotfiles.IntelephenseUnusedRefsState
 ---@param seq integer
+---@param lenses lsp.CodeLens[]?
+local function apply_unused_reference_diagnostics(bufnr, client, state, seq, lenses)
+  resolve_unused_reference_lenses(bufnr, client, state, seq, lenses, function(resolved_lenses)
+    if not is_unused_reference_refresh_current(bufnr, state, seq) then
+      return
+    end
+
+    set_unused_reference_diagnostics(bufnr, client, resolved_lenses)
+  end)
+end
+
+---@param bufnr integer
+---@param client vim.lsp.Client
+---@param state dotfiles.IntelephenseUnusedRefsState
+---@param seq integer
 local function request_unused_reference_diagnostics(bufnr, client, state, seq)
   local params = { textDocument = vim.lsp.util.make_text_document_params(bufnr) }
   client:request(Methods.textDocument_codeLens, params, function(err, lenses)
@@ -405,13 +420,7 @@ local function request_unused_reference_diagnostics(bufnr, client, state, seq)
       return
     end
 
-    resolve_unused_reference_lenses(bufnr, client, state, seq, lenses, function(resolved_lenses)
-      if not is_unused_reference_refresh_current(bufnr, state, seq) then
-        return
-      end
-
-      set_unused_reference_diagnostics(bufnr, client, resolved_lenses)
-    end)
+    apply_unused_reference_diagnostics(bufnr, client, state, seq, lenses)
   end, bufnr)
 end
 
@@ -436,7 +445,7 @@ local function refresh_unused_reference_diagnostics_from_cache(bufnr, state, seq
   local cache_key = codelens_cache_key(lenses)
   if cache_key ~= initial_cache_key then
     state.timer = nil
-    set_unused_reference_diagnostics(bufnr, client, lenses)
+    apply_unused_reference_diagnostics(bufnr, client, state, seq, lenses)
     return
   end
 

@@ -3,11 +3,11 @@ local php = require('configs.lsp.php')
 local Methods = vim.lsp.protocol.Methods
 local config = php.lspconfigs[1].config
 
--- This spec intentionally reaches into php.lua through named upvalues so it
--- can exercise the real diagnostic helper without widening the runtime API.
--- It is coupled to php.lua's private closure graph, not upvalue order: simple
--- reordering is fine, but refactors that stop capturing these helpers will
--- need to update this test.
+-- This spec intentionally reaches into php.lua through private upvalues so it
+-- can exercise the real diagnostic helpers without widening the runtime API.
+-- It is coupled to php.lua's closure graph. Most lookups are by name, but a
+-- few stable slots are used where PlenaryBustedFile has not been reliable
+-- about exposing the nested helper name during spec load.
 local function get_upvalue(fn, expected_name)
   for index = 1, 20 do
     local name, value = debug.getupvalue(fn, index)
@@ -23,12 +23,24 @@ local function get_upvalue(fn, expected_name)
   error('missing upvalue: ' .. expected_name)
 end
 
+local function get_upvalue_at(fn, index)
+  local _, value = debug.getupvalue(fn, index)
+  if value == nil then
+    error('missing upvalue index: ' .. tostring(index))
+  end
+
+  return value
+end
+
 local schedule_unused_reference_refresh =
   get_upvalue(config.on_attach, 'schedule_unused_reference_refresh')
 local refresh_unused_reference_diagnostics_from_cache =
   get_upvalue(schedule_unused_reference_refresh, 'refresh_unused_reference_diagnostics_from_cache')
+local apply_unused_reference_diagnostics =
+  get_upvalue_at(refresh_unused_reference_diagnostics_from_cache, 6)
 local set_unused_reference_diagnostics =
-  get_upvalue(refresh_unused_reference_diagnostics_from_cache, 'set_unused_reference_diagnostics')
+  get_upvalue_at(apply_unused_reference_diagnostics, 3)
+local unused_refs_states = get_upvalue(config.on_attach, 'unused_refs_states')
 
 local function make_buf(lines)
   local bufnr = vim.api.nvim_create_buf(false, true)
@@ -78,8 +90,10 @@ describe('configs.lsp.php unused reference diagnostics', function()
   local bufnr
   local client
   local requests
+  local resolve_unused_reference_lenses
 
   before_each(function()
+    resolve_unused_reference_lenses = get_upvalue_at(apply_unused_reference_diagnostics, 1)
     requests = { resolve = 0 }
 
     client = {
@@ -89,7 +103,7 @@ describe('configs.lsp.php unused reference diagnostics', function()
     }
 
     function client:supports_method(method)
-      return method == Methods.codeLens_resolve
+      return method == Methods.codeLens_resolve or method == Methods.textDocument_codeLens
     end
 
     function client:request(method, params, callback, target_bufnr)
@@ -106,6 +120,10 @@ describe('configs.lsp.php unused reference diagnostics', function()
   end)
 
   after_each(function()
+    if bufnr then
+      unused_refs_states[bufnr] = nil
+    end
+
     if bufnr and vim.api.nvim_buf_is_valid(bufnr) then
       pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
     end
@@ -143,6 +161,26 @@ describe('configs.lsp.php unused reference diagnostics', function()
     vim.api.nvim_buf_set_lines(bufnr, 1, 1, false, { 'function unused() {}' })
 
     apply_fallback_lenses()
+
+    assert.equals(1, requests.resolve)
+    assert_unused_reference_hint(bufnr)
+  end)
+
+  it('resolves unresolved lenses before applying shared cached diagnostics', function()
+    bufnr = make_buf({
+      '<?php',
+      'function unused() {}',
+      "echo 'ready';",
+    })
+
+    local state = { refresh_seq = 1 }
+    unused_refs_states[bufnr] = state
+
+    resolve_unused_reference_lenses(bufnr, client, state, state.refresh_seq, {
+      unresolved_unused_lens(),
+    }, function(resolved_lenses)
+      set_unused_reference_diagnostics(bufnr, client, resolved_lenses)
+    end)
 
     assert.equals(1, requests.resolve)
     assert_unused_reference_hint(bufnr)
