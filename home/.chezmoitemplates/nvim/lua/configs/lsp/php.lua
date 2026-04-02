@@ -29,6 +29,7 @@ local intelephense = LspConfig:new('intelephense', 'intelephense')
 local CACHE_PATH = vim.fn.stdpath('cache') .. '/intelephense'
 local STOP_TIMEOUT = 5000
 local POLL_INTERVAL = 50
+local UNUSED_REFS_REFRESH_DELAY_MS = 100
 
 local CMD = {
   INDEX = 'IntelephenseIndexWorkspace',
@@ -36,10 +37,15 @@ local CMD = {
   STATUS = 'IntelephenseStatus',
 }
 
+---@class dotfiles.IntelephenseUnusedRefsState
+---@field timer? uv.uv_timer_t
+
 -- State
 local commands_registered = false
 local indexing_in_progress = false
 local active_clients = {}
+---@type table<integer, dotfiles.IntelephenseUnusedRefsState>
+local unused_refs_states = {}
 
 local function get_client()
   return vim.lsp.get_clients({ name = 'intelephense' })[1]
@@ -168,8 +174,6 @@ end
 -- Unused Function Diagnostics (via Intelephense CodeLens)
 -- ============================================================================
 local unused_refs_ns = vim.api.nvim_create_namespace('intelephense_unused_refs')
-local unused_refs_augroup =
-  vim.api.nvim_create_augroup('intelephense-unused-refs', { clear = false })
 
 -- Extract symbol name from buffer at position
 local function get_symbol_at(bufnr, line, col)
@@ -215,6 +219,40 @@ local function set_unused_reference_diagnostics(bufnr, client_id, lenses)
   vim.diagnostic.set(unused_refs_ns, bufnr, diagnostics)
 end
 
+local function clear_unused_reference_diagnostics(bufnr)
+  if vim.api.nvim_buf_is_valid(bufnr) then
+    vim.diagnostic.set(unused_refs_ns, bufnr, {})
+  end
+end
+
+---@param state dotfiles.IntelephenseUnusedRefsState
+local function reset_unused_reference_refresh_timer(state)
+  local timer = state.timer
+  if not timer then
+    return
+  end
+
+  state.timer = nil
+  if timer:is_closing() then
+    return
+  end
+
+  timer:stop()
+  timer:close()
+end
+
+---@param bufnr integer
+---@param state? dotfiles.IntelephenseUnusedRefsState
+local function clear_unused_reference_state(bufnr, state)
+  local current_state = unused_refs_states[bufnr]
+  if not current_state or (state and current_state ~= state) then
+    return
+  end
+
+  reset_unused_reference_refresh_timer(current_state)
+  unused_refs_states[bufnr] = nil
+end
+
 local function refresh_unused_reference_diagnostics(client, bufnr)
   if
     client.name ~= 'intelephense'
@@ -241,22 +279,61 @@ local function refresh_unused_reference_diagnostics(client, bufnr)
   end, bufnr)
 end
 
-local function register_unused_reference_autocmd_once(bufnr)
-  if vim.b[bufnr].intelephense_unused_refs_autocmd then
+local function refresh_unused_reference_diagnostics_for_buffer(bufnr)
+  local client = vim.lsp.get_clients({ bufnr = bufnr, name = 'intelephense' })[1]
+  if client then
+    refresh_unused_reference_diagnostics(client, bufnr)
+  end
+end
+
+---@param bufnr integer
+---@param state dotfiles.IntelephenseUnusedRefsState
+local function schedule_unused_reference_refresh(bufnr, state)
+  if not vim.api.nvim_buf_is_valid(bufnr) or unused_refs_states[bufnr] ~= state then
     return
   end
 
-  vim.b[bufnr].intelephense_unused_refs_autocmd = true
-  vim.api.nvim_create_autocmd({ 'InsertLeave', 'BufWritePost' }, {
-    buffer = bufnr,
-    group = unused_refs_augroup,
-    callback = function()
-      local client = vim.lsp.get_clients({ bufnr = bufnr, name = 'intelephense' })[1]
-      if client then
-        refresh_unused_reference_diagnostics(client, bufnr)
+  reset_unused_reference_refresh_timer(state)
+  state.timer = vim.defer_fn(function()
+    if unused_refs_states[bufnr] ~= state then
+      return
+    end
+
+    state.timer = nil
+    refresh_unused_reference_diagnostics_for_buffer(bufnr)
+  end, UNUSED_REFS_REFRESH_DELAY_MS)
+end
+
+local function attach_unused_reference_updates_once(bufnr)
+  if unused_refs_states[bufnr] then
+    return
+  end
+
+  local state = {}
+  unused_refs_states[bufnr] = state
+  local attached = vim.api.nvim_buf_attach(bufnr, false, {
+    on_lines = function(_, buf)
+      if unused_refs_states[buf] ~= state then
+        return true
       end
+
+      schedule_unused_reference_refresh(buf, state)
+    end,
+    on_reload = function(_, buf)
+      if unused_refs_states[buf] ~= state then
+        return true
+      end
+
+      schedule_unused_reference_refresh(buf, state)
+    end,
+    on_detach = function(_, buf)
+      clear_unused_reference_state(buf, state)
     end,
   })
+
+  if not attached and unused_refs_states[bufnr] == state then
+    unused_refs_states[bufnr] = nil
+  end
 end
 
 local function has_active_client_in_buffer(bufnr)
@@ -293,7 +370,7 @@ intelephense.config = {
   on_attach = function(client, bufnr)
     active_clients[client.id] = bufnr
     if client:supports_method(vim.lsp.protocol.Methods.textDocument_codeLens, bufnr) then
-      register_unused_reference_autocmd_once(bufnr)
+      attach_unused_reference_updates_once(bufnr)
       refresh_unused_reference_diagnostics(client, bufnr)
     end
     register_commands_once()
@@ -305,10 +382,9 @@ intelephense.config = {
     active_clients[client_id] = nil
 
     if bufnr and not has_active_client_in_buffer(bufnr) then
-      pcall(vim.api.nvim_clear_autocmds, { group = unused_refs_augroup, buffer = bufnr })
+      clear_unused_reference_state(bufnr)
       if vim.api.nvim_buf_is_valid(bufnr) then
-        vim.b[bufnr].intelephense_unused_refs_autocmd = nil
-        vim.diagnostic.set(unused_refs_ns, bufnr, {})
+        clear_unused_reference_diagnostics(bufnr)
       end
     end
 
