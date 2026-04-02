@@ -1,4 +1,4 @@
---- @type custom.Lsp
+--- @type dotfiles.lsp.Lsp
 local M = {
   treesitters = {},
   lspconfigs = {},
@@ -12,10 +12,10 @@ local M = {
 
 local ignore_mods = { 'types', 'base', 'init', 'lspconfig' }
 
---- @type table<string, custom.LanguageSetting>
+--- @type table<string, dotfiles.lsp.LanguageSetting>
 local language_settings = require('utils.common').load_mods('configs.lsp', ignore_mods)
 
----@type custom.NeotestAdapterSetup[]
+---@type dotfiles.lsp.NeotestAdapterSetup[]
 local neotest_adapter_setups = {}
 
 for _, settings in pairs(language_settings) do

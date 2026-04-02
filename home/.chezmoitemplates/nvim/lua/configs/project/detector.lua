@@ -1,5 +1,3 @@
-require('configs.project.types')
-
 local common = require('utils.common')
 local log = require('utils.log')
 local project_json = require('configs.project.json')
@@ -11,7 +9,7 @@ local TITLE = 'project-settings'
 local VSCODE_SETTINGS = '.vscode/settings.json'
 local BUFFER_FILETYPE_MANAGED_KEY = 'project_settings_filetype_managed'
 
----@type table<string, ProjectFilesAssociations>
+---@type table<string, dotfiles.project.FilesAssociations>
 local files_associations_cache = {}
 ---@type table<string, table<string, boolean>>
 local filetype_patterns_by_root = {}
@@ -76,7 +74,7 @@ local function extract_simple_filename_from_glob(glob)
   return glob
 end
 
----@return ProjectFilesAssociations
+---@return dotfiles.project.FilesAssociations
 local function empty_files_associations()
   return {
     extensions = {},
@@ -141,7 +139,7 @@ local function glob_to_lua_pattern(glob, anchored)
 end
 
 ---@param raw any
----@return ProjectFilesAssociations
+---@return dotfiles.project.FilesAssociations
 local function parse_files_associations(raw)
   local files_associations = empty_files_associations()
 
@@ -195,7 +193,7 @@ local function parse_files_associations(raw)
 end
 
 ---@param root string
----@return ProjectFilesAssociations
+---@return dotfiles.project.FilesAssociations
 local function load_files_associations(root)
   if files_associations_cache[root] then
     return files_associations_cache[root]
@@ -278,7 +276,7 @@ local function update_buffer_filetype_state(bufnr)
 end
 
 ---@param path string
----@param resolver fun(files_associations: ProjectFilesAssociations): string|nil
+---@param resolver fun(files_associations: dotfiles.project.FilesAssociations): string|nil
 ---@return string|nil
 local function resolve_filetype_from_files_associations(path, resolver)
   local root = project_json.find_root_for_path(path)
@@ -292,7 +290,7 @@ end
 ---@param vim_filetype_key 'extension'|'filename'
 ---@param association_key 'extensions'|'filenames'
 ---@param seen_entries table<string, boolean>
----@param files_associations ProjectFilesAssociations
+---@param files_associations dotfiles.project.FilesAssociations
 local function register_literal_filetypes(
   vim_filetype_key,
   association_key,

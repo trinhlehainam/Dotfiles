@@ -1,5 +1,3 @@
-require('configs.project.types')
-
 local buffer_utils = require('utils.buffer')
 local common = require('utils.common')
 local log = require('utils.log')
@@ -12,7 +10,7 @@ local TITLE = 'project-settings'
 local VSCODE_SETTINGS = '.vscode/settings.json'
 local BUFFER_INDENT_MANAGED_KEY = 'project_settings_indent_managed'
 
----@type table<string, ProjectFiletypeSettingsMap>
+---@type table<string, dotfiles.project.FiletypeSettingsMap>
 local filetype_settings_cache = {}
 ---@type table<string, table<string, boolean>>
 local filetype_patterns_by_root = {}
@@ -100,7 +98,7 @@ local function refresh_filetype_autocmd()
   })
 end
 
----@param filetype_settings ProjectFiletypeSettings|nil
+---@param filetype_settings dotfiles.project.FiletypeSettings|nil
 ---@return boolean
 local function is_indent_managed_by_settings(filetype_settings)
   return type(filetype_settings) == 'table'
@@ -124,7 +122,7 @@ local function set_indent_managed(bufnr, managed)
 end
 
 ---@param root string
----@param filetype_settings ProjectFiletypeSettingsMap
+---@param filetype_settings dotfiles.project.FiletypeSettingsMap
 local function sync_root_filetype_patterns(root, filetype_settings)
   local patterns = {}
 
@@ -136,9 +134,9 @@ local function sync_root_filetype_patterns(root, filetype_settings)
   refresh_filetype_autocmd()
 end
 
----@param filetype_settings ProjectFiletypeSettingsMap
+---@param filetype_settings dotfiles.project.FiletypeSettingsMap
 ---@param filetype string
----@return ProjectFiletypeSettings
+---@return dotfiles.project.FiletypeSettings
 local function merge_filetype_settings(filetype_settings, filetype)
   local merged = {}
 
@@ -151,7 +149,7 @@ end
 
 ---@param filetype string
 ---@param raw any
----@param filetype_settings ProjectFiletypeSettingsMap
+---@param filetype_settings dotfiles.project.FiletypeSettingsMap
 local function parse_filetype_settings_block(filetype, raw, filetype_settings)
   if type(raw) ~= 'table' then
     return
@@ -212,7 +210,7 @@ local function parse_filetype_settings_block(filetype, raw, filetype_settings)
 end
 
 ---@param root string
----@return ProjectFiletypeSettingsMap
+---@return dotfiles.project.FiletypeSettingsMap
 local function load_filetype_settings(root)
   if filetype_settings_cache[root] then
     return filetype_settings_cache[root]
@@ -248,7 +246,7 @@ end
 
 ---@param root string
 ---@param filetype string
----@return ProjectFiletypeSettings|nil
+---@return dotfiles.project.FiletypeSettings|nil
 local function get_root_filetype_settings(root, filetype)
   if type(root) ~= 'string' or root == '' or type(filetype) ~= 'string' or filetype == '' then
     return nil
@@ -264,7 +262,7 @@ end
 
 ---@param bufnr integer
 ---@param root string|nil
----@return ProjectFiletypeSettings|nil
+---@return dotfiles.project.FiletypeSettings|nil
 ---@return string
 local function resolve_buffer_filetype_settings(bufnr, root)
   local filetype = vim.bo[bufnr].filetype
@@ -308,7 +306,7 @@ local function reset_indent_options(bufnr, filetype)
 end
 
 ---@param bufnr integer
----@param filetype_settings ProjectFiletypeSettings
+---@param filetype_settings dotfiles.project.FiletypeSettings
 local function apply_resolved_filetype_settings(bufnr, filetype_settings)
   if filetype_settings.insert_spaces ~= nil then
     vim.bo[bufnr].expandtab = filetype_settings.insert_spaces
@@ -323,7 +321,7 @@ end
 
 ---@param bufnr integer
 ---@param filetype string
----@param filetype_settings ProjectFiletypeSettings|nil
+---@param filetype_settings dotfiles.project.FiletypeSettings|nil
 local function sync_buffer_filetype_settings(bufnr, filetype, filetype_settings)
   local managed = is_indent_managed_by_settings(filetype_settings)
   if managed or is_indent_managed(bufnr) then

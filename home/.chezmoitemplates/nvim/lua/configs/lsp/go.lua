@@ -38,7 +38,7 @@ local golangci_lint_ls = LspConfig:new('golangci_lint_ls', 'golangci-lint')
 
 M.lspconfigs = { gopls, golangci_lint_ls }
 
---- @type custom.DapConfig
+--- @type dotfiles.lsp.DapConfig
 local delve = {
   type = 'delve',
   use_masondap_default_setup = true,

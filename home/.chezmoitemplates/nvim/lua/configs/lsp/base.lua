@@ -1,8 +1,8 @@
----@class custom.LanguageSetting
 local M = {}
 
----@return custom.LanguageSetting
+---@return dotfiles.lsp.LanguageSetting
 function M:new()
+  ---@type dotfiles.lsp.LanguageSetting
   local t = setmetatable({}, { __index = M })
   t.treesitter = {
     filetypes = nil,

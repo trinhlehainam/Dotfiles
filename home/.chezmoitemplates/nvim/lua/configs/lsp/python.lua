@@ -42,7 +42,7 @@ ruff.config = {
 
 M.lspconfigs = { pyright, ruff }
 
---- @type custom.DapConfig
+--- @type dotfiles.lsp.DapConfig
 local python_dap = {
   type = 'python',
   use_masondap_default_setup = true,
