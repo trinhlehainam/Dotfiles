@@ -151,7 +151,7 @@ function M.create_temp_file(extension)
   return temp_file .. '.' .. extension
 end
 
----@alias Base64EncodeFn fun(data: string): string
+---@alias dotfiles.Base64EncodeFn fun(data: string): string
 
 --- Encodes data to a base64 string.
 ---
@@ -171,11 +171,11 @@ end
 ---   1. `vim.base64.encode` (Neovim 0.9+)
 ---   2. LuaJIT `bit`-based implementation (no process spawn)
 ---   3. External `base64` executable
----@type Base64EncodeFn
+---@type dotfiles.Base64EncodeFn
 local base64_encode
 
 do
-  ---@type Base64EncodeFn?
+  ---@type dotfiles.Base64EncodeFn?
   local impl
 
   base64_encode = function(data)

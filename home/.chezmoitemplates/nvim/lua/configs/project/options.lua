@@ -1,5 +1,3 @@
-require('configs.project.types')
-
 local buffer_utils = require('utils.buffer')
 local common = require('utils.common')
 local log = require('utils.log')

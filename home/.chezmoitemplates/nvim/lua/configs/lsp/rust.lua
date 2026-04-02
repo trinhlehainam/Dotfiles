@@ -19,7 +19,7 @@ end
 -- https://github.com/mrcjkb/rustaceanvim?tab=readme-ov-file#zap-quick-setup
 M.lspconfigs = { LspConfig:new(nil, 'rust-analyzer') }
 
---- @type custom.DapConfig
+--- @type dotfiles.lsp.DapConfig
 local codelldb = {
   type = 'codelldb',
   use_masondap_default_setup = false,

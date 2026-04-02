@@ -70,7 +70,7 @@ local daptypes = {}
 local setup_handlers = {}
 
 ---@source https://github.com/jay-babu/mason-nvim-dap.nvim?tab=readme-ov-file#handlers-usage-automatic-setup
----@class custom.HandlerConfig
+---@class dotfiles.MasonDapHandlerConfig
 ---@field name string -- adapter name
 --- -- All the items below are looked up by the adapter name.
 ---@field adapters table -- https://github.com/jay-babu/mason-nvim-dap.nvim/blob/main/lua/mason-nvim-dap/mappings/adapters
@@ -85,7 +85,7 @@ vim
   :each(function(dapconfig)
     table.insert(daptypes, dapconfig.type)
 
-    ---@param config custom.HandlerConfig
+    ---@param config dotfiles.MasonDapHandlerConfig
     setup_handlers[dapconfig.type] = function(config)
       if type(dapconfig.setup) == 'function' then
         dapconfig.setup()

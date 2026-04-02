@@ -1,5 +1,3 @@
-require('configs.project.types')
-
 local common = require('utils.common')
 local log = require('utils.log')
 local project_json = require('configs.project.json')

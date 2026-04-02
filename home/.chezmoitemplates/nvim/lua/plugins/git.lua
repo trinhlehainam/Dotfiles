@@ -33,18 +33,18 @@ return {
 
       local diffview = require('diffview')
 
-      ---@class DiffviewMainFileLike
+      ---@class dotfiles.DiffviewMainFileLike
       ---@field bufnr integer
-      ---@class DiffviewMainWinLike
+      ---@class dotfiles.DiffviewMainWinLike
       ---@field id integer
-      ---@field file DiffviewMainFileLike
-      ---@class DiffviewLayoutLike
-      ---@field get_main_win fun(self: DiffviewLayoutLike): DiffviewMainWinLike
-      ---@class DiffviewEmitterLike
-      ---@field on fun(self: DiffviewEmitterLike, event: string, callback: fun(...))
-      ---@class DiffviewViewLike
-      ---@field cur_layout? DiffviewLayoutLike
-      ---@field emitter? DiffviewEmitterLike
+      ---@field file dotfiles.DiffviewMainFileLike
+      ---@class dotfiles.DiffviewLayoutLike
+      ---@field get_main_win fun(self: dotfiles.DiffviewLayoutLike): dotfiles.DiffviewMainWinLike
+      ---@class dotfiles.DiffviewEmitterLike
+      ---@field on fun(self: dotfiles.DiffviewEmitterLike, event: string, callback: fun(...))
+      ---@class dotfiles.DiffviewViewLike
+      ---@field cur_layout? dotfiles.DiffviewLayoutLike
+      ---@field emitter? dotfiles.DiffviewEmitterLike
 
       -- Diffview virtual buffers may contain raw CP932 bytes from git.
       -- Convert only when the current main diff buffer is SJIS/CP932.
@@ -58,7 +58,7 @@ return {
       local ok_lib, diffview_lib = pcall(require, 'diffview.lib')
 
       -- Runtime layout instance for the active Diffview tab.
-      ---@return DiffviewLayoutLike|nil
+      ---@return dotfiles.DiffviewLayoutLike|nil
       local function current_layout()
         if not ok_lib then
           return nil
@@ -68,7 +68,7 @@ return {
         return view and view.cur_layout or nil
       end
 
-      ---@param view? { cur_layout?: DiffviewLayoutLike }
+      ---@param view? { cur_layout?: dotfiles.DiffviewLayoutLike }
       ---@return integer|nil
       local function current_main_bufnr(view)
         local layout = view and view.cur_layout or current_layout()
@@ -93,7 +93,7 @@ return {
 
       ---@type integer|nil
       local diffview_codelens_bufnr = nil
-      ---@type table<DiffviewViewLike, true>
+      ---@type table<dotfiles.DiffviewViewLike, true>
       local diffview_codelens_views = setmetatable({}, { __mode = 'k' })
 
       local function clear_diffview_codelens()
@@ -105,7 +105,7 @@ return {
         diffview_codelens_bufnr = nil
       end
 
-      ---@param view? { cur_layout?: DiffviewLayoutLike }
+      ---@param view? { cur_layout?: dotfiles.DiffviewLayoutLike }
       local function sync_diffview_codelens(view)
         local main_buf = current_main_bufnr(view)
         if diffview_codelens_bufnr == main_buf then
@@ -119,7 +119,7 @@ return {
         end
       end
 
-      ---@param view? DiffviewViewLike
+      ---@param view? dotfiles.DiffviewViewLike
       local function attach_diffview_codelens_listener(view)
         if type(view) ~= 'table' or diffview_codelens_views[view] then
           return
@@ -363,7 +363,7 @@ return {
       -- plugins during blame.
       -- Refs: gitsigns#368, nvim-treesitter-context#579
 
-      ---@class GitsignsBlameOffsetPlugin
+      ---@class dotfiles.GitsignsBlameOffsetPlugin
       ---@field name string Module name for require()
       ---@field module table? Loaded module reference (nil until loaded)
       ---@field is_active fun(m: table): boolean Check if plugin is currently active
@@ -371,7 +371,7 @@ return {
       ---@field enable fun(m: table) Re-enable the plugin
       ---@field was_active boolean State before blame opened
 
-      ---@type GitsignsBlameOffsetPlugin[]
+      ---@type dotfiles.GitsignsBlameOffsetPlugin[]
       local offset_plugins = {
         {
           name = 'treesitter-context',

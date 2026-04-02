@@ -27,12 +27,13 @@
 --- Neotest adapter factory function type
 --- Creates and configures a neotest adapter for a specific testing framework
 --- @source https://github.com/nvim-neotest/neotest#supported-runners
----@alias custom.NeotestAdapterSetup fun(): neotest.Adapter
+---@alias dotfiles.lsp.NeotestAdapterSetup fun(): neotest.Adapter|nil
+---@alias dotfiles.lsp.ToolNamesByFiletype table<string, string[]>
 
 --- TreeSitter parser configuration
 --- Defines which filetypes should be associated with specific TreeSitter parsers
 --- for syntax highlighting and code analysis
----@class custom.TreeSitter
+---@class dotfiles.lsp.TreeSitter
 --- List of filetypes that should use this TreeSitter parser
 --- Example: {"javascript", "typescript", "jsx", "tsx"} for the typescript parser
 ---@field filetypes? string[]
@@ -45,7 +46,7 @@
 --- including the mapping between Neovim LSP server names and their corresponding
 --- Mason package names for automatic installation.
 ---
----@class custom.LspConfig
+---@class dotfiles.lsp.LspConfig
 --- The name of the LSP server used by Neovim's LSP client to identify and enable the server
 --- @source https://github.com/neovim/nvim-lspconfig/blob/master/doc/configs.md#lsp-configs
 ---@field server string?
@@ -59,7 +60,7 @@
 --- Debug Adapter Protocol (DAP) configuration
 --- Configures debugging capabilities for a specific language through mason-nvim-dap
 --- integration. DAP enables step-through debugging, breakpoints, and variable inspection.
----@class custom.DapConfig
+---@class dotfiles.lsp.DapConfig
 --- Debug adapter type identifier (e.g., "python", "node2", "coreclr")
 --- Must match available adapters in mason-nvim-dap registry
 --- @source https://github.com/jay-babu/mason-nvim-dap.nvim/blob/main/lua/mason-nvim-dap/mappings/source.lua
@@ -76,20 +77,20 @@
 --- Manages code formatting tools that are automatically installed by Mason
 --- and configured through conform.nvim for consistent code styling
 --- @source https://github.com/stevearc/conform.nvim?tab=readme-ov-file#formatters
----@class custom.FormatterConfig
+---@class dotfiles.lsp.FormatterConfig
 --- List of formatter packages to install via Mason
 --- These must match Mason registry names for formatters
 ---@field mason_packages? MasonToolEntry[]
 --- Filetype-to-formatter mapping for conform.nvim configuration
 --- Example: {javascript = {"prettier"}, python = {"black", "isort"}}
 --- Allows multiple formatters per filetype and fallback chains
----@field formatters_by_ft? table<string, table>
+---@field formatters_by_ft? dotfiles.lsp.ToolNamesByFiletype
 
 --- Code linter configuration via nvim-lint
 --- Manages linting tools that are automatically installed by Mason
 --- and configured through nvim-lint for code quality and error detection
 --- @source https://github.com/mfussenegger/nvim-lint?tab=readme-ov-file#available-linters
----@class custom.LinterConfig
+---@class dotfiles.lsp.LinterConfig
 --- List of linter packages to install via Mason
 --- These must match Mason registry names for linters
 --- @source https://github.com/whoissethdaniel/mason-tool-installer.nvim
@@ -97,7 +98,7 @@
 --- Filetype-to-linter mapping for nvim-lint configuration
 --- Example: {javascript = {"eslint"}, python = {"flake8", "mypy"}}
 --- Supports multiple linters per filetype for comprehensive analysis
----@field linters_by_ft? table<string, table>
+---@field linters_by_ft? dotfiles.lsp.ToolNamesByFiletype
 --- Enable auto-linting on BufWritePost (default: true)
 ---@field lint_on_save? boolean
 
@@ -105,35 +106,35 @@
 --- Aggregates all tooling configuration for a specific programming language,
 --- providing a single point to configure LSP, debugging, formatting, linting,
 --- syntax highlighting, and testing for consistent language support
----@class custom.LanguageSetting
+---@class dotfiles.lsp.LanguageSetting
 --- TreeSitter parser configuration for syntax highlighting
----@field treesitter custom.TreeSitter
+---@field treesitter dotfiles.lsp.TreeSitter
 --- Array of LSP server configurations (supports multiple servers per language)
----@field lspconfigs custom.LspConfig[]
+---@field lspconfigs dotfiles.lsp.LspConfig[]
 --- Debug adapters configuration for step-through debugging
----@field dapconfigs custom.DapConfig[]
+---@field dapconfigs dotfiles.lsp.DapConfig[]
 --- Code formatter configuration for consistent styling
----@field formatterconfig custom.FormatterConfig
+---@field formatterconfig dotfiles.lsp.FormatterConfig
 --- Code linter configuration for quality and error detection
----@field linterconfig custom.LinterConfig
+---@field linterconfig dotfiles.lsp.LinterConfig
 --- Optional neotest adapter factory for testing framework integration
 --- @source https://github.com/nvim-neotest/neotest?tab=readme-ov-file#supported-runners
----@field neotest_adapter_setup? custom.NeotestAdapterSetup
+---@field neotest_adapter_setup? dotfiles.lsp.NeotestAdapterSetup
 
 --- Main LSP configuration aggregator
 --- Central configuration object that collects and manages all language tooling
 --- configurations across the entire Neovim setup. This type represents the
 --- complete language support configuration for the editor.
----@class custom.Lsp
+---@class dotfiles.lsp.Lsp
 --- Collection of all TreeSitter parser configurations
----@field treesitters custom.TreeSitter[]
+---@field treesitters dotfiles.lsp.TreeSitter[]
 --- Collection of all LSP server configurations across all languages
----@field lspconfigs custom.LspConfig[]
+---@field lspconfigs dotfiles.lsp.LspConfig[]
 --- Debug adapter configurations
----@field dapconfigs custom.DapConfig[]
+---@field dapconfigs dotfiles.lsp.DapConfig[]
 --- Collection of all formatter configurations
----@field formatters custom.FormatterConfig[]
+---@field formatters dotfiles.lsp.FormatterConfig[]
 --- Collection of all linter configurations
----@field linters custom.LinterConfig[]
+---@field linters dotfiles.lsp.LinterConfig[]
 --- Function to retrieve all configured neotest adapters for testing integration
----@field get_neotest_adapters fun(): custom.NeotestAdapterSetup[]
+---@field get_neotest_adapters fun(): neotest.Adapter[]
