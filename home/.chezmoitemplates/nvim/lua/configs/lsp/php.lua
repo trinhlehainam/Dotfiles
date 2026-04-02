@@ -343,6 +343,55 @@ end
 ---@param client vim.lsp.Client
 ---@param state dotfiles.IntelephenseUnusedRefsState
 ---@param seq integer
+---@param lenses lsp.CodeLens[]?
+---@param on_done fun(resolved_lenses: lsp.CodeLens[])
+local function resolve_unused_reference_lenses(bufnr, client, state, seq, lenses, on_done)
+  local resolved_lenses = vim.deepcopy(lenses or {})
+  if not client:supports_method(Methods.codeLens_resolve, bufnr) then
+    on_done(resolved_lenses)
+    return
+  end
+
+  local pending = 0
+  local finished = false
+  local function finish()
+    if finished then
+      return
+    end
+
+    finished = true
+    on_done(resolved_lenses)
+  end
+
+  for index, lens in ipairs(resolved_lenses) do
+    if not lens.command then
+      pending = pending + 1
+      client:request(Methods.codeLens_resolve, lens, function(err, resolved_lens)
+        if finished or not is_unused_reference_refresh_current(bufnr, state, seq) then
+          return
+        end
+
+        pending = pending - 1
+        if not err and resolved_lens then
+          resolved_lenses[index] = resolved_lens
+        end
+
+        if pending == 0 then
+          finish()
+        end
+      end, bufnr)
+    end
+  end
+
+  if pending == 0 then
+    finish()
+  end
+end
+
+---@param bufnr integer
+---@param client vim.lsp.Client
+---@param state dotfiles.IntelephenseUnusedRefsState
+---@param seq integer
 local function request_unused_reference_diagnostics(bufnr, client, state, seq)
   local params = { textDocument = vim.lsp.util.make_text_document_params(bufnr) }
   client:request(Methods.textDocument_codeLens, params, function(err, lenses)
@@ -356,7 +405,13 @@ local function request_unused_reference_diagnostics(bufnr, client, state, seq)
       return
     end
 
-    set_unused_reference_diagnostics(bufnr, client, lenses)
+    resolve_unused_reference_lenses(bufnr, client, state, seq, lenses, function(resolved_lenses)
+      if not is_unused_reference_refresh_current(bufnr, state, seq) then
+        return
+      end
+
+      set_unused_reference_diagnostics(bufnr, client, resolved_lenses)
+    end)
   end, bufnr)
 end
 
