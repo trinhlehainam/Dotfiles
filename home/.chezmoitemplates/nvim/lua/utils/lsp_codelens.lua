@@ -17,7 +17,7 @@ local refresh_delay_ms = 200
 ---@field contexts table<string, dotfiles.LspCodeLensEolPlacement>
 ---@field client_rows dotfiles.LspCodeLensClientRows
 ---@field refresh_seq integer
----@field timer? uv.uv_timer_tdotfiles.LspCodeLensEolPlacementdotfiles.LspCodeLensEolPlacement
+---@field timer? uv.uv_timer_t
 ---@field render_scheduled? boolean
 
 ---@type table<integer, dotfiles.LspCodeLensState>
