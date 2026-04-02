@@ -397,13 +397,24 @@ function M.is_active(bufnr)
   return state ~= nil and has_contexts(state)
 end
 
+---@param bufnr? integer
+---@return integer
+local function resolve_bufnr(bufnr)
+  if bufnr == nil or bufnr == 0 then
+    return api.nvim_get_current_buf()
+  end
+
+  vim.validate('bufnr', bufnr, 'number')
+  return bufnr
+end
+
 ---@param filter? vim.lsp.codelens.get.Filter
 ---@return vim.lsp.codelens.get.Result[]
 function M.get(filter)
   vim.validate('filter', filter, 'table', true)
   filter = filter or {}
 
-  local bufnr = vim._resolve_bufnr(filter.bufnr)
+  local bufnr = resolve_bufnr(filter.bufnr)
   local state = get_state(bufnr)
   if not state then
     return {}

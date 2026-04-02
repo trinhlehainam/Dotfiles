@@ -5,6 +5,7 @@ local LanguageSetting = require('configs.lsp.base')
 local LspConfig = require('configs.lsp.lspconfig')
 local log = require('utils.log')
 local lsp_codelens = require('utils.lsp_codelens')
+local Methods = vim.lsp.protocol.Methods
 
 local M = LanguageSetting:new()
 
@@ -46,6 +47,7 @@ local CMD = {
 -- State
 local commands_registered = false
 local indexing_in_progress = false
+---@type table<integer, table<integer, true>>
 local active_clients = {}
 ---@type table<integer, dotfiles.IntelephenseUnusedRefsState>
 local unused_refs_states = {}
@@ -189,7 +191,26 @@ local function get_symbol_at(bufnr, line, col)
   return text:match('^%$?[%w_]+')
 end
 
-local function set_unused_reference_diagnostics(bufnr, client_id, lenses)
+---@param bufnr integer
+---@param lens lsp.CodeLens
+---@param client vim.lsp.Client
+---@return integer
+local function lens_start_col(bufnr, lens, client)
+  local ok, range = pcall(function()
+    return vim.range.lsp(bufnr, lens.range, client.offset_encoding)
+  end)
+  if ok and range and type(range.start_col) == 'number' then
+    return range.start_col
+  end
+
+  return lens.range.start.character
+end
+
+---@param bufnr integer
+---@param client vim.lsp.Client
+---@param lenses lsp.CodeLens[]?
+local function set_unused_reference_diagnostics(bufnr, client, lenses)
+  local client_id = client.id
   -- Lines with existing intelephense diagnostics
   local existing =
     vim.diagnostic.get(bufnr, { namespace = vim.lsp.diagnostic.get_namespace(client_id) })
@@ -205,10 +226,11 @@ local function set_unused_reference_diagnostics(bufnr, client_id, lenses)
     if cmd and cmd.title and cmd.title:match('^0 References') then
       local pos = lens.range.start
       if not has_existing or not diag_lines[pos.line] then
-        local symbol = get_symbol_at(bufnr, pos.line, pos.character) or 'symbol'
+        local col = lens_start_col(bufnr, lens, client)
+        local symbol = get_symbol_at(bufnr, pos.line, col) or 'symbol'
         acc[#acc + 1] = {
           lnum = pos.line,
-          col = pos.character,
+          col = col,
           message = ("Symbol '%s' is declared but not used."):format(symbol),
           severity = vim.diagnostic.severity.HINT,
           source = 'intelephense',
@@ -257,6 +279,16 @@ local function clear_unused_reference_state(bufnr, state)
 end
 
 ---@param bufnr integer
+---@param state dotfiles.IntelephenseUnusedRefsState
+---@param seq integer
+---@return boolean
+local function is_unused_reference_refresh_current(bufnr, state, seq)
+  return vim.api.nvim_buf_is_valid(bufnr)
+    and unused_refs_states[bufnr] == state
+    and state.refresh_seq == seq
+end
+
+---@param bufnr integer
 ---@param client_id integer
 ---@return lsp.CodeLens[]
 local function get_cached_codelenses(bufnr, client_id)
@@ -299,21 +331,47 @@ local function codelens_cache_key(lenses)
   return table.concat(parts, '|')
 end
 
+---@param client_id integer
+---@param bufnr integer
+local function track_active_client_buffer(client_id, bufnr)
+  local bufnrs = active_clients[client_id] or {}
+  bufnrs[bufnr] = true
+  active_clients[client_id] = bufnrs
+end
+
+---@param bufnr integer
+---@param client vim.lsp.Client
+---@param state dotfiles.IntelephenseUnusedRefsState
+---@param seq integer
+local function request_unused_reference_diagnostics(bufnr, client, state, seq)
+  local params = { textDocument = vim.lsp.util.make_text_document_params(bufnr) }
+  client:request(Methods.textDocument_codeLens, params, function(err, lenses)
+    if not is_unused_reference_refresh_current(bufnr, state, seq) then
+      return
+    end
+
+    state.timer = nil
+    if err then
+      clear_unused_reference_diagnostics(bufnr)
+      return
+    end
+
+    set_unused_reference_diagnostics(bufnr, client, lenses)
+  end, bufnr)
+end
+
 ---@param bufnr integer
 ---@param state dotfiles.IntelephenseUnusedRefsState
 ---@param seq integer
 ---@param initial_cache_key string
 ---@param remaining_ms integer
 local function refresh_unused_reference_diagnostics_from_cache(bufnr, state, seq, initial_cache_key, remaining_ms)
-  if not vim.api.nvim_buf_is_valid(bufnr) or unused_refs_states[bufnr] ~= state or state.refresh_seq ~= seq then
+  if not is_unused_reference_refresh_current(bufnr, state, seq) then
     return
   end
 
   local client = vim.lsp.get_clients({ bufnr = bufnr, name = 'intelephense' })[1]
-  if
-    not client
-    or not client:supports_method(vim.lsp.protocol.Methods.textDocument_codeLens, bufnr)
-  then
+  if not client or not client:supports_method(Methods.textDocument_codeLens, bufnr) then
     state.timer = nil
     clear_unused_reference_diagnostics(bufnr)
     return
@@ -321,9 +379,17 @@ local function refresh_unused_reference_diagnostics_from_cache(bufnr, state, seq
 
   local lenses = get_cached_codelenses(bufnr, client.id)
   local cache_key = codelens_cache_key(lenses)
-  if cache_key ~= initial_cache_key or remaining_ms <= 0 then
+  if cache_key ~= initial_cache_key then
     state.timer = nil
-    set_unused_reference_diagnostics(bufnr, client.id, lenses)
+    set_unused_reference_diagnostics(bufnr, client, lenses)
+    return
+  end
+
+  if remaining_ms <= 0 then
+    state.timer = nil
+    -- Cache keys can legitimately stay identical across refreshes, so use one
+    -- direct request here instead of treating "unchanged cache" as "stale data".
+    request_unused_reference_diagnostics(bufnr, client, state, seq)
     return
   end
 
@@ -394,8 +460,8 @@ local function attach_unused_reference_updates_once(bufnr)
 end
 
 local function has_active_client_in_buffer(bufnr)
-  for _, active_bufnr in pairs(active_clients) do
-    if active_bufnr == bufnr then
+  for _, active_bufnrs in pairs(active_clients) do
+    if active_bufnrs[bufnr] then
       return true
     end
   end
@@ -425,8 +491,8 @@ intelephense.config = {
   },
 
   on_attach = function(client, bufnr)
-    active_clients[client.id] = bufnr
-    if client:supports_method(vim.lsp.protocol.Methods.textDocument_codeLens, bufnr) then
+    track_active_client_buffer(client.id, bufnr)
+    if client:supports_method(Methods.textDocument_codeLens, bufnr) then
       attach_unused_reference_updates_once(bufnr)
       local state = unused_refs_states[bufnr]
       if state then
@@ -438,13 +504,15 @@ intelephense.config = {
 
   -- LSP on_exit may run in a fast event; schedule all editor-state cleanup.
   on_exit = vim.schedule_wrap(function(_, _, client_id)
-    local bufnr = active_clients[client_id]
+    local bufnrs = active_clients[client_id] or {}
     active_clients[client_id] = nil
 
-    if bufnr and not has_active_client_in_buffer(bufnr) then
-      clear_unused_reference_state(bufnr)
-      if vim.api.nvim_buf_is_valid(bufnr) then
-        clear_unused_reference_diagnostics(bufnr)
+    for bufnr in pairs(bufnrs) do
+      if not has_active_client_in_buffer(bufnr) then
+        clear_unused_reference_state(bufnr)
+        if vim.api.nvim_buf_is_valid(bufnr) then
+          clear_unused_reference_diagnostics(bufnr)
+        end
       end
     end
 
