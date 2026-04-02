@@ -12,6 +12,7 @@ local refresh_delay_ms = 200
 ---@field client_rows table<integer, table<integer, lsp.CodeLens[]>>
 ---@field refresh_seq integer
 ---@field timer? uv.uv_timer_t
+---@field render_scheduled? boolean
 
 ---@type table<integer, dotfiles.LspCodeLensState>
 local states = {}
@@ -160,13 +161,36 @@ end
 
 ---@param bufnr integer
 ---@param state dotfiles.LspCodeLensState
-local function render(bufnr, state)
+local render
+
+---@param bufnr integer
+---@param state dotfiles.LspCodeLensState
+local function schedule_render(bufnr, state)
+  if state.render_scheduled then
+    return
+  end
+
+  state.render_scheduled = true
+  vim.schedule(function()
+    if states[bufnr] ~= state then
+      return
+    end
+
+    state.render_scheduled = nil
+    render(bufnr, state)
+  end)
+end
+
+---@param bufnr integer
+---@param state dotfiles.LspCodeLensState
+render = function(bufnr, state)
   if not api.nvim_buf_is_valid(bufnr) then
     return
   end
 
   clear_extmarks(bufnr)
 
+  local line_count = api.nvim_buf_line_count(bufnr)
   local merged_rows = {}
   for client_id, rows in pairs(state.client_rows) do
     local client = vim.lsp.get_client_by_id(client_id)
@@ -188,6 +212,10 @@ local function render(bufnr, state)
   end
 
   for line, items in pairs(merged_rows) do
+    if type(line) ~= 'number' or line < 0 or line >= line_count then
+      goto continue
+    end
+
     table.sort(items, function(a, b)
       if a.col == b.col then
         return a.title < b.title
@@ -213,6 +241,8 @@ local function render(bufnr, state)
         hl_mode = 'combine',
       })
     end
+
+    ::continue::
   end
 end
 
@@ -257,7 +287,7 @@ local function resolve_lens(client, bufnr, state, seq, tick, unresolved_lens)
     for index, lens in ipairs(row_lenses) do
       if lens == unresolved_lens then
         row_lenses[index] = resolved_lens
-        render(bufnr, state)
+        schedule_render(bufnr, state)
         return
       end
     end
@@ -292,13 +322,13 @@ local function refresh_now(bufnr)
 
         if err then
           state.client_rows[client.id] = {}
-          render(bufnr, state)
+          schedule_render(bufnr, state)
           return
         end
 
         local rows = group_lenses(result)
         state.client_rows[client.id] = rows
-        render(bufnr, state)
+        schedule_render(bufnr, state)
 
         if client:supports_method(Methods.codeLens_resolve, bufnr) then
           for _, row_lenses in pairs(rows) do
@@ -358,6 +388,61 @@ end
 
 function M.refresh(bufnr)
   refresh_now(bufnr)
+end
+
+---@param bufnr integer
+---@return boolean
+function M.is_active(bufnr)
+  local state = get_state(bufnr)
+  return state ~= nil and has_contexts(state)
+end
+
+---@param filter? vim.lsp.codelens.get.Filter
+---@return vim.lsp.codelens.get.Result[]
+function M.get(filter)
+  vim.validate('filter', filter, 'table', true)
+  filter = filter or {}
+
+  local bufnr = vim._resolve_bufnr(filter.bufnr)
+  local state = get_state(bufnr)
+  if not state then
+    return {}
+  end
+
+  local result = {}
+  for client_id, rows in pairs(state.client_rows) do
+    if not filter.client_id or filter.client_id == client_id then
+      for _, lenses in pairs(rows) do
+        for _, lens in ipairs(lenses) do
+          result[#result + 1] = {
+            client_id = client_id,
+            lens = lens,
+          }
+        end
+      end
+    end
+  end
+
+  table.sort(result, function(a, b)
+    if a.client_id ~= b.client_id then
+      return a.client_id < b.client_id
+    end
+
+    local a_start = a.lens.range.start
+    local b_start = b.lens.range.start
+    if a_start.line ~= b_start.line then
+      return a_start.line < b_start.line
+    end
+    if a_start.character ~= b_start.character then
+      return a_start.character < b_start.character
+    end
+
+    local a_title = a.lens.command and a.lens.command.title or ''
+    local b_title = b.lens.command and b.lens.command.title or ''
+    return a_title < b_title
+  end)
+
+  return result
 end
 
 ---@param bufnr integer

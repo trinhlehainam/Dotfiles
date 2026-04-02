@@ -166,6 +166,31 @@ describe('utils.lsp_codelens', function()
         and rows[1].text == '  Run Test'
     end)
 
+    assert.is_true(codelens.is_active(bufnr))
+    assert.same({
+      {
+        client_id = 1,
+        lens = {
+          range = { start = { line = 0, character = 0 }, ['end'] = { line = 0, character = 0 } },
+          command = { title = '3 References' },
+        },
+      },
+      {
+        client_id = 2,
+        lens = {
+          range = { start = { line = 0, character = 6 }, ['end'] = { line = 0, character = 6 } },
+          command = { title = '1 Implementation' },
+        },
+      },
+      {
+        client_id = 2,
+        lens = {
+          range = { start = { line = 1, character = 0 }, ['end'] = { line = 1, character = 0 } },
+          command = { title = 'Run Test' },
+        },
+      },
+    }, codelens.get({ bufnr = bufnr }))
+
     assert.same({
       {
         enable = false,
@@ -291,10 +316,6 @@ describe('utils.lsp_codelens', function()
       },
     })
 
-    vim.wait(50, function()
-      return false
-    end, 10, false)
-
     local row = get_rendered_rows(bufnr)[0]
     assert.same({ placement = 'eol', text = '  Fresh Lens' }, row)
   end)
@@ -341,6 +362,100 @@ describe('utils.lsp_codelens', function()
     end)
   end)
 
+  it('coalesces multiple resolve callbacks into one render pass per tick', function()
+    local bufnr = make_buf({ 'function demo() end' })
+    table.insert(buffers, bufnr)
+
+    local original_set_extmark = vim.api.nvim_buf_set_extmark
+    local extmark_calls = 0
+    vim.api.nvim_buf_set_extmark = function(...)
+      extmark_calls = extmark_calls + 1
+      return original_set_extmark(...)
+    end
+
+    clients[1] = {
+      id = 1,
+      _bufnr = bufnr,
+      offset_encoding = 'utf-16',
+      supports_method = function(_, method)
+        return method == Methods.textDocument_codeLens or method == Methods.codeLens_resolve
+      end,
+      request = function(_, method, params, callback)
+        if method == Methods.textDocument_codeLens then
+          callback(nil, {
+            {
+              range = { start = { line = 0, character = 0 }, ['end'] = { line = 0, character = 0 } },
+              data = { id = 'a' },
+            },
+            {
+              range = { start = { line = 0, character = 5 }, ['end'] = { line = 0, character = 5 } },
+              data = { id = 'b' },
+            },
+          })
+          return
+        end
+
+        vim.schedule(function()
+          callback(
+            nil,
+            vim.tbl_deep_extend('force', params, {
+              command = { title = params.data.id == 'a' and 'Lens A' or 'Lens B' },
+            })
+          )
+        end)
+      end,
+    }
+
+    local ok, err = pcall(function()
+      codelens.set_context(bufnr, 'diffview', 'eol')
+
+      wait_for('expected coalesced resolved codelens render', function()
+        local row = get_rendered_rows(bufnr)[0]
+        return row and row.placement == 'eol' and row.text == '  Lens A | Lens B'
+      end)
+
+      assert.equals(1, extmark_calls)
+    end)
+
+    vim.api.nvim_buf_set_extmark = original_set_extmark
+    if not ok then
+      error(err)
+    end
+  end)
+
+  it('ignores invalid rows from LSP data while keeping valid rows', function()
+    local bufnr = make_buf({ 'return value' })
+    table.insert(buffers, bufnr)
+
+    clients[1] = {
+      id = 1,
+      _bufnr = bufnr,
+      offset_encoding = 'utf-16',
+      supports_method = function(_, method)
+        return method == Methods.textDocument_codeLens
+      end,
+      request = function(_, _, _, callback)
+        callback(nil, {
+          {
+            range = { start = { line = 5, character = 0 }, ['end'] = { line = 5, character = 0 } },
+            command = { title = 'Out of Range' },
+          },
+          {
+            range = { start = { line = 0, character = 0 }, ['end'] = { line = 0, character = 0 } },
+            command = { title = 'Valid Lens' },
+          },
+        })
+      end,
+    }
+
+    codelens.set_context(bufnr, 'diffview', 'eol')
+
+    wait_for('expected valid codelens render for in-range row only', function()
+      local rows = get_rendered_rows(bufnr)
+      return rows[0] and rows[0].placement == 'eol' and rows[0].text == '  Valid Lens' and rows[5] == nil
+    end)
+  end)
+
   it('cleans up extmarks and autocmds when the final context clears', function()
     local bufnr = make_buf({ 'return 1' })
     table.insert(buffers, bufnr)
@@ -372,6 +487,8 @@ describe('utils.lsp_codelens', function()
     codelens.clear_context(bufnr, 'diffview')
 
     assert.same({}, get_rendered_rows(bufnr))
+    assert.is_false(codelens.is_active(bufnr))
+    assert.same({}, codelens.get({ bufnr = bufnr }))
     assert.same({}, vim.api.nvim_get_autocmds({ group = augroup, buffer = bufnr }))
     assert.same({
       {
