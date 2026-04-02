@@ -224,6 +224,8 @@ local function refresh_unused_reference_diagnostics(client, bufnr)
     return
   end
 
+  -- Request CodeLens directly so these hint diagnostics do not depend on which
+  -- renderer currently owns CodeLens output for the buffer.
   local tick = vim.api.nvim_buf_get_changedtick(bufnr)
   local params = { textDocument = vim.lsp.util.make_text_document_params(bufnr) }
   client:request(vim.lsp.protocol.Methods.textDocument_codeLens, params, function(err, result)

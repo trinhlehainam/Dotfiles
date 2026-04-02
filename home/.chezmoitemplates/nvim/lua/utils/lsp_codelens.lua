@@ -271,6 +271,8 @@ local function refresh_now(bufnr)
     return
   end
 
+  -- Mirror Neovim's built-in CodeLens request/resolve lifecycle, but keep
+  -- rendering local so git-driven contexts can place titles at end-of-line.
   reset_timer(state)
   state.refresh_seq = state.refresh_seq + 1
   state.client_rows = {}
@@ -371,6 +373,8 @@ function M.set_context(bufnr, key, placement)
     return
   end
 
+  -- The first active context takes ownership from the built-in provider.
+  -- Additional contexts share the same cached state and render pass.
   local was_inactive = not has_contexts(state)
   state.contexts[key] = placement
 
