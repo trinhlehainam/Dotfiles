@@ -3,6 +3,11 @@ local php = require('configs.lsp.php')
 local Methods = vim.lsp.protocol.Methods
 local config = php.lspconfigs[1].config
 
+-- This spec intentionally reaches into php.lua through named upvalues so it
+-- can exercise the real diagnostic helper without widening the runtime API.
+-- It is coupled to php.lua's private closure graph, not upvalue order: simple
+-- reordering is fine, but refactors that stop capturing these helpers will
+-- need to update this test.
 local function get_upvalue(fn, expected_name)
   for index = 1, 20 do
     local name, value = debug.getupvalue(fn, index)
