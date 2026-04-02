@@ -16,5 +16,3 @@
 ---@field format_on_save? boolean
 
 ---@alias dotfiles.project.FiletypeSettingsMap table<string, dotfiles.project.FiletypeSettings>
-
-return {}
