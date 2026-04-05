@@ -67,8 +67,16 @@ Operationally:
 - default logs use timestamped `INFO` lines
 - `chezmoi -v` or `CHEZMOI_ARGS=...--verbose...` enables timestamped `DEBUG` lines
 - all log lines are prefixed with `[reconcile-nvim-config]`
-- file-level create, update, and remove logs are emitted in `DEBUG` mode
+- file-level added-wrapper and removed-wrapper logs are emitted in `DEBUG` mode
 - success logs are printed to stdout; warnings and errors are printed to stderr
+
+The reconciler reports added and removed files as its sync status.
+
+Reason:
+- wrapper files only encode `include` paths
+- raw content changes flow through normal chezmoi rendering
+- this hook only needs to materialize missing wrappers before chezmoi reads source state
+- stale-wrapper cleanup and `.chezmoiremove` maintenance remain internal implementation details
 
 Install dependencies:
 

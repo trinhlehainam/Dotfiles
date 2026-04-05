@@ -17,7 +17,6 @@ type ExpectedWrapper = {
   platform: PlatformConfig;
   relativePath: string;
   wrapperPath: string;
-  targetPath: string;
   content: string;
 };
 
@@ -25,8 +24,6 @@ type ExistingWrapper = {
   platform: PlatformConfig;
   wrapperPath: string;
 };
-
-type WriteOutcome = "created" | "updated" | "unchanged";
 
 const LOG_PREFIX = "[reconcile-nvim-config]";
 
@@ -158,7 +155,6 @@ function expectedWrapperFor(
     platform,
     relativePath,
     wrapperPath: path.join(platform.wrapperRoot, relativeFsPath) + ".tmpl",
-    targetPath: targetPathFor(platform, relativePath),
     content: wrapperContent(relativePath),
   };
 }
@@ -231,9 +227,44 @@ async function listExistingWrappers(
     .map((wrapperPath) => ({ platform, wrapperPath }));
 }
 
-async function writeFile(targetPath: string, content: string): Promise<WriteOutcome> {
+async function readFileIfExists(targetPath: string): Promise<string | null> {
+  try {
+    return await fs.readFile(targetPath, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw error;
+    }
+
+    return null;
+  }
+}
+
+async function writeTextFile(targetPath: string, content: string): Promise<void> {
+  await fs.mkdir(path.dirname(targetPath), { recursive: true });
+  await fs.writeFile(targetPath, content, "utf8");
+}
+
+async function ensureWrapper(expectedWrapper: ExpectedWrapper): Promise<boolean> {
+  const currentContent = await readFileIfExists(expectedWrapper.wrapperPath);
+
+  if (currentContent === expectedWrapper.content) {
+    return false;
+  }
+
+  await writeTextFile(expectedWrapper.wrapperPath, expectedWrapper.content);
+
+  if (currentContent === null) {
+    logDebug(
+      `Adding wrapper: ${displayRawSourcePath(expectedWrapper.relativePath)} -> ${displayRepoPath(expectedWrapper.wrapperPath)}`,
+    );
+    return true;
+  }
+
+  return false;
+}
+
+async function writeFileIfChanged(targetPath: string, content: string): Promise<boolean> {
   let currentContent: string | null = null;
-  let fileExists = true;
 
   try {
     currentContent = await fs.readFile(targetPath, "utf8");
@@ -241,17 +272,14 @@ async function writeFile(targetPath: string, content: string): Promise<WriteOutc
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
       throw error;
     }
-
-    fileExists = false;
   }
 
   if (currentContent === content) {
-    return "unchanged";
+    return false;
   }
 
-  await fs.mkdir(path.dirname(targetPath), { recursive: true });
-  await fs.writeFile(targetPath, content, "utf8");
-  return fileExists ? "updated" : "created";
+  await writeTextFile(targetPath, content);
+  return true;
 }
 
 async function pruneEmptyDirectories(rootDir: string): Promise<void> {
@@ -316,7 +344,7 @@ async function removeStaleWrappers(staleWrappers: ExistingWrapper[]): Promise<vo
     return;
   }
 
-  logInfo(`Removing ${staleWrappers.length} stale wrapper(s)`);
+  logDebug(`Removing ${staleWrappers.length} stale wrapper(s)`);
 
   for (const { platform, wrapperPath } of staleWrappers) {
     logDebug(
@@ -326,32 +354,16 @@ async function removeStaleWrappers(staleWrappers: ExistingWrapper[]): Promise<vo
   }
 }
 
-async function writeExpectedWrappers(
-  expectedWrappers: ExpectedWrapper[],
-): Promise<{ created: number; updated: number }> {
-  let created = 0;
-  let updated = 0;
+async function addMissingWrappers(expectedWrappers: ExpectedWrapper[]): Promise<number> {
+  let added = 0;
 
   for (const expectedWrapper of expectedWrappers) {
-    const outcome = await writeFile(expectedWrapper.wrapperPath, expectedWrapper.content);
-
-    if (outcome === "created") {
-      created += 1;
-      logDebug(
-        `Creating wrapper: ${displayRawSourcePath(expectedWrapper.relativePath)} -> ${displayRepoPath(expectedWrapper.wrapperPath)}`,
-      );
-      continue;
-    }
-
-    if (outcome === "updated") {
-      updated += 1;
-      logDebug(
-        `Updating wrapper: ${displayRawSourcePath(expectedWrapper.relativePath)} -> ${displayRepoPath(expectedWrapper.wrapperPath)}`,
-      );
+    if (await ensureWrapper(expectedWrapper)) {
+      added += 1;
     }
   }
 
-  return { created, updated };
+  return added;
 }
 
 async function writeRemoveManifest(removeEntries: Set<string>): Promise<boolean> {
@@ -361,7 +373,7 @@ async function writeRemoveManifest(removeEntries: Set<string>): Promise<boolean>
   const content =
     sortedRemoveEntries.length > 0 ? `${sortedRemoveEntries.join("\n")}\n` : "";
 
-  const updated = (await writeFile(removeManifestPath, content)) !== "unchanged";
+  const updated = await writeFileIfChanged(removeManifestPath, content);
 
   if (updated) {
     logDebug(`Updated remove manifest: ${removeManifestPath}`);
@@ -414,7 +426,7 @@ async function reconcile(): Promise<void> {
     await pruneEmptyDirectories(platform.wrapperRoot);
   }
 
-  const { created, updated } = await writeExpectedWrappers(expectedWrappers);
+  const added = await addMissingWrappers(expectedWrappers);
   const expectedTargets = hostExpectedTargets(rawRelativePaths);
 
   const previousRemoveEntries = await readExistingRemoveEntries();
@@ -424,16 +436,13 @@ async function reconcile(): Promise<void> {
     }
   }
 
-  const removeManifestUpdated = await writeRemoveManifest(removeEntries);
+  await writeRemoveManifest(removeEntries);
 
   logInfo(
     [
       `raw=${rawRelativePaths.length}`,
-      `created=${created}`,
-      `updated=${updated}`,
+      `added=${added}`,
       `removed=${staleWrappers.length}`,
-      `remove_entries=${removeEntries.size}`,
-      `manifest_updated=${removeManifestUpdated ? "yes" : "no"}`,
       `host=${hostKind}`,
       `target_root=${hostPlatform.targetRoot}`,
     ].join(" "),
