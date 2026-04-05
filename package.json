@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "reconcile:nvim": "bun run scripts/reconcile-nvim.ts",
+    "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

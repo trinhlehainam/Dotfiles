@@ -98,5 +98,6 @@ Useful commands:
 
 ```bash
 pnpm run reconcile:nvim
+pnpm test
 pnpm run typecheck
 ```

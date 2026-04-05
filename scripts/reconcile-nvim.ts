@@ -4,9 +4,10 @@ import os from "node:os";
 import path from "node:path";
 import { parseArgs } from "node:util";
 
-type LogLevel = "ERROR" | "WARN" | "INFO" | "VERBOSE" | "DEBUG";
-type PlatformKind = "unix" | "windows";
-type LogMode = "info" | "verbose" | "debug";
+export type PlatformKind = "unix" | "windows";
+export type LogMode = "info" | "verbose" | "debug";
+
+type LogLevel = "ERROR" | "INFO" | "VERBOSE" | "DEBUG";
 
 type PlatformConfig = {
   kind: PlatformKind;
@@ -27,37 +28,60 @@ type ExistingWrapper = {
   wrapperPath: string;
 };
 
+type ReconcileRuntime = {
+  hostKind: PlatformKind;
+  hostHome: string;
+  hostPlatform: PlatformConfig;
+  logMode: LogMode;
+  platforms: PlatformConfig[];
+  platformConfigs: Record<PlatformKind, PlatformConfig>;
+  rawRoot: string;
+  removeManifestPath: string;
+  repoRoot: string;
+  logger: Logger;
+};
+
+type Logger = {
+  error: (message: string) => void;
+  info: (message: string) => void;
+  verbose: (message: string) => void;
+  debug: (message: string) => void;
+};
+
+type LogWriters = {
+  stdout: (line: string) => void;
+  stderr: (line: string) => void;
+  now: () => Date;
+};
+
+export type ReconcileNvimOptions = {
+  hostHome?: string;
+  hostKind?: PlatformKind;
+  logMode?: LogMode;
+  now?: () => Date;
+  rawRoot?: string;
+  removeManifestPath?: string;
+  repoRoot?: string;
+  sourceStateRoot?: string;
+  stderr?: (line: string) => void;
+  stdout?: (line: string) => void;
+};
+
+export type ReconcileSummary = {
+  added: number;
+  host: PlatformKind;
+  raw: number;
+  removed: number;
+  targetRoot: string;
+};
+
 const LOG_PREFIX = "[reconcile-nvim-config]";
 const allFilesGlob = new Glob("**/*");
 const wrapperFilesGlob = new Glob("**/*.tmpl");
+const defaultRepoRoot = path.resolve(import.meta.dir, "..");
+const defaultHostKind: PlatformKind = process.platform === "win32" ? "windows" : "unix";
 
-const scriptDir = import.meta.dir;
-const repoRoot = path.resolve(scriptDir, "..");
-const sourceStateRoot = path.join(repoRoot, "home");
-const rawRoot = path.join(sourceStateRoot, ".shared-configs", "nvim");
-const removeManifestPath = path.join(sourceStateRoot, ".chezmoiremove");
-
-const hostKind: PlatformKind = process.platform === "win32" ? "windows" : "unix";
-
-const platformConfigs: Record<PlatformKind, PlatformConfig> = {
-  unix: {
-    kind: "unix",
-    wrapperRoot: path.join(sourceStateRoot, "dot_config", "nvim"),
-    targetPrefix: path.posix.join(".config", "nvim"),
-    targetRoot: path.join(os.homedir(), ".config", "nvim"),
-  },
-  windows: {
-    kind: "windows",
-    wrapperRoot: path.join(sourceStateRoot, "AppData", "Local", "nvim"),
-    targetPrefix: path.posix.join("AppData", "Local", "nvim"),
-    targetRoot: path.join(os.homedir(), "AppData", "Local", "nvim"),
-  },
-};
-
-const platforms = Object.values(platformConfigs);
-const hostPlatform = platformConfigs[hostKind];
-
-function tokenizeShellWords(value: string): string[] {
+export function tokenizeShellWords(value: string): string[] {
   // `CHEZMOI_ARGS` is a shell-style string, not a real argv array. Bun's docs
   // recommend `node:util.parseArgs` for flag parsing, but Bun/Node do not expose
   // a standard helper to split shell text from an env var into argv tokens.
@@ -68,7 +92,7 @@ function tokenizeShellWords(value: string): string[] {
   );
 }
 
-function resolveLogMode(rawChezMoiArgs: string): LogMode {
+export function resolveLogMode(rawChezMoiArgs: string): LogMode {
   const { values } = parseArgs({
     args: tokenizeShellWords(rawChezMoiArgs),
     options: {
@@ -82,7 +106,25 @@ function resolveLogMode(rawChezMoiArgs: string): LogMode {
   return values.debug ? "debug" : values.verbose ? "verbose" : "info";
 }
 
-const logMode = resolveLogMode(process.env.CHEZMOI_ARGS ?? "");
+function createPlatformConfigs(
+  sourceStateRoot: string,
+  hostHome: string,
+): Record<PlatformKind, PlatformConfig> {
+  return {
+    unix: {
+      kind: "unix",
+      wrapperRoot: path.join(sourceStateRoot, "dot_config", "nvim"),
+      targetPrefix: path.posix.join(".config", "nvim"),
+      targetRoot: path.join(hostHome, ".config", "nvim"),
+    },
+    windows: {
+      kind: "windows",
+      wrapperRoot: path.join(sourceStateRoot, "AppData", "Local", "nvim"),
+      targetPrefix: path.posix.join("AppData", "Local", "nvim"),
+      targetRoot: path.join(hostHome, "AppData", "Local", "nvim"),
+    },
+  };
+}
 
 function formatTimestamp(date: Date = new Date()): string {
   const pad = (value: number): string => value.toString().padStart(2, "0");
@@ -95,50 +137,70 @@ function formatTimestamp(date: Date = new Date()): string {
     ` ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
-function shouldLog(level: LogLevel): boolean {
+function shouldLog(logMode: LogMode, level: LogLevel): boolean {
   const modeRank: Record<LogMode, number> = {
     info: 1,
     verbose: 2,
     debug: 3,
   };
-  const levelRank: Record<Exclude<LogLevel, "ERROR" | "WARN">, number> = {
+  const levelRank: Record<Exclude<LogLevel, "ERROR">, number> = {
     INFO: 1,
     VERBOSE: 2,
     DEBUG: 3,
   };
 
-  if (level === "ERROR" || level === "WARN") {
+  if (level === "ERROR") {
     return true;
   }
 
   return modeRank[logMode] >= levelRank[level];
 }
 
-function writeLog(level: LogLevel, message: string): void {
-  if (!shouldLog(level)) {
-    return;
+function createLogger(logMode: LogMode, writers: LogWriters): Logger {
+  function write(level: LogLevel, message: string): void {
+    if (!shouldLog(logMode, level)) {
+      return;
+    }
+
+    const line = `[${formatTimestamp(writers.now())}] ${level}: ${LOG_PREFIX} ${message}\n`;
+    const writer = level === "ERROR" ? writers.stderr : writers.stdout;
+    writer(line);
   }
 
-  const line = `[${formatTimestamp()}] ${level}: ${LOG_PREFIX} ${message}\n`;
-  const stream =
-    level === "ERROR" || level === "WARN" ? process.stderr : process.stdout;
-  stream.write(line);
+  return {
+    error: (message) => write("ERROR", message),
+    info: (message) => write("INFO", message),
+    verbose: (message) => write("VERBOSE", message),
+    debug: (message) => write("DEBUG", message),
+  };
 }
 
-function logError(message: string): void {
-  writeLog("ERROR", message);
-}
+function createRuntime(options: ReconcileNvimOptions = {}): ReconcileRuntime {
+  const repoRoot = options.repoRoot ?? defaultRepoRoot;
+  const sourceStateRoot = options.sourceStateRoot ?? path.join(repoRoot, "home");
+  const hostHome = options.hostHome ?? os.homedir();
+  const hostKind = options.hostKind ?? defaultHostKind;
+  const logMode = options.logMode ?? resolveLogMode(process.env.CHEZMOI_ARGS ?? "");
+  const platformConfigs = createPlatformConfigs(sourceStateRoot, hostHome);
+  const writers: LogWriters = {
+    stdout: options.stdout ?? ((line) => process.stdout.write(line)),
+    stderr: options.stderr ?? ((line) => process.stderr.write(line)),
+    now: options.now ?? (() => new Date()),
+  };
 
-function logInfo(message: string): void {
-  writeLog("INFO", message);
-}
-
-function logVerbose(message: string): void {
-  writeLog("VERBOSE", message);
-}
-
-function logDebug(message: string): void {
-  writeLog("DEBUG", message);
+  return {
+    hostKind,
+    hostHome,
+    hostPlatform: platformConfigs[hostKind],
+    logMode,
+    platforms: Object.values(platformConfigs),
+    platformConfigs,
+    rawRoot: options.rawRoot ?? path.join(sourceStateRoot, ".shared-configs", "nvim"),
+    removeManifestPath:
+      options.removeManifestPath ?? path.join(sourceStateRoot, ".chezmoiremove"),
+    repoRoot,
+    logger: createLogger(logMode, writers),
+  };
 }
 
 function toPosixPath(value: string): string {
@@ -149,8 +211,8 @@ function fromPosixPath(value: string): string {
   return value.split(path.posix.sep).join(path.sep);
 }
 
-function displayRepoPath(targetPath: string): string {
-  return toPosixPath(path.relative(repoRoot, targetPath));
+function displayRepoPath(runtime: ReconcileRuntime, targetPath: string): string {
+  return toPosixPath(path.relative(runtime.repoRoot, targetPath));
 }
 
 function displayRawSourcePath(relativePath: string): string {
@@ -161,8 +223,8 @@ function targetPathFor(platform: PlatformConfig, relativePath: string): string {
   return path.posix.join(platform.targetPrefix, relativePath);
 }
 
-function absoluteTargetPath(entry: string): string {
-  return path.join(os.homedir(), fromPosixPath(entry));
+function absoluteTargetPath(runtime: ReconcileRuntime, entry: string): string {
+  return path.join(runtime.hostHome, fromPosixPath(entry));
 }
 
 function wrapperContent(relativePath: string): string {
@@ -237,7 +299,6 @@ async function listExistingWrappers(
   platform: PlatformConfig,
 ): Promise<ExistingWrapper[]> {
   const filePaths = await scanFiles(wrapperFilesGlob, platform.wrapperRoot);
-
   return filePaths.map((wrapperPath) => ({ platform, wrapperPath }));
 }
 
@@ -258,7 +319,10 @@ async function writeTextFile(targetPath: string, content: string): Promise<void>
   await fs.writeFile(targetPath, content, "utf8");
 }
 
-async function ensureWrapper(expectedWrapper: ExpectedWrapper): Promise<boolean> {
+async function ensureWrapper(
+  runtime: ReconcileRuntime,
+  expectedWrapper: ExpectedWrapper,
+): Promise<boolean> {
   const currentContent = await readFileIfExists(expectedWrapper.wrapperPath);
 
   if (currentContent === expectedWrapper.content) {
@@ -268,8 +332,8 @@ async function ensureWrapper(expectedWrapper: ExpectedWrapper): Promise<boolean>
   await writeTextFile(expectedWrapper.wrapperPath, expectedWrapper.content);
 
   if (currentContent === null) {
-    logDebug(
-      `Adding wrapper: ${displayRawSourcePath(expectedWrapper.relativePath)} -> ${displayRepoPath(expectedWrapper.wrapperPath)}`,
+    runtime.logger.debug(
+      `Adding wrapper: ${displayRawSourcePath(expectedWrapper.relativePath)} -> ${displayRepoPath(runtime, expectedWrapper.wrapperPath)}`,
     );
     return true;
   }
@@ -319,12 +383,12 @@ async function pruneEmptyDirectories(rootDir: string): Promise<void> {
   await prune(rootDir);
 }
 
-async function readExistingRemoveEntries(): Promise<string[]> {
-  if (!(await pathExists(removeManifestPath))) {
+async function readExistingRemoveEntries(runtime: ReconcileRuntime): Promise<string[]> {
+  if (!(await pathExists(runtime.removeManifestPath))) {
     return [];
   }
 
-  const content = await fs.readFile(removeManifestPath, "utf8");
+  const content = await fs.readFile(runtime.removeManifestPath, "utf8");
 
   return content
     .split(/\r?\n/)
@@ -332,17 +396,20 @@ async function readExistingRemoveEntries(): Promise<string[]> {
     .filter((line) => line.length > 0 && !line.startsWith("#"));
 }
 
-function hostExpectedTargets(relativePaths: string[]): Set<string> {
-  return new Set(relativePaths.map((relativePath) => targetPathFor(hostPlatform, relativePath)));
+function hostExpectedTargets(runtime: ReconcileRuntime, relativePaths: string[]): Set<string> {
+  return new Set(
+    relativePaths.map((relativePath) => targetPathFor(runtime.hostPlatform, relativePath)),
+  );
 }
 
 async function shouldKeepHostRemovalEntry(
+  runtime: ReconcileRuntime,
   entry: string,
   expectedTargets: Set<string>,
 ): Promise<boolean> {
   // Preserve only stale entries for the current host. Unix runs should not retain
   // Windows removals, and vice versa.
-  if (!entry.startsWith(`${hostPlatform.targetPrefix}/`)) {
+  if (!entry.startsWith(`${runtime.hostPlatform.targetPrefix}/`)) {
     return false;
   }
 
@@ -350,27 +417,33 @@ async function shouldKeepHostRemovalEntry(
     return false;
   }
 
-  return pathExists(absoluteTargetPath(entry));
+  return pathExists(absoluteTargetPath(runtime, entry));
 }
 
-async function removeStaleWrappers(staleWrappers: ExistingWrapper[]): Promise<void> {
+async function removeStaleWrappers(
+  runtime: ReconcileRuntime,
+  staleWrappers: ExistingWrapper[],
+): Promise<void> {
   if (staleWrappers.length === 0) {
     return;
   }
 
-  logDebug(`Removing ${staleWrappers.length} stale wrapper(s)`);
+  runtime.logger.debug(`Removing ${staleWrappers.length} stale wrapper(s)`);
 
   for (const { platform, wrapperPath } of staleWrappers) {
-    logDebug(
-      `Removing stale wrapper: ${displayRepoPath(wrapperPath)} -> ${wrapperTargetPath(platform, wrapperPath)}`,
+    runtime.logger.debug(
+      `Removing stale wrapper: ${displayRepoPath(runtime, wrapperPath)} -> ${wrapperTargetPath(platform, wrapperPath)}`,
     );
     await fs.rm(wrapperPath);
   }
 }
 
-async function addMissingWrappers(expectedWrappers: ExpectedWrapper[]): Promise<void> {
+async function addMissingWrappers(
+  runtime: ReconcileRuntime,
+  expectedWrappers: ExpectedWrapper[],
+): Promise<void> {
   for (const expectedWrapper of expectedWrappers) {
-    await ensureWrapper(expectedWrapper);
+    await ensureWrapper(runtime, expectedWrapper);
   }
 }
 
@@ -411,45 +484,53 @@ function removedRawRelativePaths(staleWrappers: ExistingWrapper[]): string[] {
   return Array.from(removed).sort((left, right) => left.localeCompare(right));
 }
 
-async function writeRemoveManifest(removeEntries: Set<string>): Promise<boolean> {
+async function writeRemoveManifest(
+  runtime: ReconcileRuntime,
+  removeEntries: Set<string>,
+): Promise<void> {
   const sortedRemoveEntries = Array.from(removeEntries).sort((left, right) =>
     left.localeCompare(right),
   );
   const content =
     sortedRemoveEntries.length > 0 ? `${sortedRemoveEntries.join("\n")}\n` : "";
 
-  const updated = await writeFileIfChanged(removeManifestPath, content);
+  const updated = await writeFileIfChanged(runtime.removeManifestPath, content);
 
   if (updated) {
-    logDebug(`Updated remove manifest: ${removeManifestPath}`);
+    runtime.logger.debug(`Updated remove manifest: ${runtime.removeManifestPath}`);
   }
-
-  return updated;
 }
 
-async function reconcile(): Promise<void> {
-  logDebug(`Configuration loaded: host=${hostKind} log_mode=${logMode}`);
-  logDebug(`Canonical raw root: ${rawRoot}`);
-  logDebug(`Unix wrapper root: ${platformConfigs.unix.wrapperRoot}`);
-  logDebug(`Windows wrapper root: ${platformConfigs.windows.wrapperRoot}`);
-  logDebug(`Host target root: ${hostPlatform.targetRoot}`);
-  logDebug(`Remove manifest: ${removeManifestPath}`);
+export async function reconcileNvimConfig(
+  options: ReconcileNvimOptions = {},
+): Promise<ReconcileSummary> {
+  const runtime = createRuntime(options);
 
-  if (!(await pathExists(rawRoot))) {
-    throw new Error(`canonical raw Neovim tree not found: ${rawRoot}`);
+  runtime.logger.debug(
+    `Configuration loaded: host=${runtime.hostKind} log_mode=${runtime.logMode}`,
+  );
+  runtime.logger.debug(`Canonical raw root: ${runtime.rawRoot}`);
+  runtime.logger.debug(`Unix wrapper root: ${runtime.platformConfigs.unix.wrapperRoot}`);
+  runtime.logger.debug(
+    `Windows wrapper root: ${runtime.platformConfigs.windows.wrapperRoot}`,
+  );
+  runtime.logger.debug(`Host target root: ${runtime.hostPlatform.targetRoot}`);
+  runtime.logger.debug(`Remove manifest: ${runtime.removeManifestPath}`);
+
+  if (!(await pathExists(runtime.rawRoot))) {
+    throw new Error(`canonical raw Neovim tree not found: ${runtime.rawRoot}`);
   }
 
-  const rawRelativePaths = await listRawRelativePaths(rawRoot);
-
+  const rawRelativePaths = await listRawRelativePaths(runtime.rawRoot);
   const expectedWrappers = rawRelativePaths.flatMap((relativePath) =>
-    platforms.map((platform) => expectedWrapperFor(platform, relativePath)),
+    runtime.platforms.map((platform) => expectedWrapperFor(platform, relativePath)),
   );
   const expectedWrapperPaths = new Set(
     expectedWrappers.map((expectedWrapper) => expectedWrapper.wrapperPath),
   );
 
   const existingWrappers = (
-    await Promise.all(platforms.map((platform) => listExistingWrappers(platform)))
+    await Promise.all(runtime.platforms.map((platform) => listExistingWrappers(platform)))
   ).flat();
   const existingWrapperPaths = new Set(
     existingWrappers.map(({ wrapperPath }) => wrapperPath),
@@ -461,12 +542,12 @@ async function reconcile(): Promise<void> {
   const addedRawPaths = addedRawRelativePaths(expectedWrappers, existingWrapperPaths);
   const removedRawPaths = removedRawRelativePaths(staleWrappers);
 
-  logVerbose(`Scanned ${rawRelativePaths.length} raw Neovim file(s)`);
+  runtime.logger.verbose(`Scanned ${rawRelativePaths.length} raw Neovim file(s)`);
   for (const relativePath of addedRawPaths) {
-    logVerbose(`Added raw file: ${displayRawSourcePath(relativePath)}`);
+    runtime.logger.verbose(`Added raw file: ${displayRawSourcePath(relativePath)}`);
   }
   for (const relativePath of removedRawPaths) {
-    logVerbose(`Removed raw file: ${displayRawSourcePath(relativePath)}`);
+    runtime.logger.verbose(`Removed raw file: ${displayRawSourcePath(relativePath)}`);
   }
 
   // Removing a source wrapper is not enough for chezmoi to remove the already-applied
@@ -477,37 +558,56 @@ async function reconcile(): Promise<void> {
     ),
   );
 
-  await removeStaleWrappers(staleWrappers);
+  await removeStaleWrappers(runtime, staleWrappers);
 
-  for (const platform of platforms) {
+  for (const platform of runtime.platforms) {
     await pruneEmptyDirectories(platform.wrapperRoot);
   }
 
-  await addMissingWrappers(expectedWrappers);
-  const expectedTargets = hostExpectedTargets(rawRelativePaths);
+  await addMissingWrappers(runtime, expectedWrappers);
+  const expectedTargets = hostExpectedTargets(runtime, rawRelativePaths);
 
-  const previousRemoveEntries = await readExistingRemoveEntries();
+  const previousRemoveEntries = await readExistingRemoveEntries(runtime);
   for (const entry of previousRemoveEntries) {
-    if (await shouldKeepHostRemovalEntry(entry, expectedTargets)) {
+    if (await shouldKeepHostRemovalEntry(runtime, entry, expectedTargets)) {
       removeEntries.add(entry);
     }
   }
 
-  await writeRemoveManifest(removeEntries);
+  await writeRemoveManifest(runtime, removeEntries);
 
-  logInfo(
+  const summary: ReconcileSummary = {
+    raw: rawRelativePaths.length,
+    added: addedRawPaths.length,
+    removed: removedRawPaths.length,
+    host: runtime.hostKind,
+    targetRoot: runtime.hostPlatform.targetRoot,
+  };
+
+  runtime.logger.info(
     [
-      `raw=${rawRelativePaths.length}`,
-      `added=${addedRawPaths.length}`,
-      `removed=${removedRawPaths.length}`,
-      `host=${hostKind}`,
-      `target_root=${hostPlatform.targetRoot}`,
+      `raw=${summary.raw}`,
+      `added=${summary.added}`,
+      `removed=${summary.removed}`,
+      `host=${summary.host}`,
+      `target_root=${summary.targetRoot}`,
     ].join(" "),
   );
+
+  return summary;
 }
 
-await reconcile().catch((error: unknown) => {
-  const message = error instanceof Error ? error.stack ?? error.message : String(error);
-  logError(message);
-  process.exit(1);
-});
+export async function main(): Promise<void> {
+  try {
+    await reconcileNvimConfig();
+  } catch (error: unknown) {
+    const logger = createRuntime().logger;
+    const message = error instanceof Error ? error.stack ?? error.message : String(error);
+    logger.error(message);
+    process.exit(1);
+  }
+}
+
+if (import.meta.main) {
+  await main();
+}
