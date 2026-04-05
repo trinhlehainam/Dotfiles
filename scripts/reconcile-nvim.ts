@@ -1,7 +1,8 @@
+import { Glob } from "bun";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { parseArgs } from "node:util";
 
 type LogLevel = "ERROR" | "WARN" | "INFO" | "VERBOSE" | "DEBUG";
 type PlatformKind = "unix" | "windows";
@@ -27,9 +28,10 @@ type ExistingWrapper = {
 };
 
 const LOG_PREFIX = "[reconcile-nvim-config]";
+const allFilesGlob = new Glob("**/*");
+const wrapperFilesGlob = new Glob("**/*.tmpl");
 
-const scriptPath = fileURLToPath(import.meta.url);
-const scriptDir = path.dirname(scriptPath);
+const scriptDir = import.meta.dir;
 const repoRoot = path.resolve(scriptDir, "..");
 const sourceStateRoot = path.join(repoRoot, "home");
 const rawRoot = path.join(sourceStateRoot, ".shared-configs", "nvim");
@@ -37,30 +39,28 @@ const removeManifestPath = path.join(sourceStateRoot, ".chezmoiremove");
 
 const hostKind: PlatformKind = process.platform === "win32" ? "windows" : "unix";
 
-const platforms: PlatformConfig[] = [
-  {
+const platformConfigs: Record<PlatformKind, PlatformConfig> = {
+  unix: {
     kind: "unix",
     wrapperRoot: path.join(sourceStateRoot, "dot_config", "nvim"),
     targetPrefix: path.posix.join(".config", "nvim"),
     targetRoot: path.join(os.homedir(), ".config", "nvim"),
   },
-  {
+  windows: {
     kind: "windows",
     wrapperRoot: path.join(sourceStateRoot, "AppData", "Local", "nvim"),
     targetPrefix: path.posix.join("AppData", "Local", "nvim"),
     targetRoot: path.join(os.homedir(), "AppData", "Local", "nvim"),
   },
-];
+};
 
-function fail(message: string): never {
-  throw new Error(message);
-}
+const platforms = Object.values(platformConfigs);
+const hostPlatform = platformConfigs[hostKind];
 
-const hostPlatform =
-  platforms.find((platform) => platform.kind === hostKind) ??
-  fail(`unsupported host platform: ${hostKind}`);
-
-function parseChezMoiArgs(value: string): string[] {
+function tokenizeShellWords(value: string): string[] {
+  // `CHEZMOI_ARGS` is a shell-style string, not a real argv array. Bun's docs
+  // recommend `node:util.parseArgs` for flag parsing, but Bun/Node do not expose
+  // a standard helper to split shell text from an env var into argv tokens.
   const tokens = value.match(/"[^"]*"|'[^']*'|\S+/g) ?? [];
 
   return tokens.map((token) =>
@@ -68,12 +68,21 @@ function parseChezMoiArgs(value: string): string[] {
   );
 }
 
-const chezmoiArgs = parseChezMoiArgs(process.env.CHEZMOI_ARGS ?? "");
-const logMode: LogMode = chezmoiArgs.includes("--debug")
-  ? "debug"
-  : chezmoiArgs.some((arg) => arg === "-v" || arg === "--verbose")
-    ? "verbose"
-    : "info";
+function resolveLogMode(rawChezMoiArgs: string): LogMode {
+  const { values } = parseArgs({
+    args: tokenizeShellWords(rawChezMoiArgs),
+    options: {
+      verbose: { type: "boolean", short: "v", default: false },
+      debug: { type: "boolean", default: false },
+    },
+    strict: false,
+    allowPositionals: true,
+  });
+
+  return values.debug ? "debug" : values.verbose ? "verbose" : "info";
+}
+
+const logMode = resolveLogMode(process.env.CHEZMOI_ARGS ?? "");
 
 function formatTimestamp(date: Date = new Date()): string {
   const pad = (value: number): string => value.toString().padStart(2, "0");
@@ -195,38 +204,28 @@ async function pathExists(targetPath: string): Promise<boolean> {
   }
 }
 
-async function listFilesRecursive(rootDir: string): Promise<string[]> {
+async function scanFiles(glob: Glob, rootDir: string): Promise<string[]> {
   if (!(await pathExists(rootDir))) {
     return [];
   }
 
-  const results: string[] = [];
+  const filePaths: string[] = [];
 
-  async function walk(currentDir: string): Promise<void> {
-    const entries = await fs.readdir(currentDir, { withFileTypes: true });
-    entries.sort((left, right) => left.name.localeCompare(right.name));
-
-    for (const entry of entries) {
-      const entryPath = path.join(currentDir, entry.name);
-
-      if (entry.isDirectory()) {
-        await walk(entryPath);
-        continue;
-      }
-
-      if (entry.isFile()) {
-        results.push(entryPath);
-      }
-    }
+  for await (const filePath of glob.scan({
+    cwd: rootDir,
+    dot: true,
+    absolute: true,
+    onlyFiles: true,
+  })) {
+    filePaths.push(filePath);
   }
 
-  await walk(rootDir);
-  results.sort((left, right) => left.localeCompare(right));
-  return results;
+  filePaths.sort((left, right) => left.localeCompare(right));
+  return filePaths;
 }
 
 async function listRawRelativePaths(rootDir: string): Promise<string[]> {
-  const filePaths = await listFilesRecursive(rootDir);
+  const filePaths = await scanFiles(allFilesGlob, rootDir);
 
   return filePaths
     .filter((filePath) => !path.basename(filePath).startsWith("."))
@@ -237,12 +236,9 @@ async function listRawRelativePaths(rootDir: string): Promise<string[]> {
 async function listExistingWrappers(
   platform: PlatformConfig,
 ): Promise<ExistingWrapper[]> {
-  const filePaths = await listFilesRecursive(platform.wrapperRoot);
+  const filePaths = await scanFiles(wrapperFilesGlob, platform.wrapperRoot);
 
-  return filePaths
-    .filter((filePath) => filePath.endsWith(".tmpl"))
-    .sort((left, right) => left.localeCompare(right))
-    .map((wrapperPath) => ({ platform, wrapperPath }));
+  return filePaths.map((wrapperPath) => ({ platform, wrapperPath }));
 }
 
 async function readFileIfExists(targetPath: string): Promise<string | null> {
@@ -434,8 +430,8 @@ async function writeRemoveManifest(removeEntries: Set<string>): Promise<boolean>
 async function reconcile(): Promise<void> {
   logDebug(`Configuration loaded: host=${hostKind} log_mode=${logMode}`);
   logDebug(`Canonical raw root: ${rawRoot}`);
-  logDebug(`Unix wrapper root: ${platforms[0]?.wrapperRoot ?? ""}`);
-  logDebug(`Windows wrapper root: ${platforms[1]?.wrapperRoot ?? ""}`);
+  logDebug(`Unix wrapper root: ${platformConfigs.unix.wrapperRoot}`);
+  logDebug(`Windows wrapper root: ${platformConfigs.windows.wrapperRoot}`);
   logDebug(`Host target root: ${hostPlatform.targetRoot}`);
   logDebug(`Remove manifest: ${removeManifestPath}`);
 

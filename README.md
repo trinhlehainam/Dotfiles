@@ -60,6 +60,8 @@ The project metadata is based on Bun's official `bun init --yes` defaults, then 
 - Bun stays the runtime in the script commands
 - `tsconfig.json` keeps the Bun-recommended compiler options and adds repo-specific `include`/`exclude`
 - `types: ["bun"]` is included for TypeScript 6+ editor compatibility
+- the reconciler uses Bun's built-in `Glob.scan()` for recursive file discovery
+- the reconciler uses `node:util` `parseArgs()` for `--verbose` / `--debug` flag parsing
 
 Operationally:
 - use `pnpm install` to populate `node_modules` for the editor
@@ -74,6 +76,11 @@ Operationally:
 - success logs are printed to stdout; warnings and errors are printed to stderr
 
 The reconciler reports added and removed files as its sync status.
+
+One implementation detail remains intentionally custom:
+- `CHEZMOI_ARGS` arrives as a shell-style environment string, not a real argv array
+- Bun and Node document `parseArgs()` for option parsing, but do not provide a standard shell-string tokenizer for env-var input
+- the script therefore keeps a small tokenizer helper, then hands the resulting tokens to `parseArgs()`
 
 Reason:
 - wrapper files only encode `include` paths
