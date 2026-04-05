@@ -152,8 +152,29 @@ describe("log mode helpers", () => {
     ]);
   });
 
+  test("keeps quoted flag values intact when the quote starts after =", () => {
+    expect(
+      tokenizeShellWords(`chezmoi apply --source="/tmp/my -v repo" --debug`),
+    ).toEqual([
+      "chezmoi",
+      "apply",
+      "--source=/tmp/my -v repo",
+      "--debug",
+    ]);
+  });
+
   test.each(logModeCases)("resolves %p to %p", (rawArgs, expectedMode) => {
     expect(resolveLogMode(rawArgs)).toBe(expectedMode);
+  });
+
+  test("does not treat -v inside a quoted flag value as verbose mode", () => {
+    expect(resolveLogMode(`chezmoi apply --source="/tmp/my -v repo"`)).toBe("info");
+  });
+
+  test("does not treat --debug inside a quoted flag value as debug mode", () => {
+    expect(resolveLogMode(`chezmoi apply --source="/tmp/my --debug repo"`)).toBe(
+      "info",
+    );
   });
 });
 

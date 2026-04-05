@@ -89,11 +89,63 @@ export function tokenizeShellWords(value: string): string[] {
   // `CHEZMOI_ARGS` is a shell-style string, not a real argv array. Bun's docs
   // recommend `node:util.parseArgs` for flag parsing, but Bun/Node do not expose
   // a standard helper to split shell text from an env var into argv tokens.
-  const tokens = value.match(/"[^"]*"|'[^']*'|\S+/g) ?? [];
+  const tokens: string[] = [];
+  let current = "";
+  let quote: '"' | "'" | null = null;
 
-  return tokens.map((token) =>
-    token.startsWith('"') || token.startsWith("'") ? token.slice(1, -1) : token,
-  );
+  function pushCurrent(): void {
+    if (current.length > 0) {
+      tokens.push(current);
+      current = "";
+    }
+  }
+
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value.charAt(index);
+
+    if (quote === null) {
+      if (/\s/.test(character)) {
+        pushCurrent();
+        continue;
+      }
+
+      if (character === '"' || character === "'") {
+        quote = character;
+        continue;
+      }
+
+      if (character === "\\") {
+        if (index + 1 < value.length) {
+          const nextCharacter = value.charAt(index + 1);
+          current += nextCharacter;
+          index += 1;
+          continue;
+        }
+      }
+
+      current += character;
+      continue;
+    }
+
+    if (character === quote) {
+      quote = null;
+      continue;
+    }
+
+    if (character === "\\" && quote === '"') {
+      if (index + 1 < value.length) {
+        const nextCharacter = value.charAt(index + 1);
+        current += nextCharacter;
+        index += 1;
+        continue;
+      }
+    }
+
+    current += character;
+  }
+
+  pushCurrent();
+  return tokens;
 }
 
 export function resolveLogMode(rawChezMoiArgs: string): LogMode {
