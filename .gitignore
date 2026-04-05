@@ -1,5 +1,5 @@
-# nvim file changes state will managed locally so we don't need to store it in git
-home/.chezmoitemplates/nvim/state.json
+# Generated Neovim wrappers and removal manifest are local build artifacts.
+home/.chezmoiremove
 
 home/AppData/Local/nvim
 home/dot_config/nvim

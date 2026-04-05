@@ -8,7 +8,7 @@ windows:
     commands:
       - nvim
   - name: nvim
-    root: home/.chezmoitemplates/nvim
+    root: home/.shared-configs/nvim
     commands:
       - nvim
   - name: wezterm

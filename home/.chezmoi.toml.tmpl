@@ -1,12 +1,11 @@
 # https://www.chezmoi.io/reference/templates/variables/
 # https://www.chezmoi.io/reference/configuration-file/hooks/
-# https://www.chezmoi.io/reference/command-line-flags/global/#-v-verbose
+# https://www.chezmoi.io/reference/configuration-file/warnings/
 
-[hooks.apply.pre]
-{{ if eq .chezmoi.os "windows" }}
-command = "powershell"
-args = ["-ExecutionPolicy", "Bypass", "-File", "{{ .chezmoi.homeDir }}/.local/share/chezmoi/home/.chezmoitemplates/scripts/windows/pre_apply/update-nvim-config-from-template.ps1"]
-{{ else }}
-command = "bash"
-args = ["-c", "{{ .chezmoi.homeDir }}/.local/share/chezmoi/home/.chezmoitemplates/scripts/unix/pre_apply/update-nvim-config-from-template.sh"]
-{{- end -}}
+{{- if not (lookPath "bun") }}
+{{ warnf "bun is required for Neovim wrapper generation via scripts/reconcile-nvim.ts" }}
+{{- end }}
+
+[hooks.read-source-state.pre]
+command = "bun"
+args = ["run", "{{ .chezmoi.workingTree }}/scripts/reconcile-nvim.ts"]
