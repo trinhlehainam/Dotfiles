@@ -1,5 +1,6 @@
 # Generated Neovim wrappers and removal manifest are local build artifacts.
 home/.chezmoiremove
+node_modules
 
 home/AppData/Local/nvim
 home/dot_config/nvim

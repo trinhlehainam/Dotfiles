@@ -39,6 +39,8 @@ function windowsTargetPath(relativePath: string): string {
 }
 
 function wrapperContent(relativePath: string): string {
+  // `include` resolves from the chezmoi source-state root (`home/` via `.chezmoiroot`),
+  // so wrapper paths must stay POSIX-style and source-relative.
   const includePath = path.posix.join(".shared-configs", "nvim", relativePath);
   return `{{- include "${includePath}" -}}`;
 }
@@ -184,6 +186,8 @@ async function keepHostRemovalEntry(
   entry: string,
   expectedHostTargets: Set<string>,
 ): Promise<boolean> {
+  // Preserve only stale entries for the current host. Unix runs should not retain
+  // Windows removals, and vice versa.
   if (!entry.startsWith(`${hostManifestPrefix}/`)) {
     return false;
   }
@@ -226,6 +230,8 @@ async function reconcile(): Promise<void> {
     ...existingWindowsWrappers.filter((wrapperPath) => !expectedWindowsWrappers.has(wrapperPath)),
   ];
 
+  // Removing a source wrapper is not enough for chezmoi to remove the already-applied
+  // target file, so stale wrappers are translated into `.chezmoiremove` entries.
   const removeEntries = new Set<string>(
     staleWrapperPaths.map((wrapperPath) => {
       const wrapperRoot = wrapperPath.startsWith(unixWrapperRoot)
@@ -273,7 +279,9 @@ async function reconcile(): Promise<void> {
     removeManifestContent,
   );
 
-  console.error(
+  // Success summaries go to stdout so shells and prompts do not misclassify a clean
+  // reconcile as an error just because diagnostics were emitted.
+  console.log(
     [
       "[reconcile-nvim]",
       `raw=${rawRelativePaths.length}`,
