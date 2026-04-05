@@ -29,6 +29,7 @@ type ExistingWrapper = {
 };
 
 type ReconcileRuntime = {
+  dryRun: boolean;
   hostKind: PlatformKind;
   hostHome: string;
   hostPlatform: PlatformConfig;
@@ -55,6 +56,7 @@ type LogWriters = {
 };
 
 export type ReconcileNvimOptions = {
+  dryRun?: boolean;
   hostHome?: string;
   hostKind?: PlatformKind;
   logMode?: LogMode;
@@ -85,6 +87,11 @@ const wrapperFilesGlob = new Glob("**/*.tmpl");
 const defaultRepoRoot = path.resolve(import.meta.dir, "..");
 const defaultHostKind: PlatformKind = process.platform === "win32" ? "windows" : "unix";
 
+type ParsedChezMoiArgs = {
+  dryRun: boolean;
+  logMode: LogMode;
+};
+
 export function tokenizeShellWords(value: string): string[] {
   // `CHEZMOI_ARGS` is a shell-style string, not a real argv array. Bun's docs
   // recommend `node:util.parseArgs` for flag parsing, but Bun/Node do not expose
@@ -96,18 +103,33 @@ export function tokenizeShellWords(value: string): string[] {
   );
 }
 
-export function resolveLogMode(rawChezMoiArgs: string): LogMode {
+function parseChezMoiArgs(rawChezMoiArgs: string): ParsedChezMoiArgs {
   const { values } = parseArgs({
     args: tokenizeShellWords(rawChezMoiArgs),
     options: {
+      "dry-run": { type: "boolean", short: "n", default: false },
       verbose: { type: "boolean", short: "v", default: false },
       debug: { type: "boolean", default: false },
     },
     strict: false,
     allowPositionals: true,
   });
+  const dryRun = values["dry-run"] === true;
+  const debug = values.debug === true;
+  const verbose = values.verbose === true;
 
-  return values.debug ? "debug" : values.verbose ? "verbose" : "info";
+  return {
+    dryRun,
+    logMode: debug ? "debug" : verbose ? "verbose" : "info",
+  };
+}
+
+export function resolveLogMode(rawChezMoiArgs: string): LogMode {
+  return parseChezMoiArgs(rawChezMoiArgs).logMode;
+}
+
+export function resolveDryRun(rawChezMoiArgs: string): boolean {
+  return parseChezMoiArgs(rawChezMoiArgs).dryRun;
 }
 
 function createPlatformConfigs(
@@ -184,7 +206,9 @@ function createRuntime(options: ReconcileNvimOptions = {}): ReconcileRuntime {
   const sourceStateRoot = options.sourceStateRoot ?? path.join(repoRoot, "home");
   const hostHome = options.hostHome ?? os.homedir();
   const hostKind = options.hostKind ?? defaultHostKind;
-  const logMode = options.logMode ?? resolveLogMode(process.env.CHEZMOI_ARGS ?? "");
+  const rawChezMoiArgs = process.env.CHEZMOI_ARGS ?? "";
+  const dryRun = options.dryRun ?? resolveDryRun(rawChezMoiArgs);
+  const logMode = options.logMode ?? resolveLogMode(rawChezMoiArgs);
   const platformConfigs = createPlatformConfigs(sourceStateRoot, hostHome);
   const hostPlatform = platformConfigs[hostKind];
   const writers: LogWriters = {
@@ -198,6 +222,7 @@ function createRuntime(options: ReconcileNvimOptions = {}): ReconcileRuntime {
   }
 
   return {
+    dryRun,
     hostKind,
     hostHome,
     hostPlatform,
@@ -503,13 +528,36 @@ async function writeRemoveManifest(
   }
 }
 
+function hostRemoveEntries(
+  runtime: ReconcileRuntime,
+  staleWrappers: ExistingWrapper[],
+): Set<string> {
+  return new Set(
+    staleWrappers
+      .filter(({ platform }) => platform.kind === runtime.hostKind)
+      .map(({ platform, wrapperPath }) => wrapperTargetPath(platform, wrapperPath)),
+  );
+}
+
+function logSummary(runtime: ReconcileRuntime, summary: ReconcileSummary): void {
+  runtime.logger.info(
+    [
+      `raw=${summary.raw}`,
+      `added=${summary.added}`,
+      `removed=${summary.removed}`,
+      `host=${summary.host}`,
+      `target_root=${summary.targetRoot}`,
+    ].join(" "),
+  );
+}
+
 export async function reconcileNvimConfig(
   options: ReconcileNvimOptions = {},
 ): Promise<ReconcileSummary> {
   const runtime = createRuntime(options);
 
   runtime.logger.debug(
-    `Configuration loaded: host=${runtime.hostKind} log_mode=${runtime.logMode}`,
+    `Configuration loaded: host=${runtime.hostKind} log_mode=${runtime.logMode} dry_run=${runtime.dryRun}`,
   );
   runtime.logger.debug(`Canonical raw root: ${runtime.rawRoot}`);
   runtime.logger.debug(`Unix wrapper root: ${runtime.platformConfigs.unix.wrapperRoot}`);
@@ -554,11 +602,23 @@ export async function reconcileNvimConfig(
 
   // Removing a source wrapper is not enough for chezmoi to remove the already-applied
   // target file, so stale wrappers are translated into `.chezmoiremove` entries.
-  const removeEntries = new Set(
-    staleWrappers.map(({ platform, wrapperPath }) =>
-      wrapperTargetPath(platform, wrapperPath),
-    ),
-  );
+  const removeEntries = hostRemoveEntries(runtime, staleWrappers);
+
+  const summary: ReconcileSummary = {
+    raw: rawRelativePaths.length,
+    added: addedRawPaths.length,
+    removed: removedRawPaths.length,
+    host: runtime.hostKind,
+    targetRoot: runtime.hostPlatform.targetRoot,
+  };
+
+  if (runtime.dryRun) {
+    runtime.logger.debug(
+      "Dry-run mode detected; skipping wrapper and manifest mutations",
+    );
+    logSummary(runtime, summary);
+    return summary;
+  }
 
   await removeStaleWrappers(runtime, staleWrappers);
 
@@ -577,24 +637,7 @@ export async function reconcileNvimConfig(
   }
 
   await writeRemoveManifest(runtime, removeEntries);
-
-  const summary: ReconcileSummary = {
-    raw: rawRelativePaths.length,
-    added: addedRawPaths.length,
-    removed: removedRawPaths.length,
-    host: runtime.hostKind,
-    targetRoot: runtime.hostPlatform.targetRoot,
-  };
-
-  runtime.logger.info(
-    [
-      `raw=${summary.raw}`,
-      `added=${summary.added}`,
-      `removed=${summary.removed}`,
-      `host=${summary.host}`,
-      `target_root=${summary.targetRoot}`,
-    ].join(" "),
-  );
+  logSummary(runtime, summary);
 
   return summary;
 }
