@@ -75,6 +75,10 @@ export type ReconcileSummary = {
   targetRoot: string;
 };
 
+export type RunCliOptions = ReconcileNvimOptions & {
+  exit?: (code: number) => void;
+};
+
 const LOG_PREFIX = "[reconcile-nvim-config]";
 const allFilesGlob = new Glob("**/*");
 const wrapperFilesGlob = new Glob("**/*.tmpl");
@@ -182,16 +186,21 @@ function createRuntime(options: ReconcileNvimOptions = {}): ReconcileRuntime {
   const hostKind = options.hostKind ?? defaultHostKind;
   const logMode = options.logMode ?? resolveLogMode(process.env.CHEZMOI_ARGS ?? "");
   const platformConfigs = createPlatformConfigs(sourceStateRoot, hostHome);
+  const hostPlatform = platformConfigs[hostKind];
   const writers: LogWriters = {
     stdout: options.stdout ?? ((line) => process.stdout.write(line)),
     stderr: options.stderr ?? ((line) => process.stderr.write(line)),
     now: options.now ?? (() => new Date()),
   };
 
+  if (hostPlatform === undefined) {
+    throw new Error(`unsupported host platform: ${hostKind}`);
+  }
+
   return {
     hostKind,
     hostHome,
-    hostPlatform: platformConfigs[hostKind],
+    hostPlatform,
     logMode,
     platforms: Object.values(platformConfigs),
     platformConfigs,
@@ -215,8 +224,9 @@ function displayRepoPath(runtime: ReconcileRuntime, targetPath: string): string 
   return toPosixPath(path.relative(runtime.repoRoot, targetPath));
 }
 
-function displayRawSourcePath(relativePath: string): string {
-  return path.posix.join("home", ".shared-configs", "nvim", relativePath);
+function displayRawSourcePath(runtime: ReconcileRuntime, relativePath: string): string {
+  const displayRoot = toPosixPath(path.relative(runtime.repoRoot, runtime.rawRoot));
+  return path.posix.join(displayRoot, relativePath);
 }
 
 function targetPathFor(platform: PlatformConfig, relativePath: string): string {
@@ -333,7 +343,7 @@ async function ensureWrapper(
 
   if (currentContent === null) {
     runtime.logger.debug(
-      `Adding wrapper: ${displayRawSourcePath(expectedWrapper.relativePath)} -> ${displayRepoPath(runtime, expectedWrapper.wrapperPath)}`,
+      `Adding wrapper: ${displayRawSourcePath(runtime, expectedWrapper.relativePath)} -> ${displayRepoPath(runtime, expectedWrapper.wrapperPath)}`,
     );
     return true;
   }
@@ -342,15 +352,7 @@ async function ensureWrapper(
 }
 
 async function writeFileIfChanged(targetPath: string, content: string): Promise<boolean> {
-  let currentContent: string | null = null;
-
-  try {
-    currentContent = await fs.readFile(targetPath, "utf8");
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-      throw error;
-    }
-  }
+  const currentContent = await readFileIfExists(targetPath);
 
   if (currentContent === content) {
     return false;
@@ -544,10 +546,10 @@ export async function reconcileNvimConfig(
 
   runtime.logger.verbose(`Scanned ${rawRelativePaths.length} raw Neovim file(s)`);
   for (const relativePath of addedRawPaths) {
-    runtime.logger.verbose(`Added raw file: ${displayRawSourcePath(relativePath)}`);
+    runtime.logger.verbose(`Added raw file: ${displayRawSourcePath(runtime, relativePath)}`);
   }
   for (const relativePath of removedRawPaths) {
-    runtime.logger.verbose(`Removed raw file: ${displayRawSourcePath(relativePath)}`);
+    runtime.logger.verbose(`Removed raw file: ${displayRawSourcePath(runtime, relativePath)}`);
   }
 
   // Removing a source wrapper is not enough for chezmoi to remove the already-applied
@@ -597,15 +599,32 @@ export async function reconcileNvimConfig(
   return summary;
 }
 
-export async function main(): Promise<void> {
+function writeFallbackError(
+  message: string,
+  stderr: (line: string) => void,
+  now: () => Date,
+): void {
+  stderr(`[${formatTimestamp(now())}] ERROR: ${LOG_PREFIX} ${message}\n`);
+}
+
+export async function runCli(options: RunCliOptions = {}): Promise<void> {
+  const { exit = (code: number) => process.exit(code), ...reconcileOptions } = options;
+
   try {
-    await reconcileNvimConfig();
+    await reconcileNvimConfig(reconcileOptions);
   } catch (error: unknown) {
-    const logger = createRuntime().logger;
     const message = error instanceof Error ? error.stack ?? error.message : String(error);
-    logger.error(message);
-    process.exit(1);
+    writeFallbackError(
+      message,
+      reconcileOptions.stderr ?? ((line) => process.stderr.write(line)),
+      reconcileOptions.now ?? (() => new Date()),
+    );
+    exit(1);
   }
+}
+
+export async function main(): Promise<void> {
+  await runCli();
 }
 
 if (import.meta.main) {

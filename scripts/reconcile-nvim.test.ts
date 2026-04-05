@@ -6,6 +6,7 @@ import path from "node:path";
 import {
   reconcileNvimConfig,
   resolveLogMode,
+  runCli,
   tokenizeShellWords,
   type LogMode,
   type PlatformKind,
@@ -94,6 +95,10 @@ async function exists(targetPath: string): Promise<boolean> {
   }
 }
 
+async function sleep(milliseconds: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
 function wrapperTemplate(relativePath: string): string {
   return `{{- include ".shared-configs/nvim/${relativePath}" -}}`;
 }
@@ -132,6 +137,18 @@ describe("log mode helpers", () => {
       "--config",
       "/tmp/chez moi.toml",
       "--debug",
+    ]);
+  });
+
+  test("tokenizes single-quoted values and ignores repeated spaces", () => {
+    expect(
+      tokenizeShellWords(`  chezmoi   apply   --config   '/tmp/chez moi.toml'   -v  `),
+    ).toEqual([
+      "chezmoi",
+      "apply",
+      "--config",
+      "/tmp/chez moi.toml",
+      "-v",
     ]);
   });
 
@@ -260,6 +277,60 @@ describe("reconcileNvimConfig", () => {
     );
   });
 
+  test("is idempotent on the second run and does not rewrite unchanged files", async () => {
+    const workspace = await createWorkspace();
+
+    await writeFile(path.join(workspace.rawRoot, "init.lua"), "print('init')\n");
+
+    const firstSummary = await reconcileNvimConfig(makeRunOptions(workspace));
+    const wrapperPath = unixWrapperPath(workspace, "init.lua");
+    const manifestPath = workspace.removeManifestPath;
+    const wrapperStatBefore = await fs.stat(wrapperPath);
+    const manifestStatBefore = await fs.stat(manifestPath);
+
+    await sleep(25);
+
+    const secondSummary = await reconcileNvimConfig(makeRunOptions(workspace));
+    const wrapperStatAfter = await fs.stat(wrapperPath);
+    const manifestStatAfter = await fs.stat(manifestPath);
+
+    expect(firstSummary).toEqual({
+      raw: 1,
+      added: 1,
+      removed: 0,
+      host: "unix",
+      targetRoot: path.join(workspace.hostHome, ".config", "nvim"),
+    });
+    expect(secondSummary).toEqual({
+      raw: 1,
+      added: 0,
+      removed: 0,
+      host: "unix",
+      targetRoot: path.join(workspace.hostHome, ".config", "nvim"),
+    });
+    expect(wrapperStatAfter.mtimeMs).toBe(wrapperStatBefore.mtimeMs);
+    expect(manifestStatAfter.mtimeMs).toBe(manifestStatBefore.mtimeMs);
+  });
+
+  test("accepts an empty raw tree without errors", async () => {
+    const workspace = await createWorkspace();
+
+    const summary = await reconcileNvimConfig(makeRunOptions(workspace));
+
+    expect(summary).toEqual({
+      raw: 0,
+      added: 0,
+      removed: 0,
+      host: "unix",
+      targetRoot: path.join(workspace.hostHome, ".config", "nvim"),
+    });
+    expect(workspace.stderr).toHaveLength(0);
+
+    if (await exists(workspace.removeManifestPath)) {
+      expect(await readFile(workspace.removeManifestPath)).toBe("");
+    }
+  });
+
   test("writes windows-host stale targets with the windows prefix and emits debug logs", async () => {
     const workspace = await createWorkspace();
 
@@ -301,8 +372,29 @@ describe("reconcileNvimConfig", () => {
 
     await fs.rm(workspace.rawRoot, { recursive: true, force: true });
 
-    await expect(reconcileNvimConfig(makeRunOptions(workspace))).rejects.toThrow(
+    expect(reconcileNvimConfig(makeRunOptions(workspace))).rejects.toThrow(
       `canonical raw Neovim tree not found: ${workspace.rawRoot}`,
     );
+  });
+
+  test("runCli writes fallback stderr output and exits non-zero on startup errors", async () => {
+    const workspace = await createWorkspace();
+    const stderr: string[] = [];
+    const exitCodes: number[] = [];
+
+    await runCli({
+      hostKind: "invalid" as PlatformKind,
+      now: () => new Date(2026, 3, 5, 12, 34, 56),
+      repoRoot: workspace.repoRoot,
+      stderr: (line: string) => stderr.push(line),
+      exit: (code: number) => {
+        exitCodes.push(code);
+      },
+    });
+
+    expect(exitCodes).toEqual([1]);
+    expect(stderr).toHaveLength(1);
+    expect(stderr[0]).toContain("[2026-04-05 12:34:56] ERROR: [reconcile-nvim-config]");
+    expect(stderr[0]).toContain("unsupported host platform: invalid");
   });
 });
