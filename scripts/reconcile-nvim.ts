@@ -3,11 +3,12 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-type LogLevel = "ERROR" | "WARN" | "INFO" | "DEBUG";
-type PlatformId = "unix" | "windows";
+type LogLevel = "ERROR" | "WARN" | "INFO" | "VERBOSE" | "DEBUG";
+type PlatformKind = "unix" | "windows";
+type LogMode = "info" | "verbose" | "debug";
 
 type PlatformConfig = {
-  id: PlatformId;
+  kind: PlatformKind;
   wrapperRoot: string;
   targetPrefix: string;
   targetRoot: string;
@@ -34,17 +35,17 @@ const sourceStateRoot = path.join(repoRoot, "home");
 const rawRoot = path.join(sourceStateRoot, ".shared-configs", "nvim");
 const removeManifestPath = path.join(sourceStateRoot, ".chezmoiremove");
 
-const hostKind: PlatformId = process.platform === "win32" ? "windows" : "unix";
+const hostKind: PlatformKind = process.platform === "win32" ? "windows" : "unix";
 
 const platforms: PlatformConfig[] = [
   {
-    id: "unix",
+    kind: "unix",
     wrapperRoot: path.join(sourceStateRoot, "dot_config", "nvim"),
     targetPrefix: path.posix.join(".config", "nvim"),
     targetRoot: path.join(os.homedir(), ".config", "nvim"),
   },
   {
-    id: "windows",
+    kind: "windows",
     wrapperRoot: path.join(sourceStateRoot, "AppData", "Local", "nvim"),
     targetPrefix: path.posix.join("AppData", "Local", "nvim"),
     targetRoot: path.join(os.homedir(), "AppData", "Local", "nvim"),
@@ -56,7 +57,7 @@ function fail(message: string): never {
 }
 
 const hostPlatform =
-  platforms.find((platform) => platform.id === hostKind) ??
+  platforms.find((platform) => platform.kind === hostKind) ??
   fail(`unsupported host platform: ${hostKind}`);
 
 function parseChezMoiArgs(value: string): string[] {
@@ -68,9 +69,11 @@ function parseChezMoiArgs(value: string): string[] {
 }
 
 const chezmoiArgs = parseChezMoiArgs(process.env.CHEZMOI_ARGS ?? "");
-const verboseLoggingRequested = chezmoiArgs.some(
-  (arg) => arg === "-v" || arg === "--verbose" || arg === "--debug",
-);
+const logMode: LogMode = chezmoiArgs.includes("--debug")
+  ? "debug"
+  : chezmoiArgs.some((arg) => arg === "-v" || arg === "--verbose")
+    ? "verbose"
+    : "info";
 
 function formatTimestamp(date: Date = new Date()): string {
   const pad = (value: number): string => value.toString().padStart(2, "0");
@@ -84,11 +87,22 @@ function formatTimestamp(date: Date = new Date()): string {
 }
 
 function shouldLog(level: LogLevel): boolean {
-  if (verboseLoggingRequested) {
+  const modeRank: Record<LogMode, number> = {
+    info: 1,
+    verbose: 2,
+    debug: 3,
+  };
+  const levelRank: Record<Exclude<LogLevel, "ERROR" | "WARN">, number> = {
+    INFO: 1,
+    VERBOSE: 2,
+    DEBUG: 3,
+  };
+
+  if (level === "ERROR" || level === "WARN") {
     return true;
   }
 
-  return level !== "DEBUG";
+  return modeRank[logMode] >= levelRank[level];
 }
 
 function writeLog(level: LogLevel, message: string): void {
@@ -108,6 +122,10 @@ function logError(message: string): void {
 
 function logInfo(message: string): void {
   writeLog("INFO", message);
+}
+
+function logVerbose(message: string): void {
+  writeLog("VERBOSE", message);
 }
 
 function logDebug(message: string): void {
@@ -354,16 +372,47 @@ async function removeStaleWrappers(staleWrappers: ExistingWrapper[]): Promise<vo
   }
 }
 
-async function addMissingWrappers(expectedWrappers: ExpectedWrapper[]): Promise<number> {
-  let added = 0;
+async function addMissingWrappers(expectedWrappers: ExpectedWrapper[]): Promise<void> {
+  for (const expectedWrapper of expectedWrappers) {
+    await ensureWrapper(expectedWrapper);
+  }
+}
+
+function groupExpectedWrappersByRawPath(
+  expectedWrappers: ExpectedWrapper[],
+): Map<string, ExpectedWrapper[]> {
+  const grouped = new Map<string, ExpectedWrapper[]>();
 
   for (const expectedWrapper of expectedWrappers) {
-    if (await ensureWrapper(expectedWrapper)) {
-      added += 1;
-    }
+    const current = grouped.get(expectedWrapper.relativePath) ?? [];
+    current.push(expectedWrapper);
+    grouped.set(expectedWrapper.relativePath, current);
   }
 
-  return added;
+  return grouped;
+}
+
+function addedRawRelativePaths(
+  expectedWrappers: ExpectedWrapper[],
+  existingWrapperPaths: Set<string>,
+): string[] {
+  return Array.from(groupExpectedWrappersByRawPath(expectedWrappers).entries())
+    .filter(([, wrappers]) =>
+      wrappers.every((expectedWrapper) => !existingWrapperPaths.has(expectedWrapper.wrapperPath)),
+    )
+    .map(([relativePath]) => relativePath)
+    .sort((left, right) => left.localeCompare(right));
+}
+
+function removedRawRelativePaths(staleWrappers: ExistingWrapper[]): string[] {
+  const removed = new Set<string>();
+
+  for (const { platform, wrapperPath } of staleWrappers) {
+    const targetPath = wrapperTargetPath(platform, wrapperPath);
+    removed.add(targetPath.slice(`${platform.targetPrefix}/`.length));
+  }
+
+  return Array.from(removed).sort((left, right) => left.localeCompare(right));
 }
 
 async function writeRemoveManifest(removeEntries: Set<string>): Promise<boolean> {
@@ -383,7 +432,7 @@ async function writeRemoveManifest(removeEntries: Set<string>): Promise<boolean>
 }
 
 async function reconcile(): Promise<void> {
-  logDebug(`Configuration loaded: host=${hostKind}`);
+  logDebug(`Configuration loaded: host=${hostKind} log_mode=${logMode}`);
   logDebug(`Canonical raw root: ${rawRoot}`);
   logDebug(`Unix wrapper root: ${platforms[0]?.wrapperRoot ?? ""}`);
   logDebug(`Windows wrapper root: ${platforms[1]?.wrapperRoot ?? ""}`);
@@ -395,7 +444,6 @@ async function reconcile(): Promise<void> {
   }
 
   const rawRelativePaths = await listRawRelativePaths(rawRoot);
-  logInfo(`Scanned ${rawRelativePaths.length} raw Neovim file(s)`);
 
   const expectedWrappers = rawRelativePaths.flatMap((relativePath) =>
     platforms.map((platform) => expectedWrapperFor(platform, relativePath)),
@@ -407,10 +455,23 @@ async function reconcile(): Promise<void> {
   const existingWrappers = (
     await Promise.all(platforms.map((platform) => listExistingWrappers(platform)))
   ).flat();
+  const existingWrapperPaths = new Set(
+    existingWrappers.map(({ wrapperPath }) => wrapperPath),
+  );
 
   const staleWrappers = existingWrappers.filter(
     ({ wrapperPath }) => !expectedWrapperPaths.has(wrapperPath),
   );
+  const addedRawPaths = addedRawRelativePaths(expectedWrappers, existingWrapperPaths);
+  const removedRawPaths = removedRawRelativePaths(staleWrappers);
+
+  logVerbose(`Scanned ${rawRelativePaths.length} raw Neovim file(s)`);
+  for (const relativePath of addedRawPaths) {
+    logVerbose(`Added raw file: ${displayRawSourcePath(relativePath)}`);
+  }
+  for (const relativePath of removedRawPaths) {
+    logVerbose(`Removed raw file: ${displayRawSourcePath(relativePath)}`);
+  }
 
   // Removing a source wrapper is not enough for chezmoi to remove the already-applied
   // target file, so stale wrappers are translated into `.chezmoiremove` entries.
@@ -426,7 +487,7 @@ async function reconcile(): Promise<void> {
     await pruneEmptyDirectories(platform.wrapperRoot);
   }
 
-  const added = await addMissingWrappers(expectedWrappers);
+  await addMissingWrappers(expectedWrappers);
   const expectedTargets = hostExpectedTargets(rawRelativePaths);
 
   const previousRemoveEntries = await readExistingRemoveEntries();
@@ -441,8 +502,8 @@ async function reconcile(): Promise<void> {
   logInfo(
     [
       `raw=${rawRelativePaths.length}`,
-      `added=${added}`,
-      `removed=${staleWrappers.length}`,
+      `added=${addedRawPaths.length}`,
+      `removed=${removedRawPaths.length}`,
       `host=${hostKind}`,
       `target_root=${hostPlatform.targetRoot}`,
     ].join(" "),

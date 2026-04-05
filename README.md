@@ -65,9 +65,12 @@ Operationally:
 - use `pnpm install` to populate `node_modules` for the editor
 - use `pnpm run reconcile:nvim` or `bun run scripts/reconcile-nvim.ts` to execute the reconciler
 - default logs use timestamped `INFO` lines
-- `chezmoi -v` or `CHEZMOI_ARGS=...--verbose...` enables timestamped `DEBUG` lines
+- `chezmoi -v` or `CHEZMOI_ARGS=...--verbose...` enables `VERBOSE` logs
+- `chezmoi --debug` or `CHEZMOI_ARGS=...--debug...` enables `DEBUG` logs
 - all log lines are prefixed with `[reconcile-nvim-config]`
-- file-level added-wrapper and removed-wrapper logs are emitted in `DEBUG` mode
+- `INFO` logs only show the summary
+- `VERBOSE` logs show scanned file count plus raw files added/removed
+- `DEBUG` logs show the rest of the internal maintenance details
 - success logs are printed to stdout; warnings and errors are printed to stderr
 
 The reconciler reports added and removed files as its sync status.
