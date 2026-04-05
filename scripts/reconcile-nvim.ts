@@ -503,6 +503,17 @@ async function writeRemoveManifest(
   }
 }
 
+function hostRemoveEntries(
+  runtime: ReconcileRuntime,
+  staleWrappers: ExistingWrapper[],
+): Set<string> {
+  return new Set(
+    staleWrappers
+      .filter(({ platform }) => platform.kind === runtime.hostKind)
+      .map(({ platform, wrapperPath }) => wrapperTargetPath(platform, wrapperPath)),
+  );
+}
+
 export async function reconcileNvimConfig(
   options: ReconcileNvimOptions = {},
 ): Promise<ReconcileSummary> {
@@ -554,11 +565,7 @@ export async function reconcileNvimConfig(
 
   // Removing a source wrapper is not enough for chezmoi to remove the already-applied
   // target file, so stale wrappers are translated into `.chezmoiremove` entries.
-  const removeEntries = new Set(
-    staleWrappers.map(({ platform, wrapperPath }) =>
-      wrapperTargetPath(platform, wrapperPath),
-    ),
-  );
+  const removeEntries = hostRemoveEntries(runtime, staleWrappers);
 
   await removeStaleWrappers(runtime, staleWrappers);
 

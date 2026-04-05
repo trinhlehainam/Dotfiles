@@ -217,10 +217,7 @@ describe("reconcileNvimConfig", () => {
 
     await writeFile(path.join(workspace.rawRoot, "init.lua"), "print('init')\n");
     await seedWrappers(workspace, "init.lua");
-    await writeFile(
-      unixWrapperPath(workspace, "plugin/old.lua"),
-      wrapperTemplate("plugin/old.lua"),
-    );
+    await seedWrappers(workspace, "plugin/old.lua");
     await writeFile(
       workspace.removeManifestPath,
       [
@@ -244,7 +241,9 @@ describe("reconcileNvimConfig", () => {
       targetRoot: path.join(workspace.hostHome, ".config", "nvim"),
     });
     expect(await exists(unixWrapperPath(workspace, "plugin/old.lua"))).toBe(false);
+    expect(await exists(windowsWrapperPath(workspace, "plugin/old.lua"))).toBe(false);
     expect(await exists(path.join(workspace.unixWrapperRoot, "plugin"))).toBe(false);
+    expect(await exists(path.join(workspace.windowsWrapperRoot, "plugin"))).toBe(false);
     expect(await readFile(workspace.removeManifestPath)).toBe(
       [".config/nvim/plugin/keep.lua", ".config/nvim/plugin/old.lua"].join("\n") + "\n",
     );
@@ -336,10 +335,7 @@ describe("reconcileNvimConfig", () => {
 
     await writeFile(path.join(workspace.rawRoot, "init.lua"), "print('init')\n");
     await seedWrappers(workspace, "init.lua");
-    await writeFile(
-      windowsWrapperPath(workspace, "plugin/old.lua"),
-      wrapperTemplate("plugin/old.lua"),
-    );
+    await seedWrappers(workspace, "plugin/old.lua");
 
     const summary = await reconcileNvimConfig(
       makeRunOptions(workspace, { hostKind: "windows", logMode: "debug" }),
@@ -355,6 +351,8 @@ describe("reconcileNvimConfig", () => {
     expect(await readFile(workspace.removeManifestPath)).toBe(
       "AppData/Local/nvim/plugin/old.lua\n",
     );
+    expect(await exists(unixWrapperPath(workspace, "plugin/old.lua"))).toBe(false);
+    expect(await exists(windowsWrapperPath(workspace, "plugin/old.lua"))).toBe(false);
 
     const stdout = workspace.stdout.join("");
     expect(stdout).toContain(

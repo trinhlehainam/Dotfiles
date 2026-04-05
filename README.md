@@ -53,7 +53,7 @@ home/
 
 ## TypeScript Tooling
 
-This repo uses pnpm for dependency installation and Bun as the runtime for [scripts/reconcile-nvim.ts](/home/vietisthinkpad/.local/share/chezmoi/scripts/reconcile-nvim.ts).
+This repo uses pnpm for dependency installation and Bun as the runtime for [scripts/reconcile-nvim.ts](scripts/reconcile-nvim.ts).
 
 The project metadata is based on Bun's official `bun init --yes` defaults, then adapted for this repo:
 - pnpm is the package manager
@@ -73,7 +73,7 @@ Operationally:
 - `INFO` logs only show the summary
 - `VERBOSE` logs show scanned file count plus raw files added/removed
 - `DEBUG` logs show the rest of the internal maintenance details
-- success logs are printed to stdout; warnings and errors are printed to stderr
+- success logs are printed to stdout; errors are printed to stderr
 
 The reconciler reports added and removed files as its sync status.
 
