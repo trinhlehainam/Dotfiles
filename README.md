@@ -64,7 +64,9 @@ The project metadata is based on Bun's official `bun init --yes` defaults, then 
 Operationally:
 - use `pnpm install` to populate `node_modules` for the editor
 - use `pnpm run reconcile:nvim` or `bun run scripts/reconcile-nvim.ts` to execute the reconciler
-- success summaries are printed to stdout; failures are printed to stderr
+- default logs use timestamped `INFO` lines
+- `chezmoi -v` or `CHEZMOI_ARGS=...--verbose...` enables timestamped `DEBUG` lines
+- success logs are printed to stdout; warnings and errors are printed to stderr
 
 Install dependencies:
 

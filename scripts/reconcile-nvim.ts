@@ -4,23 +4,106 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 type HostKind = "unix" | "windows";
+type LogLevel = "ERROR" | "WARN" | "INFO" | "DEBUG";
+type PlatformId = "unix" | "windows";
+
+type PlatformConfig = {
+  id: PlatformId;
+  wrapperRoot: string;
+  targetPrefix: string;
+  targetRoot: string;
+};
+
+type ExpectedWrapper = {
+  platform: PlatformConfig;
+  relativePath: string;
+  wrapperPath: string;
+  targetPath: string;
+  content: string;
+};
+
+type ExistingWrapper = {
+  platform: PlatformConfig;
+  wrapperPath: string;
+};
 
 const scriptPath = fileURLToPath(import.meta.url);
 const scriptDir = path.dirname(scriptPath);
 const repoRoot = path.resolve(scriptDir, "..");
 const sourceStateRoot = path.join(repoRoot, "home");
 const rawRoot = path.join(sourceStateRoot, ".shared-configs", "nvim");
-const unixWrapperRoot = path.join(sourceStateRoot, "dot_config", "nvim");
-const windowsWrapperRoot = path.join(sourceStateRoot, "AppData", "Local", "nvim");
 const removeManifestPath = path.join(sourceStateRoot, ".chezmoiremove");
 
 const hostKind: HostKind = process.platform === "win32" ? "windows" : "unix";
-const hostManifestPrefix =
-  hostKind === "windows" ? "AppData/Local/nvim" : ".config/nvim";
-const hostTargetRoot =
-  hostKind === "windows"
-    ? path.join(os.homedir(), "AppData", "Local", "nvim")
-    : path.join(os.homedir(), ".config", "nvim");
+
+const platforms: PlatformConfig[] = [
+  {
+    id: "unix",
+    wrapperRoot: path.join(sourceStateRoot, "dot_config", "nvim"),
+    targetPrefix: path.posix.join(".config", "nvim"),
+    targetRoot: path.join(os.homedir(), ".config", "nvim"),
+  },
+  {
+    id: "windows",
+    wrapperRoot: path.join(sourceStateRoot, "AppData", "Local", "nvim"),
+    targetPrefix: path.posix.join("AppData", "Local", "nvim"),
+    targetRoot: path.join(os.homedir(), "AppData", "Local", "nvim"),
+  },
+];
+
+function fail(message: string): never {
+  throw new Error(message);
+}
+
+const hostPlatform =
+  platforms.find((platform) => platform.id === hostKind) ??
+  fail(`unsupported host platform: ${hostKind}`);
+
+const verboseLoggingRequested = /\s(?:-v|--verbose|--debug)(?:\s|$)/.test(
+  ` ${process.env.CHEZMOI_ARGS ?? ""} `,
+);
+
+function formatTimestamp(date: Date = new Date()): string {
+  const pad = (value: number): string => value.toString().padStart(2, "0");
+
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate()),
+  ].join("-") +
+    ` ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+function shouldLog(level: LogLevel): boolean {
+  if (verboseLoggingRequested) {
+    return true;
+  }
+
+  return level !== "DEBUG";
+}
+
+function writeLog(level: LogLevel, message: string): void {
+  if (!shouldLog(level)) {
+    return;
+  }
+
+  const line = `[${formatTimestamp()}] ${level}: ${message}\n`;
+  const stream =
+    level === "ERROR" || level === "WARN" ? process.stderr : process.stdout;
+  stream.write(line);
+}
+
+function logError(message: string): void {
+  writeLog("ERROR", message);
+}
+
+function logInfo(message: string): void {
+  writeLog("INFO", message);
+}
+
+function logDebug(message: string): void {
+  writeLog("DEBUG", message);
+}
 
 function toPosixPath(value: string): string {
   return value.split(path.sep).join(path.posix.sep);
@@ -30,12 +113,12 @@ function fromPosixPath(value: string): string {
   return value.split(path.posix.sep).join(path.sep);
 }
 
-function unixTargetPath(relativePath: string): string {
-  return path.posix.join(".config", "nvim", relativePath);
+function targetPathFor(platform: PlatformConfig, relativePath: string): string {
+  return path.posix.join(platform.targetPrefix, relativePath);
 }
 
-function windowsTargetPath(relativePath: string): string {
-  return path.posix.join("AppData", "Local", "nvim", relativePath);
+function absoluteTargetPath(entry: string): string {
+  return path.join(os.homedir(), fromPosixPath(entry));
 }
 
 function wrapperContent(relativePath: string): string {
@@ -43,6 +126,30 @@ function wrapperContent(relativePath: string): string {
   // so wrapper paths must stay POSIX-style and source-relative.
   const includePath = path.posix.join(".shared-configs", "nvim", relativePath);
   return `{{- include "${includePath}" -}}`;
+}
+
+function expectedWrapperFor(
+  platform: PlatformConfig,
+  relativePath: string,
+): ExpectedWrapper {
+  const relativeFsPath = fromPosixPath(relativePath);
+
+  return {
+    platform,
+    relativePath,
+    wrapperPath: path.join(platform.wrapperRoot, relativeFsPath) + ".tmpl",
+    targetPath: targetPathFor(platform, relativePath),
+    content: wrapperContent(relativePath),
+  };
+}
+
+function wrapperTargetPath(
+  platform: PlatformConfig,
+  wrapperPath: string,
+): string {
+  const relativeWrapperPath = toPosixPath(path.relative(platform.wrapperRoot, wrapperPath));
+  const relativeTargetPath = relativeWrapperPath.replace(/\.tmpl$/, "");
+  return targetPathFor(platform, relativeTargetPath);
 }
 
 async function pathExists(targetPath: string): Promise<boolean> {
@@ -55,11 +162,11 @@ async function pathExists(targetPath: string): Promise<boolean> {
 }
 
 async function listFilesRecursive(rootDir: string): Promise<string[]> {
-  const results: string[] = [];
-
   if (!(await pathExists(rootDir))) {
-    return results;
+    return [];
   }
+
+  const results: string[] = [];
 
   async function walk(currentDir: string): Promise<void> {
     const entries = await fs.readdir(currentDir, { withFileTypes: true });
@@ -73,11 +180,9 @@ async function listFilesRecursive(rootDir: string): Promise<string[]> {
         continue;
       }
 
-      if (!entry.isFile()) {
-        continue;
+      if (entry.isFile()) {
+        results.push(entryPath);
       }
-
-      results.push(entryPath);
     }
   }
 
@@ -86,7 +191,7 @@ async function listFilesRecursive(rootDir: string): Promise<string[]> {
   return results;
 }
 
-async function listRawFiles(rootDir: string): Promise<string[]> {
+async function listRawRelativePaths(rootDir: string): Promise<string[]> {
   const filePaths = await listFilesRecursive(rootDir);
 
   return filePaths
@@ -95,11 +200,15 @@ async function listRawFiles(rootDir: string): Promise<string[]> {
     .sort((left, right) => left.localeCompare(right));
 }
 
-async function listWrapperFiles(rootDir: string): Promise<string[]> {
-  const filePaths = await listFilesRecursive(rootDir);
+async function listExistingWrappers(
+  platform: PlatformConfig,
+): Promise<ExistingWrapper[]> {
+  const filePaths = await listFilesRecursive(platform.wrapperRoot);
+
   return filePaths
     .filter((filePath) => filePath.endsWith(".tmpl"))
-    .sort((left, right) => left.localeCompare(right));
+    .sort((left, right) => left.localeCompare(right))
+    .map((wrapperPath) => ({ platform, wrapperPath }));
 }
 
 async function writeFileIfChanged(targetPath: string, content: string): Promise<boolean> {
@@ -127,24 +236,19 @@ async function pruneEmptyDirectories(rootDir: string): Promise<void> {
     return;
   }
 
-  async function prune(currentDir: string): Promise<boolean> {
+  async function prune(currentDir: string): Promise<void> {
     const entries = await fs.readdir(currentDir, { withFileTypes: true });
 
     for (const entry of entries) {
-      if (!entry.isDirectory()) {
-        continue;
+      if (entry.isDirectory()) {
+        await prune(path.join(currentDir, entry.name));
       }
-
-      await prune(path.join(currentDir, entry.name));
     }
 
     const remainingEntries = await fs.readdir(currentDir);
     if (currentDir !== rootDir && remainingEntries.length === 0) {
       await fs.rmdir(currentDir);
-      return true;
     }
-
-    return false;
   }
 
   await prune(rootDir);
@@ -156,147 +260,148 @@ async function readExistingRemoveEntries(): Promise<string[]> {
   }
 
   const content = await fs.readFile(removeManifestPath, "utf8");
+
   return content
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter((line) => line.length > 0 && !line.startsWith("#"));
 }
 
-function manifestEntryToAbsoluteTarget(entry: string): string {
-  return path.join(os.homedir(), fromPosixPath(entry));
+function hostExpectedTargets(relativePaths: string[]): Set<string> {
+  return new Set(relativePaths.map((relativePath) => targetPathFor(hostPlatform, relativePath)));
 }
 
-function buildHostExpectedTargets(relativePaths: string[]): Set<string> {
-  const mapper = hostKind === "windows" ? windowsTargetPath : unixTargetPath;
-  return new Set(relativePaths.map((relativePath) => mapper(relativePath)));
-}
-
-function wrapperToTargetPath(wrapperRoot: string, wrapperPath: string): string {
-  const relativeWrapperPath = toPosixPath(path.relative(wrapperRoot, wrapperPath));
-  const relativeTargetPath = relativeWrapperPath.replace(/\.tmpl$/, "");
-
-  if (wrapperRoot === unixWrapperRoot) {
-    return unixTargetPath(relativeTargetPath);
-  }
-
-  return windowsTargetPath(relativeTargetPath);
-}
-
-async function keepHostRemovalEntry(
+async function shouldKeepHostRemovalEntry(
   entry: string,
-  expectedHostTargets: Set<string>,
+  expectedTargets: Set<string>,
 ): Promise<boolean> {
   // Preserve only stale entries for the current host. Unix runs should not retain
   // Windows removals, and vice versa.
-  if (!entry.startsWith(`${hostManifestPrefix}/`)) {
+  if (!entry.startsWith(`${hostPlatform.targetPrefix}/`)) {
     return false;
   }
 
-  if (expectedHostTargets.has(entry)) {
+  if (expectedTargets.has(entry)) {
     return false;
   }
 
-  return pathExists(manifestEntryToAbsoluteTarget(entry));
+  return pathExists(absoluteTargetPath(entry));
+}
+
+async function removeStaleWrappers(staleWrappers: ExistingWrapper[]): Promise<void> {
+  if (staleWrappers.length === 0) {
+    return;
+  }
+
+  logInfo(`Removing ${staleWrappers.length} stale wrapper(s)`);
+
+  for (const { wrapperPath } of staleWrappers) {
+    logDebug(`Removing stale wrapper: ${wrapperPath}`);
+    await fs.rm(wrapperPath);
+  }
+}
+
+async function writeExpectedWrappers(expectedWrappers: ExpectedWrapper[]): Promise<number> {
+  let wrappersWritten = 0;
+
+  for (const expectedWrapper of expectedWrappers) {
+    if (await writeFileIfChanged(expectedWrapper.wrapperPath, expectedWrapper.content)) {
+      wrappersWritten += 1;
+      logDebug(`Updated wrapper: ${expectedWrapper.wrapperPath}`);
+    }
+  }
+
+  return wrappersWritten;
+}
+
+async function writeRemoveManifest(removeEntries: Set<string>): Promise<boolean> {
+  const sortedRemoveEntries = Array.from(removeEntries).sort((left, right) =>
+    left.localeCompare(right),
+  );
+  const content =
+    sortedRemoveEntries.length > 0 ? `${sortedRemoveEntries.join("\n")}\n` : "";
+
+  const updated = await writeFileIfChanged(removeManifestPath, content);
+
+  if (updated) {
+    logDebug(`Updated remove manifest: ${removeManifestPath}`);
+  }
+
+  return updated;
 }
 
 async function reconcile(): Promise<void> {
+  logDebug(`Configuration loaded: host=${hostKind}`);
+  logDebug(`Canonical raw root: ${rawRoot}`);
+  logDebug(`Unix wrapper root: ${platforms[0]?.wrapperRoot ?? ""}`);
+  logDebug(`Windows wrapper root: ${platforms[1]?.wrapperRoot ?? ""}`);
+  logDebug(`Host target root: ${hostPlatform.targetRoot}`);
+  logDebug(`Remove manifest: ${removeManifestPath}`);
+
   if (!(await pathExists(rawRoot))) {
     throw new Error(`canonical raw Neovim tree not found: ${rawRoot}`);
   }
 
-  const rawRelativePaths = await listRawFiles(rawRoot);
-  const expectedHostTargets = buildHostExpectedTargets(rawRelativePaths);
+  const rawRelativePaths = await listRawRelativePaths(rawRoot);
+  logInfo(`Scanned ${rawRelativePaths.length} raw Neovim file(s)`);
 
-  const expectedUnixWrappers = new Map<string, string>();
-  const expectedWindowsWrappers = new Map<string, string>();
+  const expectedWrappers = rawRelativePaths.flatMap((relativePath) =>
+    platforms.map((platform) => expectedWrapperFor(platform, relativePath)),
+  );
+  const expectedWrapperPaths = new Set(
+    expectedWrappers.map((expectedWrapper) => expectedWrapper.wrapperPath),
+  );
 
-  for (const relativePath of rawRelativePaths) {
-    const relativeFsPath = fromPosixPath(relativePath);
-    expectedUnixWrappers.set(
-      path.join(unixWrapperRoot, relativeFsPath) + ".tmpl",
-      wrapperContent(relativePath),
-    );
-    expectedWindowsWrappers.set(
-      path.join(windowsWrapperRoot, relativeFsPath) + ".tmpl",
-      wrapperContent(relativePath),
-    );
-  }
+  const existingWrappers = (
+    await Promise.all(platforms.map((platform) => listExistingWrappers(platform)))
+  ).flat();
 
-  const existingUnixWrappers = await listWrapperFiles(unixWrapperRoot);
-  const existingWindowsWrappers = await listWrapperFiles(windowsWrapperRoot);
-
-  const staleWrapperPaths = [
-    ...existingUnixWrappers.filter((wrapperPath) => !expectedUnixWrappers.has(wrapperPath)),
-    ...existingWindowsWrappers.filter((wrapperPath) => !expectedWindowsWrappers.has(wrapperPath)),
-  ];
+  const staleWrappers = existingWrappers.filter(
+    ({ wrapperPath }) => !expectedWrapperPaths.has(wrapperPath),
+  );
 
   // Removing a source wrapper is not enough for chezmoi to remove the already-applied
   // target file, so stale wrappers are translated into `.chezmoiremove` entries.
-  const removeEntries = new Set<string>(
-    staleWrapperPaths.map((wrapperPath) => {
-      const wrapperRoot = wrapperPath.startsWith(unixWrapperRoot)
-        ? unixWrapperRoot
-        : windowsWrapperRoot;
-      return wrapperToTargetPath(wrapperRoot, wrapperPath);
-    }),
+  const removeEntries = new Set(
+    staleWrappers.map(({ platform, wrapperPath }) =>
+      wrapperTargetPath(platform, wrapperPath),
+    ),
   );
 
-  for (const wrapperPath of staleWrapperPaths) {
-    await fs.rm(wrapperPath);
+  await removeStaleWrappers(staleWrappers);
+
+  for (const platform of platforms) {
+    await pruneEmptyDirectories(platform.wrapperRoot);
   }
 
-  await pruneEmptyDirectories(unixWrapperRoot);
-  await pruneEmptyDirectories(windowsWrapperRoot);
-
-  let wrappersWritten = 0;
-
-  for (const [wrapperPath, content] of expectedUnixWrappers) {
-    if (await writeFileIfChanged(wrapperPath, content)) {
-      wrappersWritten += 1;
-    }
-  }
-
-  for (const [wrapperPath, content] of expectedWindowsWrappers) {
-    if (await writeFileIfChanged(wrapperPath, content)) {
-      wrappersWritten += 1;
-    }
-  }
+  const wrappersWritten = await writeExpectedWrappers(expectedWrappers);
+  const expectedTargets = hostExpectedTargets(rawRelativePaths);
 
   const previousRemoveEntries = await readExistingRemoveEntries();
   for (const entry of previousRemoveEntries) {
-    if (await keepHostRemovalEntry(entry, expectedHostTargets)) {
+    if (await shouldKeepHostRemovalEntry(entry, expectedTargets)) {
       removeEntries.add(entry);
     }
   }
 
-  const sortedRemoveEntries = Array.from(removeEntries).sort((left, right) =>
-    left.localeCompare(right),
-  );
-  const removeManifestContent =
-    sortedRemoveEntries.length > 0 ? `${sortedRemoveEntries.join("\n")}\n` : "";
-  const removeManifestUpdated = await writeFileIfChanged(
-    removeManifestPath,
-    removeManifestContent,
-  );
+  const removeManifestUpdated = await writeRemoveManifest(removeEntries);
 
-  // Success summaries go to stdout so shells and prompts do not misclassify a clean
-  // reconcile as an error just because diagnostics were emitted.
-  console.log(
+  logInfo(
     [
       "[reconcile-nvim]",
       `raw=${rawRelativePaths.length}`,
       `written=${wrappersWritten}`,
-      `stale_wrappers=${staleWrapperPaths.length}`,
-      `remove_entries=${sortedRemoveEntries.length}`,
+      `stale_wrappers=${staleWrappers.length}`,
+      `remove_entries=${removeEntries.size}`,
       `manifest_updated=${removeManifestUpdated ? "yes" : "no"}`,
       `host=${hostKind}`,
-      `target_root=${hostTargetRoot}`,
+      `target_root=${hostPlatform.targetRoot}`,
     ].join(" "),
   );
 }
 
 await reconcile().catch((error: unknown) => {
   const message = error instanceof Error ? error.stack ?? error.message : String(error);
-  console.error(`[reconcile-nvim] ERROR ${message}`);
+  logError(`[reconcile-nvim] ${message}`);
   process.exit(1);
 });
