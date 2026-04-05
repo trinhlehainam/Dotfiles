@@ -66,6 +66,8 @@ Operationally:
 - use `pnpm run reconcile:nvim` or `bun run scripts/reconcile-nvim.ts` to execute the reconciler
 - default logs use timestamped `INFO` lines
 - `chezmoi -v` or `CHEZMOI_ARGS=...--verbose...` enables timestamped `DEBUG` lines
+- all log lines are prefixed with `[reconcile-nvim-config]`
+- file-level create, update, and remove logs are emitted in `DEBUG` mode
 - success logs are printed to stdout; warnings and errors are printed to stderr
 
 Install dependencies:
