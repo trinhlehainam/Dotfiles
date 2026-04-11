@@ -17,7 +17,10 @@ return {
       },
     },
     diff_opts = {
-      open_in_current_tab = true,
+      layout = 'vertical', -- "vertical" or "horizontal"
+      open_in_new_tab = true,
+      keep_terminal_focus = false,
+      hide_terminal_in_new_tab = true,
     },
   },
   config = true,
