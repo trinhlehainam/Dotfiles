@@ -1,0 +1,35 @@
+{
+  "Notification": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "agent-notify --stdin"
+        }
+      ]
+    }
+  ],
+  "Stop": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "agent-notify --stdin"
+        }
+      ]
+    }
+  ],
+  "SubagentStop": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "agent-notify --stdin"
+        }
+      ]
+    }
+  ]
+}
