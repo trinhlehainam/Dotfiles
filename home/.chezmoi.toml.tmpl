@@ -3,9 +3,9 @@
 # https://www.chezmoi.io/reference/configuration-file/warnings/
 
 {{- if not (lookPath "bun") }}
-{{ warnf "bun is required for Neovim wrapper generation via scripts/reconcile-nvim.ts" }}
+{{ warnf "bun is required for config wrapper generation via scripts/reconcile-configs.ts" }}
 {{- end }}
 
 [hooks.read-source-state.pre]
 command = "bun"
-args = ["run", "{{ .chezmoi.workingTree }}/scripts/reconcile-nvim.ts"]
+args = ["run", "{{ .chezmoi.workingTree }}/scripts/reconcile-configs.ts"]

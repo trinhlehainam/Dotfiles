@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build:notify": "bun build --compile scripts/agent-notify.ts --outfile ~/.local/bin/agent-notify",
-    "reconcile:nvim": "bun run scripts/reconcile-nvim.ts",
+    "reconcile:configs": "bun run scripts/reconcile-configs.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
