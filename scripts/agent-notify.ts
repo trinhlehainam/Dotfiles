@@ -1,4 +1,4 @@
-import { openSync, writeSync } from "node:fs";
+import { closeSync, openSync, writeSync } from "node:fs";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -67,7 +67,8 @@ export function notificationTypeLabel(type?: string): string {
   }
 }
 
-/** Build OSC 777 escape sequence */
+/** Build OSC 777 escape sequence.
+ * Note: `;` is the OSC field delimiter — title/body should not contain raw semicolons. */
 export function buildOsc777(title: string, body: string): string {
   return `\x1b]777;notify;${title};${body}\x07`;
 }
@@ -160,16 +161,16 @@ export function parseArgs(args: string[]): ParsedCliArgs {
       case "--title":
       case "-t":
         i += 1;
-        result.title = args[i];
+        if (i < args.length) result.title = args[i];
         break;
       case "--body":
       case "-b":
         i += 1;
-        result.body = args[i];
+        if (i < args.length) result.body = args[i];
         break;
       case "--codex-arg":
         i += 1;
-        result.codexArg = args[i];
+        if (i < args.length) result.codexArg = args[i];
         break;
       default:
         if (!result.title) {
@@ -208,14 +209,6 @@ function sendOsc777(title: string, body: string): void {
   process.stdout.write(out);
 }
 
-function closeSync(fd: number): void {
-  try {
-    const { closeSync: nodeClose } = require("node:fs") as typeof import("node:fs");
-    nodeClose(fd);
-  } catch {
-    // best-effort close
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Main
@@ -224,6 +217,7 @@ function closeSync(fd: number): void {
 function readStdin(): Promise<string> {
   return new Promise((resolve) => {
     let data = "";
+    let settled = false;
     if (process.stdin.isTTY) {
       resolve(data);
       return;
@@ -232,8 +226,13 @@ function readStdin(): Promise<string> {
     process.stdin.on("data", (chunk: string) => {
       data += chunk;
     });
-    process.stdin.on("end", () => resolve(data));
-    setTimeout(() => resolve(data), 2000);
+    const timer = setTimeout(() => {
+      if (!settled) { settled = true; resolve(data); }
+    }, 2000);
+    process.stdin.on("end", () => {
+      clearTimeout(timer);
+      if (!settled) { settled = true; resolve(data); }
+    });
   });
 }
 
@@ -283,6 +282,6 @@ export async function main(): Promise<void> {
 if (import.meta.main) {
   await main().catch((err: Error) => {
     process.stderr.write(`agent-notify error: ${err.message}\n`);
-    process.exit(0);
+    process.exit(1);
   });
 }
