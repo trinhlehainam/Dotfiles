@@ -1,6 +1,10 @@
 main_branch: main
 worktree_dir: worktrees
-window_prefix: ""
+
+files:
+  symlink:
+    - .env
+    - node_modules
 
 panes:
   - command: nvim
