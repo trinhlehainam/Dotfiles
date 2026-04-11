@@ -698,10 +698,16 @@ export async function reconcileAllTools(
     }
   }
 
-  if (toolList.length > 0) {
-    const runtime = createRuntime(toolList[0]!, options);
-    await writeRemoveManifest(runtime.removeManifestPath, allRemoveEntries, runtime.logger);
-  }
+  const repoRoot = options.repoRoot ?? defaultRepoRoot;
+  const sourceStateRoot = options.sourceStateRoot ?? path.join(repoRoot, "home");
+  const removeManifestPath = options.removeManifestPath ?? path.join(sourceStateRoot, ".chezmoiremove");
+  const logMode = options.logMode ?? resolveLogMode(process.env.CHEZMOI_ARGS ?? "");
+  const writers: LogWriters = {
+    stdout: options.stdout ?? ((line) => process.stdout.write(line)),
+    stderr: options.stderr ?? ((line) => process.stderr.write(line)),
+    now: options.now ?? (() => new Date()),
+  };
+  await writeRemoveManifest(removeManifestPath, allRemoveEntries, createLogger("[reconcile-configs]", logMode, writers));
 
   return { tools: summaries };
 }
