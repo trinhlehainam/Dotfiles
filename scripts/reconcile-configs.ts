@@ -4,6 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import { parseArgs } from "node:util";
 
+import { type ToolConfig, tools as defaultTools, validateToolRegistry } from "./tools.config.ts";
+
 export type PlatformKind = "unix" | "windows";
 export type LogMode = "info" | "verbose" | "debug";
 
@@ -33,11 +35,13 @@ type ReconcileRuntime = {
   hostHome: string;
   hostPlatform: PlatformConfig;
   logMode: LogMode;
+  logPrefix: string;
   platforms: PlatformConfig[];
   platformConfigs: Record<PlatformKind, PlatformConfig>;
   rawRoot: string;
   removeManifestPath: string;
   repoRoot: string;
+  tool: ToolConfig;
   logger: Logger;
 };
 
@@ -54,7 +58,7 @@ type LogWriters = {
   now: () => Date;
 };
 
-export type ReconcileNvimOptions = {
+export type ReconcileOptions = {
   hostHome?: string;
   hostKind?: PlatformKind;
   logMode?: LogMode;
@@ -73,22 +77,23 @@ export type ReconcileSummary = {
   raw: number;
   removed: number;
   targetRoot: string;
+  toolName: string;
 };
 
-export type RunCliOptions = ReconcileNvimOptions & {
+export type ReconcileAllSummary = {
+  tools: ReconcileSummary[];
+};
+
+export type RunCliOptions = ReconcileOptions & {
   exit?: (code: number) => void;
 };
 
-const LOG_PREFIX = "[reconcile-nvim-config]";
 const allFilesGlob = new Glob("**/*");
 const wrapperFilesGlob = new Glob("**/*.tmpl");
 const defaultRepoRoot = path.resolve(import.meta.dir, "..");
 const defaultHostKind: PlatformKind = process.platform === "win32" ? "windows" : "unix";
 
 export function tokenizeShellWords(value: string): string[] {
-  // `CHEZMOI_ARGS` is a shell-style string, not a real argv array. Bun's docs
-  // recommend `node:util.parseArgs` for flag parsing, but Bun/Node do not expose
-  // a standard helper to split shell text from an env var into argv tokens.
   const tokens: string[] = [];
   let current = "";
   let quote: '"' | "'" | null = null;
@@ -163,21 +168,22 @@ export function resolveLogMode(rawChezMoiArgs: string): LogMode {
 }
 
 function createPlatformConfigs(
+  tool: ToolConfig,
   sourceStateRoot: string,
   hostHome: string,
 ): Record<PlatformKind, PlatformConfig> {
   return {
     unix: {
       kind: "unix",
-      wrapperRoot: path.join(sourceStateRoot, "dot_config", "nvim"),
-      targetPrefix: path.posix.join(".config", "nvim"),
-      targetRoot: path.join(hostHome, ".config", "nvim"),
+      wrapperRoot: path.join(sourceStateRoot, ...tool.targets.unix.wrapperRoot.split("/")),
+      targetPrefix: tool.targets.unix.targetPrefix,
+      targetRoot: path.join(hostHome, ...tool.targets.unix.targetPrefix.split("/")),
     },
     windows: {
       kind: "windows",
-      wrapperRoot: path.join(sourceStateRoot, "AppData", "Local", "nvim"),
-      targetPrefix: path.posix.join("AppData", "Local", "nvim"),
-      targetRoot: path.join(hostHome, "AppData", "Local", "nvim"),
+      wrapperRoot: path.join(sourceStateRoot, ...tool.targets.windows.wrapperRoot.split("/")),
+      targetPrefix: tool.targets.windows.targetPrefix,
+      targetRoot: path.join(hostHome, ...tool.targets.windows.targetPrefix.split("/")),
     },
   };
 }
@@ -212,13 +218,13 @@ function shouldLog(logMode: LogMode, level: LogLevel): boolean {
   return modeRank[logMode] >= levelRank[level];
 }
 
-function createLogger(logMode: LogMode, writers: LogWriters): Logger {
+function createLogger(logPrefix: string, logMode: LogMode, writers: LogWriters): Logger {
   function write(level: LogLevel, message: string): void {
     if (!shouldLog(logMode, level)) {
       return;
     }
 
-    const line = `[${formatTimestamp(writers.now())}] ${level}: ${LOG_PREFIX} ${message}\n`;
+    const line = `[${formatTimestamp(writers.now())}] ${level}: ${logPrefix} ${message}\n`;
     const writer = level === "ERROR" ? writers.stderr : writers.stdout;
     writer(line);
   }
@@ -231,14 +237,15 @@ function createLogger(logMode: LogMode, writers: LogWriters): Logger {
   };
 }
 
-function createRuntime(options: ReconcileNvimOptions = {}): ReconcileRuntime {
+function createRuntime(tool: ToolConfig, options: ReconcileOptions = {}): ReconcileRuntime {
   const repoRoot = options.repoRoot ?? defaultRepoRoot;
   const sourceStateRoot = options.sourceStateRoot ?? path.join(repoRoot, "home");
   const hostHome = options.hostHome ?? os.homedir();
   const hostKind = options.hostKind ?? defaultHostKind;
   const logMode = options.logMode ?? resolveLogMode(process.env.CHEZMOI_ARGS ?? "");
-  const platformConfigs = createPlatformConfigs(sourceStateRoot, hostHome);
+  const platformConfigs = createPlatformConfigs(tool, sourceStateRoot, hostHome);
   const hostPlatform = platformConfigs[hostKind];
+  const logPrefix = `[reconcile-configs/${tool.name}]`;
   const writers: LogWriters = {
     stdout: options.stdout ?? ((line) => process.stdout.write(line)),
     stderr: options.stderr ?? ((line) => process.stderr.write(line)),
@@ -254,13 +261,15 @@ function createRuntime(options: ReconcileNvimOptions = {}): ReconcileRuntime {
     hostHome,
     hostPlatform,
     logMode,
+    logPrefix,
     platforms: Object.values(platformConfigs),
     platformConfigs,
-    rawRoot: options.rawRoot ?? path.join(sourceStateRoot, ".shared-configs", "nvim"),
+    rawRoot: options.rawRoot ?? path.join(sourceStateRoot, ...tool.source.split("/")),
     removeManifestPath:
       options.removeManifestPath ?? path.join(sourceStateRoot, ".chezmoiremove"),
     repoRoot,
-    logger: createLogger(logMode, writers),
+    tool,
+    logger: createLogger(logPrefix, logMode, writers),
   };
 }
 
@@ -289,15 +298,14 @@ function absoluteTargetPath(runtime: ReconcileRuntime, entry: string): string {
   return path.join(runtime.hostHome, fromPosixPath(entry));
 }
 
-function wrapperContent(relativePath: string): string {
-  // `include` resolves from the chezmoi source-state root (`home/` via `.chezmoiroot`),
-  // so wrapper paths must stay POSIX-style and source-relative.
-  const includePath = path.posix.join(".shared-configs", "nvim", relativePath);
-  return `{{- include "${includePath}" -}}`;
+function wrapperContent(toolSource: string, relativePath: string): string {
+  const includePath = path.posix.join(toolSource, relativePath);
+  return `{{- include ${JSON.stringify(includePath)} -}}`;
 }
 
 function expectedWrapperFor(
   platform: PlatformConfig,
+  toolSource: string,
   relativePath: string,
 ): ExpectedWrapper {
   const relativeFsPath = fromPosixPath(relativePath);
@@ -306,7 +314,7 @@ function expectedWrapperFor(
     platform,
     relativePath,
     wrapperPath: path.join(platform.wrapperRoot, relativeFsPath) + ".tmpl",
-    content: wrapperContent(relativePath),
+    content: wrapperContent(toolSource, relativePath),
   };
 }
 
@@ -437,12 +445,12 @@ async function pruneEmptyDirectories(rootDir: string): Promise<void> {
   await prune(rootDir);
 }
 
-async function readExistingRemoveEntries(runtime: ReconcileRuntime): Promise<string[]> {
-  if (!(await pathExists(runtime.removeManifestPath))) {
+async function readExistingRemoveEntries(removeManifestPath: string): Promise<string[]> {
+  if (!(await pathExists(removeManifestPath))) {
     return [];
   }
 
-  const content = await fs.readFile(runtime.removeManifestPath, "utf8");
+  const content = await fs.readFile(removeManifestPath, "utf8");
 
   return content
     .split(/\r?\n/)
@@ -461,8 +469,6 @@ async function shouldKeepHostRemovalEntry(
   entry: string,
   expectedTargets: Set<string>,
 ): Promise<boolean> {
-  // Preserve only stale entries for the current host. Unix runs should not retain
-  // Windows removals, and vice versa.
   if (!entry.startsWith(`${runtime.hostPlatform.targetPrefix}/`)) {
     return false;
   }
@@ -539,8 +545,9 @@ function removedRawRelativePaths(staleWrappers: ExistingWrapper[]): string[] {
 }
 
 async function writeRemoveManifest(
-  runtime: ReconcileRuntime,
+  removeManifestPath: string,
   removeEntries: Set<string>,
+  logger: Logger,
 ): Promise<void> {
   const sortedRemoveEntries = Array.from(removeEntries).sort((left, right) =>
     left.localeCompare(right),
@@ -548,10 +555,10 @@ async function writeRemoveManifest(
   const content =
     sortedRemoveEntries.length > 0 ? `${sortedRemoveEntries.join("\n")}\n` : "";
 
-  const updated = await writeFileIfChanged(runtime.removeManifestPath, content);
+  const updated = await writeFileIfChanged(removeManifestPath, content);
 
   if (updated) {
-    runtime.logger.debug(`Updated remove manifest: ${runtime.removeManifestPath}`);
+    logger.debug(`Updated remove manifest: ${removeManifestPath}`);
   }
 }
 
@@ -566,10 +573,12 @@ function hostRemoveEntries(
   );
 }
 
-export async function reconcileNvimConfig(
-  options: ReconcileNvimOptions = {},
-): Promise<ReconcileSummary> {
-  const runtime = createRuntime(options);
+/** @internal Core reconciliation logic for a single tool, returns summary and removal entries without writing the manifest. */
+async function reconcileToolCore(
+  tool: ToolConfig,
+  options: ReconcileOptions,
+): Promise<{ summary: ReconcileSummary; removeEntries: Set<string> }> {
+  const runtime = createRuntime(tool, options);
 
   runtime.logger.debug(
     `Configuration loaded: host=${runtime.hostKind} log_mode=${runtime.logMode}`,
@@ -583,12 +592,14 @@ export async function reconcileNvimConfig(
   runtime.logger.debug(`Remove manifest: ${runtime.removeManifestPath}`);
 
   if (!(await pathExists(runtime.rawRoot))) {
-    throw new Error(`canonical raw Neovim tree not found: ${runtime.rawRoot}`);
+    throw new Error(`canonical raw tree not found for tool "${tool.name}": ${runtime.rawRoot}`);
   }
 
   const rawRelativePaths = await listRawRelativePaths(runtime.rawRoot);
   const expectedWrappers = rawRelativePaths.flatMap((relativePath) =>
-    runtime.platforms.map((platform) => expectedWrapperFor(platform, relativePath)),
+    runtime.platforms.map((platform) =>
+      expectedWrapperFor(platform, tool.source, relativePath),
+    ),
   );
   const expectedWrapperPaths = new Set(
     expectedWrappers.map((expectedWrapper) => expectedWrapper.wrapperPath),
@@ -607,7 +618,7 @@ export async function reconcileNvimConfig(
   const addedRawPaths = addedRawRelativePaths(expectedWrappers, existingWrapperPaths);
   const removedRawPaths = removedRawRelativePaths(staleWrappers);
 
-  runtime.logger.verbose(`Scanned ${rawRelativePaths.length} raw Neovim file(s)`);
+  runtime.logger.verbose(`Scanned ${rawRelativePaths.length} raw ${tool.name} file(s)`);
   for (const relativePath of addedRawPaths) {
     runtime.logger.verbose(`Added raw file: ${displayRawSourcePath(runtime, relativePath)}`);
   }
@@ -615,8 +626,6 @@ export async function reconcileNvimConfig(
     runtime.logger.verbose(`Removed raw file: ${displayRawSourcePath(runtime, relativePath)}`);
   }
 
-  // Removing a source wrapper is not enough for chezmoi to remove the already-applied
-  // target file, so stale wrappers are translated into `.chezmoiremove` entries.
   const removeEntries = hostRemoveEntries(runtime, staleWrappers);
 
   await removeStaleWrappers(runtime, staleWrappers);
@@ -626,16 +635,15 @@ export async function reconcileNvimConfig(
   }
 
   await addMissingWrappers(runtime, expectedWrappers);
+
   const expectedTargets = hostExpectedTargets(runtime, rawRelativePaths);
 
-  const previousRemoveEntries = await readExistingRemoveEntries(runtime);
+  const previousRemoveEntries = await readExistingRemoveEntries(runtime.removeManifestPath);
   for (const entry of previousRemoveEntries) {
     if (await shouldKeepHostRemovalEntry(runtime, entry, expectedTargets)) {
       removeEntries.add(entry);
     }
   }
-
-  await writeRemoveManifest(runtime, removeEntries);
 
   const summary: ReconcileSummary = {
     raw: rawRelativePaths.length,
@@ -643,10 +651,12 @@ export async function reconcileNvimConfig(
     removed: removedRawPaths.length,
     host: runtime.hostKind,
     targetRoot: runtime.hostPlatform.targetRoot,
+    toolName: tool.name,
   };
 
   runtime.logger.info(
     [
+      `tool=${summary.toolName}`,
       `raw=${summary.raw}`,
       `added=${summary.added}`,
       `removed=${summary.removed}`,
@@ -655,26 +665,73 @@ export async function reconcileNvimConfig(
     ].join(" "),
   );
 
+  return { summary, removeEntries };
+}
+
+export async function reconcileTool(
+  tool: ToolConfig,
+  options: ReconcileOptions = {},
+): Promise<ReconcileSummary> {
+  const { summary, removeEntries } = await reconcileToolCore(tool, options);
+
+  const runtime = createRuntime(tool, options);
+  await writeRemoveManifest(runtime.removeManifestPath, removeEntries, runtime.logger);
+
   return summary;
+}
+
+export async function reconcileAllTools(
+  options: ReconcileOptions = {},
+  toolList: ToolConfig[] = defaultTools,
+): Promise<ReconcileAllSummary> {
+  validateToolRegistry(toolList);
+
+  const summaries: ReconcileSummary[] = [];
+  const allRemoveEntries = new Set<string>();
+
+  for (const tool of toolList) {
+    const { summary, removeEntries } = await reconcileToolCore(tool, options);
+    summaries.push(summary);
+
+    for (const entry of removeEntries) {
+      allRemoveEntries.add(entry);
+    }
+  }
+
+  const repoRoot = options.repoRoot ?? defaultRepoRoot;
+  const sourceStateRoot = options.sourceStateRoot ?? path.join(repoRoot, "home");
+  const removeManifestPath = options.removeManifestPath ?? path.join(sourceStateRoot, ".chezmoiremove");
+  const logMode = options.logMode ?? resolveLogMode(process.env.CHEZMOI_ARGS ?? "");
+  const writers: LogWriters = {
+    stdout: options.stdout ?? ((line) => process.stdout.write(line)),
+    stderr: options.stderr ?? ((line) => process.stderr.write(line)),
+    now: options.now ?? (() => new Date()),
+  };
+  await writeRemoveManifest(removeManifestPath, allRemoveEntries, createLogger("[reconcile-configs]", logMode, writers));
+
+  return { tools: summaries };
 }
 
 function writeFallbackError(
   message: string,
+  logPrefix: string,
   stderr: (line: string) => void,
   now: () => Date,
 ): void {
-  stderr(`[${formatTimestamp(now())}] ERROR: ${LOG_PREFIX} ${message}\n`);
+  stderr(`[${formatTimestamp(now())}] ERROR: ${logPrefix} ${message}\n`);
 }
 
 export async function runCli(options: RunCliOptions = {}): Promise<void> {
   const { exit = (code: number) => process.exit(code), ...reconcileOptions } = options;
+  const logPrefix = "[reconcile-configs]";
 
   try {
-    await reconcileNvimConfig(reconcileOptions);
+    await reconcileAllTools(reconcileOptions);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.stack ?? error.message : String(error);
     writeFallbackError(
       message,
+      logPrefix,
       reconcileOptions.stderr ?? ((line) => process.stderr.write(line)),
       reconcileOptions.now ?? (() => new Date()),
     );
