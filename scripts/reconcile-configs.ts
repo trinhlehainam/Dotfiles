@@ -300,7 +300,7 @@ function absoluteTargetPath(runtime: ReconcileRuntime, entry: string): string {
 
 function wrapperContent(toolSource: string, relativePath: string): string {
   const includePath = path.posix.join(toolSource, relativePath);
-  return `{{- include "${includePath}" -}}`;
+  return `{{- include ${JSON.stringify(includePath)} -}}`;
 }
 
 function expectedWrapperFor(
