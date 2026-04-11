@@ -3,15 +3,10 @@ root: ~/.local/share/chezmoi
 attach: true
 
 windows:
-  - name: root
+  - name: workmux
     selected: true
     commands:
-      - nvim
-  - name: nvim
-    root: home/.shared-configs/nvim
-    commands:
-      - nvim
-  - name: wezterm
-    root: home/dot_config/wezterm
+      - workmux dashboard --session --tab worktrees
+  - name: main
     commands:
       - nvim
