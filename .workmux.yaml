@@ -1,0 +1,11 @@
+main_branch: main
+worktree_dir: worktrees
+
+files:
+  symlink:
+    - .env
+    - node_modules
+
+panes:
+  - command: nvim
+    focus: true
