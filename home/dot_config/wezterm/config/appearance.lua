@@ -30,7 +30,7 @@ return {
     config.visual_bell = {
       fade_in_duration_ms = 75,
       fade_out_duration_ms = 150,
-      target = "CursorColor",
+      target = 'CursorColor',
     }
 
     if platform.is_win then

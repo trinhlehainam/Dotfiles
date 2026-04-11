@@ -7,6 +7,7 @@ import {
   notificationTypeLabel,
   parseArgs,
   projectName,
+  sanitizeOscField,
   wrapForTmux,
   type ClaudeHookInput,
   type CodexNotifyInput,
@@ -264,6 +265,44 @@ describe("buildOsc777", () => {
 
     expect(result).toBe("\x1b]777;notify;Title;\x07");
   });
+
+  test("sanitizes control characters from title and body", () => {
+    const result = buildOsc777("Title\x07\x1b", "Body\x07\x1btext");
+
+    expect(result).toBe("\x1b]777;notify;Title;Bodytext\x07");
+  });
+
+  test("replaces semicolons with colons", () => {
+    const result = buildOsc777("Title;extra", "Body;text");
+
+    expect(result).toBe("\x1b]777;notify;Title:extra;Body:text\x07");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// sanitizeOscField
+// ---------------------------------------------------------------------------
+
+describe("sanitizeOscField", () => {
+  test("strips BEL character", () => {
+    expect(sanitizeOscField("hello\x07world")).toBe("helloworld");
+  });
+
+  test("strips ESC character", () => {
+    expect(sanitizeOscField("hello\x1bworld")).toBe("helloworld");
+  });
+
+  test("strips newlines and tabs", () => {
+    expect(sanitizeOscField("hello\n\tworld")).toBe("helloworld");
+  });
+
+  test("replaces semicolons with colons", () => {
+    expect(sanitizeOscField("a;b;c")).toBe("a:b:c");
+  });
+
+  test("returns unchanged safe string", () => {
+    expect(sanitizeOscField("Hello World")).toBe("Hello World");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -362,6 +401,6 @@ describe("parseArgs", () => {
     const result = parseArgs(["--title", "Flag", "Positional"]);
 
     expect(result.title).toBe("Flag");
-    expect(result.body).toBe("Positional");
+    expect(result.body).toBeUndefined();
   });
 });

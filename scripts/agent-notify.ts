@@ -1,4 +1,5 @@
 import { closeSync, openSync, writeSync } from "node:fs";
+import { parseArgs as nodeParseArgs } from "node:util";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -67,10 +68,16 @@ export function notificationTypeLabel(type?: string): string {
   }
 }
 
-/** Build OSC 777 escape sequence.
- * Note: `;` is the OSC field delimiter — title/body should not contain raw semicolons. */
+/** Sanitize text interpolated into OSC 777 fields — strip controls and escape semicolons */
+export function sanitizeOscField(value: string): string {
+  return value
+    .replace(/[\x00-\x1F\x7F]/g, "")
+    .replace(/;/g, ":");
+}
+
+/** Build OSC 777 escape sequence */
 export function buildOsc777(title: string, body: string): string {
-  return `\x1b]777;notify;${title};${body}\x07`;
+  return `\x1b]777;notify;${sanitizeOscField(title)};${sanitizeOscField(body)}\x07`;
 }
 
 /** DCS-wrap an escape sequence for tmux passthrough */
@@ -142,48 +149,29 @@ export function formatCodexNotify(input: CodexNotifyInput): ParsedNotification {
   };
 }
 
-/** Parse CLI arguments */
+/** Parse CLI arguments using Node.js built-in util.parseArgs */
 export function parseArgs(args: string[]): ParsedCliArgs {
-  const result: ParsedCliArgs = {
-    stdin: false,
-    codexArg: undefined,
-    title: undefined,
-    body: undefined,
+  const { values, positionals } = nodeParseArgs({
+    args,
+    options: {
+      stdin: { type: "boolean" },
+      title: { type: "string", short: "t" },
+      body: { type: "string", short: "b" },
+      "codex-arg": { type: "string" },
+    },
+    strict: false,
+    allowPositionals: true,
+  });
+
+  const title = values.title ?? positionals[0];
+  const body = values.body ?? (positionals.length > 1 && !values.title ? positionals[1] : undefined);
+
+  return {
+    stdin: !!values.stdin,
+    codexArg: values["codex-arg"] as string | undefined,
+    title: title as string | undefined,
+    body: body as string | undefined,
   };
-
-  let i = 0;
-  while (i < args.length) {
-    const arg = args[i];
-    switch (arg) {
-      case "--stdin":
-        result.stdin = true;
-        break;
-      case "--title":
-      case "-t":
-        i += 1;
-        if (i < args.length) result.title = args[i];
-        break;
-      case "--body":
-      case "-b":
-        i += 1;
-        if (i < args.length) result.body = args[i];
-        break;
-      case "--codex-arg":
-        i += 1;
-        if (i < args.length) result.codexArg = args[i];
-        break;
-      default:
-        if (!result.title) {
-          result.title = arg;
-        } else if (!result.body) {
-          result.body = arg;
-        }
-        break;
-    }
-    i += 1;
-  }
-
-  return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -192,12 +180,17 @@ export function parseArgs(args: string[]): ParsedCliArgs {
 
 /** Send terminal bell to /dev/tty */
 function sendBell(): void {
+  writeToTty("\x07");
+}
+
+/** Write raw bytes to /dev/tty (fallback to stderr) */
+function writeToTty(data: string): void {
   try {
     const fd = openSync("/dev/tty", "w");
-    writeSync(fd, "\x07");
+    writeSync(fd, data);
     closeSync(fd);
   } catch {
-    process.stderr.write("\x07");
+    process.stderr.write(data);
   }
 }
 
@@ -206,7 +199,7 @@ function sendOsc777(title: string, body: string): void {
   const isTmux = !!process.env.TMUX;
   const osc = buildOsc777(title, body);
   const out = wrapForTmux(osc, isTmux);
-  process.stdout.write(out);
+  writeToTty(out);
 }
 
 
@@ -242,12 +235,18 @@ export async function main(): Promise<void> {
   let notification: ParsedNotification;
 
   if (parsed.stdin) {
-    const input = await readStdin();
-    const json: ClaudeHookInput = JSON.parse(input);
-    notification = formatClaudeHook(json);
+    try {
+      const input = await readStdin();
+      notification = formatClaudeHook(JSON.parse(input) as ClaudeHookInput);
+    } catch {
+      notification = { title: "Notification", body: "Agent event", source: "unknown", event: "unknown" };
+    }
   } else if (parsed.codexArg) {
-    const json: CodexNotifyInput = JSON.parse(parsed.codexArg);
-    notification = formatCodexNotify(json);
+    try {
+      notification = formatCodexNotify(JSON.parse(parsed.codexArg) as CodexNotifyInput);
+    } catch {
+      notification = { title: "Notification", body: "Agent event", source: "unknown", event: "unknown" };
+    }
   } else if (parsed.title) {
     notification = {
       title: parsed.title,
