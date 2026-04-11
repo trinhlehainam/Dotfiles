@@ -100,6 +100,13 @@ keymap = [
 	{ on = [ "c", "f" ], run = "copy filename",         desc = "Copy the filename" },
 	{ on = [ "c", "n" ], run = "copy name_without_ext", desc = "Copy the filename without extension" },
 
+	# Archive
+	{ on = [ "c", "a", "a" ], run = "plugin compress",      desc = "Archive selected files" },
+	{ on = [ "c", "a", "p" ], run = "plugin compress -p",   desc = "Archive selected files (password)" },
+	{ on = [ "c", "a", "h" ], run = "plugin compress -ph",  desc = "Archive selected files (password+header)" },
+	{ on = [ "c", "a", "l" ], run = "plugin compress -l",   desc = "Archive selected files (compression level)" },
+	{ on = [ "c", "a", "u" ], run = "plugin compress -phl", desc = "Archive selected files (password+header+level)" },
+
 	# Filter
 	{ on = "f", run = "filter --smart", desc = "Filter files" },
 
