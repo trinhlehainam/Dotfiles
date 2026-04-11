@@ -3,14 +3,12 @@ import { describe, expect, test } from "bun:test";
 import {
   buildOsc777,
   formatClaudeHook,
-  formatCodexNotify,
   notificationTypeLabel,
   parseArgs,
   projectName,
   sanitizeOscField,
   wrapForTmux,
   type ClaudeHookInput,
-  type CodexNotifyInput,
 } from "./agent-notify.ts";
 
 // ---------------------------------------------------------------------------
@@ -44,29 +42,20 @@ describe("projectName", () => {
 // ---------------------------------------------------------------------------
 
 describe("notificationTypeLabel", () => {
-  test("maps permission_prompt", () => {
-    expect(notificationTypeLabel("permission_prompt")).toBe("Permission required");
-  });
+  const cases: [string | undefined, string][] = [
+    ["permission_prompt", "Permission required"],
+    ["idle_prompt", "Awaiting input"],
+    ["auth_success", "Auth succeeded"],
+    ["elicitation_dialog", "Question"],
+    ["unknown", "Notification"],
+    [undefined, "Notification"],
+  ];
 
-  test("maps idle_prompt", () => {
-    expect(notificationTypeLabel("idle_prompt")).toBe("Awaiting input");
-  });
-
-  test("maps auth_success", () => {
-    expect(notificationTypeLabel("auth_success")).toBe("Auth succeeded");
-  });
-
-  test("maps elicitation_dialog", () => {
-    expect(notificationTypeLabel("elicitation_dialog")).toBe("Question");
-  });
-
-  test("returns Notification for unknown type", () => {
-    expect(notificationTypeLabel("unknown")).toBe("Notification");
-  });
-
-  test("returns Notification for undefined", () => {
-    expect(notificationTypeLabel(undefined)).toBe("Notification");
-  });
+  for (const [input, expected] of cases) {
+    test(`maps ${input ?? "undefined"} → ${expected}`, () => {
+      expect(notificationTypeLabel(input)).toBe(expected);
+    });
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -180,72 +169,6 @@ describe("formatClaudeHook", () => {
     const result = formatClaudeHook(input);
 
     expect(result.body).toBe("CustomEvent");
-  });
-});
-
-// ---------------------------------------------------------------------------
-// formatCodexNotify
-// ---------------------------------------------------------------------------
-
-describe("formatCodexNotify", () => {
-  test("formats agent-turn-complete with message", () => {
-    const input: CodexNotifyInput = {
-      type: "agent-turn-complete",
-      "thread-id": "t1",
-      "turn-id": "turn1",
-      cwd: "/home/user/myproject",
-      "last-assistant-message": "I fixed the bug in auth.ts",
-      client: "codex-tui",
-    };
-
-    const result = formatCodexNotify(input);
-
-    expect(result.title).toBe("Codex \u2014 myproject");
-    expect(result.body).toBe("I fixed the bug in auth.ts");
-    expect(result.source).toBe("codex");
-    expect(result.event).toBe("agent-turn-complete");
-  });
-
-  test("truncates messages longer than 120 characters", () => {
-    const longMessage = "a".repeat(150);
-    const input: CodexNotifyInput = {
-      type: "agent-turn-complete",
-      "last-assistant-message": longMessage,
-    };
-
-    const result = formatCodexNotify(input);
-
-    expect(result.body.length).toBe(120);
-    expect(result.body.endsWith("...")).toBe(true);
-    expect(result.body).toBe("a".repeat(117) + "...");
-  });
-
-  test("uses fallback body when no message", () => {
-    const input: CodexNotifyInput = {
-      type: "agent-turn-complete",
-    };
-
-    const result = formatCodexNotify(input);
-
-    expect(result.body).toBe("Turn complete");
-  });
-
-  test("uses fallback event when no type", () => {
-    const input: CodexNotifyInput = { type: "" };
-
-    const result = formatCodexNotify(input);
-
-    expect(result.event).toBe("agent-turn-complete");
-  });
-
-  test("omits project label without cwd", () => {
-    const input: CodexNotifyInput = {
-      type: "agent-turn-complete",
-    };
-
-    const result = formatCodexNotify(input);
-
-    expect(result.title).toBe("Codex");
   });
 });
 
@@ -367,13 +290,6 @@ describe("parseArgs", () => {
     expect(result.body).toBe("Body");
   });
 
-  test("parses --codex-arg with JSON string", () => {
-    const json = '{"type":"agent-turn-complete"}';
-    const result = parseArgs(["--codex-arg", json]);
-
-    expect(result.codexArg).toBe(json);
-  });
-
   test("parses positional args as title and body", () => {
     const result = parseArgs(["Title", "Body"]);
 
@@ -394,7 +310,6 @@ describe("parseArgs", () => {
     expect(result.stdin).toBe(false);
     expect(result.title).toBeUndefined();
     expect(result.body).toBeUndefined();
-    expect(result.codexArg).toBeUndefined();
   });
 
   test("flag values take precedence over positional", () => {

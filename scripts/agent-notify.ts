@@ -17,15 +17,6 @@ export interface ClaudeHookInput {
   stop_reason?: string;
 }
 
-export interface CodexNotifyInput {
-  type: string;
-  "thread-id"?: string;
-  "turn-id"?: string;
-  cwd?: string;
-  "last-assistant-message"?: string;
-  client?: string;
-}
-
 export interface ParsedNotification {
   title: string;
   body: string;
@@ -38,7 +29,6 @@ export interface ParsedCliArgs {
   title?: string;
   body?: string;
   stdin: boolean;
-  codexArg?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -132,23 +122,6 @@ export function formatClaudeHook(input: ClaudeHookInput): ParsedNotification {
   }
 }
 
-/** Format Codex notify JSON */
-export function formatCodexNotify(input: CodexNotifyInput): ParsedNotification {
-  const project = projectName(input.cwd);
-  const projectLabel = project ? ` \u2014 ${project}` : "";
-  const msg = input["last-assistant-message"] ?? "Turn complete";
-
-  const body = msg.length > 120 ? msg.slice(0, 117) + "..." : msg;
-
-  return {
-    title: `Codex${projectLabel}`,
-    body,
-    source: "codex",
-    event: input.type || "agent-turn-complete",
-    cwd: input.cwd,
-  };
-}
-
 /** Parse CLI arguments using Node.js built-in util.parseArgs */
 export function parseArgs(args: string[]): ParsedCliArgs {
   const { values, positionals } = nodeParseArgs({
@@ -157,7 +130,6 @@ export function parseArgs(args: string[]): ParsedCliArgs {
       stdin: { type: "boolean" },
       title: { type: "string", short: "t" },
       body: { type: "string", short: "b" },
-      "codex-arg": { type: "string" },
     },
     strict: false,
     allowPositionals: true,
@@ -168,7 +140,6 @@ export function parseArgs(args: string[]): ParsedCliArgs {
 
   return {
     stdin: !!values.stdin,
-    codexArg: values["codex-arg"] as string | undefined,
     title: title as string | undefined,
     body: body as string | undefined,
   };
@@ -241,12 +212,6 @@ export async function main(): Promise<void> {
     } catch {
       notification = { title: "Notification", body: "Agent event", source: "unknown", event: "unknown" };
     }
-  } else if (parsed.codexArg) {
-    try {
-      notification = formatCodexNotify(JSON.parse(parsed.codexArg) as CodexNotifyInput);
-    } catch {
-      notification = { title: "Notification", body: "Agent event", source: "unknown", event: "unknown" };
-    }
   } else if (parsed.title) {
     notification = {
       title: parsed.title,
@@ -261,8 +226,6 @@ export async function main(): Promise<void> {
         const json = JSON.parse(input);
         if ("hook_event_name" in json) {
           notification = formatClaudeHook(json as ClaudeHookInput);
-        } else if ("thread-id" in json) {
-          notification = formatCodexNotify(json as CodexNotifyInput);
         } else {
           notification = { title: "Notification", body: input.trim(), source: "unknown", event: "unknown" };
         }
