@@ -4,13 +4,34 @@ import os from "node:os";
 import path from "node:path";
 import { parseArgs } from "node:util";
 
+import { resolveSourceStateRoot } from "./chezmoi-paths.ts";
+
 const commands = ["context", "diff", "dry-run", "apply-temp"] as const;
-const usage = `usage: bun run scripts/worktree-dev.ts [--help] <${commands.join("|")}>`;
+const usage = `usage: bun run scripts/worktree-dev.ts [--help|-h] <${commands.join("|")}>`;
 
 export type WorktreeCommand = (typeof commands)[number];
 export type ParsedCliArgs = {
   command?: WorktreeCommand;
   help: boolean;
+};
+
+export class ParseCliError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ParseCliError";
+  }
+}
+
+type SpawnResult = {
+  error?: Error;
+  signal?: NodeJS.Signals | null;
+  status?: number | null;
+};
+
+type SpawnResultHandlers = {
+  fail: (message: string) => void;
+  exit: (code: number) => void;
+  raiseSignal: (signal: NodeJS.Signals) => void;
 };
 
 function fail(message: string): never {
@@ -20,6 +41,31 @@ function fail(message: string): never {
 
 function writeUsage(): void {
   process.stdout.write(`${usage}\n`);
+}
+
+function usageError(message: string): ParseCliError {
+  return new ParseCliError(`${message}\n${usage}`);
+}
+
+export function handleSpawnResult(
+  result: SpawnResult,
+  handlers: SpawnResultHandlers = {
+    fail,
+    exit: (code) => process.exit(code),
+    raiseSignal: (signal) => process.kill(process.pid, signal),
+  },
+): void {
+  if (result.error) {
+    handlers.fail(`failed to run chezmoi: ${result.error.message}`);
+    return;
+  }
+
+  if (result.signal) {
+    handlers.raiseSignal(result.signal);
+    return;
+  }
+
+  handlers.exit(result.status ?? 1);
 }
 
 function resolveWorktreeRoot(): string {
@@ -45,7 +91,7 @@ function resolveWorktreeRoot(): string {
 }
 
 function commonArgs(worktree: string): string[] {
-  return ["--init", "-S", path.join(worktree, "home"), "-W", worktree];
+  return ["--init", "-S", resolveSourceStateRoot(worktree), "-W", worktree];
 }
 
 const commandArgs: Record<WorktreeCommand, (worktree: string) => string[]> = {
@@ -72,7 +118,7 @@ function parseCommand(value: string | undefined): WorktreeCommand | undefined {
     return value as WorktreeCommand;
   }
 
-  fail(`unknown command: ${value}\n${usage}`);
+  throw usageError(`unknown command: ${value}`);
 }
 
 export function parseCliArgs(args: string[]): ParsedCliArgs {
@@ -89,11 +135,11 @@ export function parseCliArgs(args: string[]): ParsedCliArgs {
     }));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    fail(`${message}\n${usage}`);
+    throw usageError(message);
   }
 
   if (positionals.length > 1) {
-    fail(`expected exactly one command\n${usage}`);
+    throw usageError("expected exactly one command");
   }
 
   return {
@@ -103,7 +149,18 @@ export function parseCliArgs(args: string[]): ParsedCliArgs {
 }
 
 function main(): void {
-  const parsed = parseCliArgs(process.argv.slice(2));
+  let parsed: ParsedCliArgs;
+
+  try {
+    parsed = parseCliArgs(process.argv.slice(2));
+  } catch (error) {
+    if (error instanceof ParseCliError) {
+      fail(error.message);
+    }
+
+    throw error;
+  }
+
   if (parsed.help) {
     writeUsage();
     process.exit(0);
@@ -118,12 +175,7 @@ function main(): void {
     cwd: process.cwd(),
     stdio: "inherit",
   });
-
-  if (result.error) {
-    fail(`failed to run chezmoi: ${result.error.message}`);
-  }
-
-  process.exit(result.status ?? 1);
+  handleSpawnResult(result);
 }
 
 if (import.meta.main) {

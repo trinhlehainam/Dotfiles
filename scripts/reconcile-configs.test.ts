@@ -6,6 +6,7 @@ import path from "node:path";
 import {
   reconcileAllTools,
   reconcileTool,
+  resolveBasePaths,
   resolveLogMode,
   resolvePathOverrides,
   runCli,
@@ -269,10 +270,34 @@ describe("resolvePathOverrides", () => {
     });
   });
 
+  test("preserves backslashes in quoted Windows paths", () => {
+    expect(
+      resolvePathOverrides(
+        String.raw`chezmoi apply -S "C:\Users\me\repo\home" -W "C:\Users\me\repo"`,
+      ),
+    ).toEqual({
+      sourceDir: String.raw`C:\Users\me\repo\home`,
+      workingTree: String.raw`C:\Users\me\repo`,
+    });
+  });
+
   test("returns empty overrides for empty args", () => {
     expect(resolvePathOverrides("")).toEqual({
       sourceDir: undefined,
       workingTree: undefined,
+    });
+  });
+});
+
+describe("resolveBasePaths", () => {
+  test("falls back to .chezmoiroot when no overrides are present", async () => {
+    const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "chezmoi-paths-test-"));
+    tempDirs.push(repoRoot);
+    await fs.writeFile(path.join(repoRoot, ".chezmoiroot"), "dotfiles\n", "utf8");
+
+    expect(resolveBasePaths({}, repoRoot, "")).toEqual({
+      repoRoot,
+      sourceStateRoot: path.join(repoRoot, "dotfiles"),
     });
   });
 });
