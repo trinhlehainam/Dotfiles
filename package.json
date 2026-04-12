@@ -4,6 +4,7 @@
   "packageManager": "pnpm@10.28.0",
   "type": "module",
   "scripts": {
+    "build:notify": "bun build --compile scripts/agent-notify.ts --outfile ~/.local/bin/agent-notify",
     "reconcile:configs": "bun run scripts/reconcile-configs.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit"

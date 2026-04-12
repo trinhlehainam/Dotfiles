@@ -26,6 +26,13 @@ return {
       bottom = 8,
     }
 
+    -- Visual bell: brief cursor flash on BEL from agent notifications
+    config.visual_bell = {
+      fade_in_duration_ms = 75,
+      fade_out_duration_ms = 150,
+      target = 'CursorColor',
+    }
+
     if platform.is_win then
       config.win32_system_backdrop = 'Disable'
       config.window_background_opacity = 0.6
