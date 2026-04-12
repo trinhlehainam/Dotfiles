@@ -4,6 +4,8 @@ import {
   buildTerminalNotification,
   buildOsc777,
   formatClaudeHook,
+  formatCodexEvent,
+  isCodexNotifyPayload,
   isEmbeddedNvimTerminal,
   notificationTypeLabel,
   parseTmuxClientInfo,
@@ -16,6 +18,7 @@ import {
   supportsOsc777ViaTmuxClientInfo,
   wrapForTmux,
   type ClaudeHookInput,
+  type CodexNotifyPayload,
   type NotificationTransport,
   type TmuxClientInfo,
 } from "./agent-notify.ts";
@@ -586,5 +589,156 @@ describe("parseArgs", () => {
 
     expect(result.title).toBe("Second");
     expect(result.body).toBe("Two");
+  });
+
+  test("defaults format to auto", () => {
+    const result = parseArgs(["Title"]);
+
+    expect(result.format).toBe("auto");
+  });
+
+  test("parses --format codex", () => {
+    const result = parseArgs(["--format", "codex"]);
+
+    expect(result.format).toBe("codex");
+  });
+
+  test("parses --format claude", () => {
+    const result = parseArgs(["--format", "claude"]);
+
+    expect(result.format).toBe("claude");
+  });
+
+  test("falls back to auto for invalid format", () => {
+    const result = parseArgs(["--format", "invalid"]);
+
+    expect(result.format).toBe("auto");
+  });
+
+  test("codex mode keeps positionals raw without title/body mapping", () => {
+    const jsonPayload = '{"type":"agent-turn-complete","thread-id":"t1"}';
+    const result = parseArgs(["--format", "codex", jsonPayload]);
+
+    expect(result.format).toBe("codex");
+    expect(result.positionals[0]).toBe(jsonPayload);
+    expect(result.title).toBeUndefined();
+  });
+
+  test("auto mode maps positionals to title/body as before", () => {
+    const result = parseArgs(["MyTitle", "MyBody"]);
+
+    expect(result.format).toBe("auto");
+    expect(result.title).toBe("MyTitle");
+    expect(result.body).toBe("MyBody");
+  });
+
+  test("exposes positionals in auto mode", () => {
+    const result = parseArgs(["Title", "Body"]);
+
+    expect(result.positionals).toEqual(["Title", "Body"]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// isCodexNotifyPayload
+// ---------------------------------------------------------------------------
+
+describe("isCodexNotifyPayload", () => {
+  test("recognizes payload with thread-id", () => {
+    expect(isCodexNotifyPayload({ type: "agent-turn-complete", "thread-id": "t1" })).toBe(true);
+  });
+
+  test("recognizes payload with turn-id", () => {
+    expect(isCodexNotifyPayload({ type: "agent-turn-complete", "turn-id": "turn1" })).toBe(true);
+  });
+
+  test("recognizes payload with both", () => {
+    expect(
+      isCodexNotifyPayload({ type: "agent-turn-complete", "thread-id": "t1", "turn-id": "turn1" }),
+    ).toBe(true);
+  });
+
+  test("rejects payload without codex-specific fields", () => {
+    expect(isCodexNotifyPayload({ type: "agent-turn-complete" })).toBe(false);
+  });
+
+  test("rejects null", () => {
+    expect(isCodexNotifyPayload(null)).toBe(false);
+  });
+
+  test("rejects non-object", () => {
+    expect(isCodexNotifyPayload("string")).toBe(false);
+    expect(isCodexNotifyPayload(42)).toBe(false);
+  });
+
+  test("rejects Claude hook input (has hook_event_name, not codex fields)", () => {
+    expect(
+      isCodexNotifyPayload({ type: "Notification", hook_event_name: "Stop", session_id: "s1" }),
+    ).toBe(false);
+  });
+
+  test("rejects object with non-string type", () => {
+    expect(isCodexNotifyPayload({ type: 42, "thread-id": "t1" })).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// formatCodexEvent
+// ---------------------------------------------------------------------------
+
+describe("formatCodexEvent", () => {
+  test("formats agent-turn-complete with cwd", () => {
+    const payload: CodexNotifyPayload = {
+      type: "agent-turn-complete",
+      "thread-id": "t1",
+      "turn-id": "turn1",
+      cwd: "/home/user/myproject",
+    };
+
+    const result = formatCodexEvent(payload);
+
+    expect(result.title).toBe("Codex \u2014 myproject");
+    expect(result.body).toBe("Task complete");
+    expect(result.source).toBe("codex");
+    expect(result.event).toBe("agent-turn-complete");
+    expect(result.cwd).toBe("/home/user/myproject");
+  });
+
+  test("formats agent-turn-complete without cwd", () => {
+    const payload: CodexNotifyPayload = {
+      type: "agent-turn-complete",
+      "thread-id": "t1",
+    };
+
+    const result = formatCodexEvent(payload);
+
+    expect(result.title).toBe("Codex");
+    expect(result.body).toBe("Task complete");
+  });
+
+  test("formats unknown type with last-assistant-message", () => {
+    const payload: CodexNotifyPayload = {
+      type: "custom-event",
+      "thread-id": "t1",
+      cwd: "/home/user/myproject",
+      "last-assistant-message": "Done working",
+    };
+
+    const result = formatCodexEvent(payload);
+
+    expect(result.title).toBe("Codex — myproject");
+    expect(result.body).toBe("Done working");
+    expect(result.event).toBe("custom-event");
+  });
+
+  test("formats unknown type without message (falls back to type)", () => {
+    const payload: CodexNotifyPayload = {
+      type: "custom-event",
+      "turn-id": "turn1",
+    };
+
+    const result = formatCodexEvent(payload);
+
+    expect(result.body).toBe("custom-event");
   });
 });
