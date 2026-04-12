@@ -40,6 +40,11 @@ export interface TmuxClientInfo {
   termtype: string;
 }
 
+export interface NotificationTransport {
+  preferTmuxPaneTty: boolean;
+  allowOsc777: boolean;
+}
+
 const ESC = String.fromCharCode(27);
 const BEL = String.fromCharCode(7);
 const ST = `${ESC}\\`;
@@ -128,15 +133,37 @@ export function supportsOsc777ViaTmuxClientInfo(clientInfo: TmuxClientInfo | nul
   return clientInfo.termname === "wezterm" || clientInfo.termtype.startsWith("WezTerm ");
 }
 
+/** Neovim terminal jobs are rendered by libvterm, not by the outer terminal directly. */
+export function isEmbeddedNvimTerminal(env: NodeJS.ProcessEnv): boolean {
+  return env.NVIM !== undefined;
+}
+
 /** Only emit OSC 777 for known WezTerm sessions. BEL remains the universal fallback. */
 export function supportsOsc777(
   env: NodeJS.ProcessEnv,
   tmuxClientInfo: TmuxClientInfo | null = null,
 ): boolean {
+  if (isEmbeddedNvimTerminal(env) && env.TMUX_PANE === undefined) {
+    return false;
+  }
+
   return env.TERM_PROGRAM === "WezTerm"
     || env.WEZTERM_PANE !== undefined
     || env.WEZTERM_EXECUTABLE !== undefined
     || supportsOsc777ViaTmuxClientInfo(tmuxClientInfo);
+}
+
+/** Decide which terminal path is safe for notifications in the current process. */
+export function selectNotificationTransport(
+  env: NodeJS.ProcessEnv,
+  tmuxClientInfo: TmuxClientInfo | null = null,
+): NotificationTransport {
+  const preferTmuxPaneTty = isEmbeddedNvimTerminal(env) && env.TMUX_PANE !== undefined;
+
+  return {
+    preferTmuxPaneTty,
+    allowOsc777: supportsOsc777(env, tmuxClientInfo),
+  };
 }
 
 /** Build the terminal control sequence for one notification. */
@@ -146,7 +173,7 @@ export function buildTerminalNotification(
   env: NodeJS.ProcessEnv = process.env,
   tmuxClientInfo: TmuxClientInfo | null = null,
 ): string {
-  if (!supportsOsc777(env, tmuxClientInfo)) {
+  if (!selectNotificationTransport(env, tmuxClientInfo).allowOsc777) {
     return BEL;
   }
 
@@ -328,34 +355,38 @@ function detectTmuxClientInfo(): TmuxClientInfo | null {
   }
 }
 
-/** Write raw bytes to the controlling terminal. */
-function writeToTerminal(data: string): void {
+function writeToPath(path: string, data: string): boolean {
   try {
-    const fd = openSync(terminalDevicePath(), "w");
+    const fd = openSync(path, "w");
     try {
       writeSync(fd, data);
+      return true;
     } finally {
       closeSync(fd);
     }
   } catch {
-    const paneTtyPath = currentPaneTtyPath();
-    if (paneTtyPath) {
-      try {
-        const fd = openSync(paneTtyPath, "w");
-        try {
-          writeSync(fd, data);
-          return;
-        } finally {
-          closeSync(fd);
-        }
-      } catch {
-        // Fall through to stderr TTY fallback.
-      }
-    }
+    return false;
+  }
+}
 
-    if (process.stderr.isTTY) {
-      process.stderr.write(data);
-    }
+/** Write raw bytes to the safest available terminal endpoint. */
+function writeToTerminal(data: string, transport: NotificationTransport): void {
+  const paneTtyPath = currentPaneTtyPath();
+
+  if (transport.preferTmuxPaneTty && paneTtyPath && writeToPath(paneTtyPath, data)) {
+    return;
+  }
+
+  if (writeToPath(terminalDevicePath(), data)) {
+    return;
+  }
+
+  if (!transport.preferTmuxPaneTty && paneTtyPath && writeToPath(paneTtyPath, data)) {
+    return;
+  }
+
+  if (process.stderr.isTTY) {
+    process.stderr.write(data);
   }
 }
 
@@ -395,13 +426,11 @@ function parseNotificationFromStdin(input: string, strictJson: boolean): ParsedN
 }
 
 function sendNotification(notification: ParsedNotification): void {
+  const tmuxClientInfo = detectTmuxClientInfo();
+  const transport = selectNotificationTransport(process.env, tmuxClientInfo);
   writeToTerminal(
-    buildTerminalNotification(
-      notification.title,
-      notification.body,
-      process.env,
-      detectTmuxClientInfo(),
-    ),
+    buildTerminalNotification(notification.title, notification.body, process.env, tmuxClientInfo),
+    transport,
   );
 }
 

@@ -4,16 +4,19 @@ import {
   buildTerminalNotification,
   buildOsc777,
   formatClaudeHook,
+  isEmbeddedNvimTerminal,
   notificationTypeLabel,
   parseTmuxClientInfo,
   parseArgs,
   projectName,
   sanitizeOscField,
+  selectNotificationTransport,
   selectTmuxClientInfo,
   supportsOsc777,
   supportsOsc777ViaTmuxClientInfo,
   wrapForTmux,
   type ClaudeHookInput,
+  type NotificationTransport,
   type TmuxClientInfo,
 } from "./agent-notify.ts";
 
@@ -348,6 +351,20 @@ describe("parseTmuxClientInfo", () => {
 });
 
 // ---------------------------------------------------------------------------
+// isEmbeddedNvimTerminal
+// ---------------------------------------------------------------------------
+
+describe("isEmbeddedNvimTerminal", () => {
+  test("detects Neovim terminal jobs via NVIM", () => {
+    expect(isEmbeddedNvimTerminal({ NVIM: "/tmp/nvim.sock" })).toBe(true);
+  });
+
+  test("returns false outside Neovim", () => {
+    expect(isEmbeddedNvimTerminal({})).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // selectTmuxClientInfo
 // ---------------------------------------------------------------------------
 
@@ -375,6 +392,36 @@ describe("selectTmuxClientInfo", () => {
 
   test("returns null for empty client list", () => {
     expect(selectTmuxClientInfo([])).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// selectNotificationTransport
+// ---------------------------------------------------------------------------
+
+describe("selectNotificationTransport", () => {
+  test("prefers tmux pane tty for Neovim terminal inside tmux", () => {
+    const transport: NotificationTransport = selectNotificationTransport(
+      { NVIM: "/tmp/nvim.sock", TMUX_PANE: "%1", TMUX: "/tmp/tmux", TERM_PROGRAM: "tmux" },
+      { termname: "xterm-256color", termtype: "WezTerm 20240203" },
+    );
+
+    expect(transport).toEqual({
+      preferTmuxPaneTty: true,
+      allowOsc777: true,
+    });
+  });
+
+  test("disables OSC 777 for Neovim terminal without tmux bypass", () => {
+    const transport: NotificationTransport = selectNotificationTransport(
+      { NVIM: "/tmp/nvim.sock", TERM_PROGRAM: "WezTerm" },
+      null,
+    );
+
+    expect(transport).toEqual({
+      preferTmuxPaneTty: false,
+      allowOsc777: false,
+    });
   });
 });
 
@@ -422,6 +469,10 @@ describe("supportsOsc777", () => {
     ).toBe(true);
   });
 
+  test("returns false inside Neovim terminal without tmux bypass", () => {
+    expect(supportsOsc777({ NVIM: "/tmp/nvim.sock", TERM_PROGRAM: "WezTerm" })).toBe(false);
+  });
+
   test("returns false for other terminals", () => {
     expect(supportsOsc777({ TERM_PROGRAM: "Apple_Terminal" })).toBe(false);
     expect(supportsOsc777({})).toBe(false);
@@ -458,6 +509,12 @@ describe("buildTerminalNotification", () => {
         { termname: "xterm-256color", termtype: "WezTerm 20240203" },
       ),
     ).toBe("\x07\x1bPtmux;\x1b\x1b\x1b]777;notify;Title;Body\x1b\x1b\\\x1b\\");
+  });
+
+  test("returns bell only inside Neovim terminal without tmux bypass", () => {
+    expect(buildTerminalNotification("Title", "Body", { NVIM: "/tmp/nvim.sock", TERM_PROGRAM: "WezTerm" })).toBe(
+      "\x07",
+    );
   });
 });
 
