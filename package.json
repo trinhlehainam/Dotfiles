@@ -7,9 +7,11 @@
     "build:notify": "bun build --compile scripts/agent-notify.ts --outfile ~/.local/bin/agent-notify",
     "reconcile:configs": "bun run scripts/reconcile-configs.ts",
     "test": "bun test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "typecheck:opencode": "tsc --noEmit --pretty false"
   },
   "devDependencies": {
+    "@opencode-ai/plugin": "^1.4.3",
     "@types/bun": "latest",
     "typescript": "^5"
   }
