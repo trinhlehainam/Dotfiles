@@ -6,7 +6,9 @@ import path from "node:path";
 import {
   reconcileAllTools,
   reconcileTool,
+  resolveBasePaths,
   resolveLogMode,
+  resolvePathOverrides,
   runCli,
   tokenizeShellWords,
   type LogMode,
@@ -196,6 +198,125 @@ describe("log mode helpers", () => {
     expect(resolveLogMode(`chezmoi apply --source="/tmp/my --debug repo"`)).toBe(
       "info",
     );
+  });
+});
+
+describe("resolvePathOverrides", () => {
+  test("returns empty overrides when no path flags are present", () => {
+    expect(resolvePathOverrides("chezmoi apply -v")).toEqual({
+      sourceDir: undefined,
+      workingTree: undefined,
+    });
+  });
+
+  test("resolves --source to sourceDir", () => {
+    expect(resolvePathOverrides("chezmoi apply --source /tmp/worktree/home")).toEqual({
+      sourceDir: "/tmp/worktree/home",
+      workingTree: undefined,
+    });
+  });
+
+  test("resolves -S short flag to sourceDir", () => {
+    expect(resolvePathOverrides("chezmoi apply -S /tmp/worktree/home")).toEqual({
+      sourceDir: "/tmp/worktree/home",
+      workingTree: undefined,
+    });
+  });
+
+  test("resolves --working-tree to workingTree", () => {
+    expect(resolvePathOverrides("chezmoi apply --working-tree /tmp/worktree")).toEqual({
+      sourceDir: undefined,
+      workingTree: "/tmp/worktree",
+    });
+  });
+
+  test("resolves -W short flag to workingTree", () => {
+    expect(resolvePathOverrides("chezmoi apply -W /tmp/worktree")).toEqual({
+      sourceDir: undefined,
+      workingTree: "/tmp/worktree",
+    });
+  });
+
+  test("resolves both flags together", () => {
+    expect(
+      resolvePathOverrides(
+        "chezmoi apply -S /tmp/worktree/home -W /tmp/worktree",
+      ),
+    ).toEqual({
+      sourceDir: "/tmp/worktree/home",
+      workingTree: "/tmp/worktree",
+    });
+  });
+
+  test("resolves long flags together with extra flags", () => {
+    expect(
+      resolvePathOverrides(
+        "chezmoi diff --init --source /wt/home --working-tree /wt -v",
+      ),
+    ).toEqual({
+      sourceDir: "/wt/home",
+      workingTree: "/wt",
+    });
+  });
+
+  test("handles quoted paths with spaces", () => {
+    expect(
+      resolvePathOverrides(
+        `chezmoi apply -S "/tmp/my worktree/home" -W "/tmp/my worktree"`,
+      ),
+    ).toEqual({
+      sourceDir: "/tmp/my worktree/home",
+      workingTree: "/tmp/my worktree",
+    });
+  });
+
+  test("preserves backslashes in quoted Windows paths", () => {
+    expect(
+      resolvePathOverrides(
+        String.raw`chezmoi apply -S "C:\Users\me\repo\home" -W "C:\Users\me\repo"`,
+      ),
+    ).toEqual({
+      sourceDir: String.raw`C:\Users\me\repo\home`,
+      workingTree: String.raw`C:\Users\me\repo`,
+    });
+  });
+
+  test("preserves quoted empty values", () => {
+    expect(tokenizeShellWords(`chezmoi apply --source "" -W /tmp/worktree`)).toEqual([
+      "chezmoi",
+      "apply",
+      "--source",
+      "",
+      "-W",
+      "/tmp/worktree",
+    ]);
+  });
+
+  test("keeps empty quoted source override from consuming next flag", () => {
+    expect(resolvePathOverrides(`chezmoi apply --source "" -W /tmp/worktree`)).toEqual({
+      sourceDir: "",
+      workingTree: "/tmp/worktree",
+    });
+  });
+
+  test("returns empty overrides for empty args", () => {
+    expect(resolvePathOverrides("")).toEqual({
+      sourceDir: undefined,
+      workingTree: undefined,
+    });
+  });
+});
+
+describe("resolveBasePaths", () => {
+  test("falls back to .chezmoiroot when no overrides are present", async () => {
+    const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "chezmoi-paths-test-"));
+    tempDirs.push(repoRoot);
+    await fs.writeFile(path.join(repoRoot, ".chezmoiroot"), "dotfiles\n", "utf8");
+
+    expect(resolveBasePaths({}, repoRoot, "")).toEqual({
+      repoRoot,
+      sourceStateRoot: path.join(repoRoot, "dotfiles"),
+    });
   });
 });
 

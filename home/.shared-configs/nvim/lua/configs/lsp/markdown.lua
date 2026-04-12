@@ -1,32 +1,27 @@
 local LanguageSetting = require('configs.lsp.base')
 local LspConfig = require('configs.lsp.lspconfig')
-local obsidian = require('utils.obsidian')
 local M = LanguageSetting:new()
 
 M.treesitter.filetypes = { 'markdown', 'markdown_inline' }
 
----@param client vim.lsp.Client
-local function restrict_marksman_to_hover_only(client)
-  if not client.server_capabilities then
-    return
-  end
+local capabilities = vim.tbl_deep_extend('force', vim.lsp.protocol.make_client_capabilities(), {
+  workspace = {
+    didChangeWatchedFiles = {
+      dynamicRegistration = true,
+    },
+  },
+})
 
-  local hover_provider = client.server_capabilities.hoverProvider
-
-  client.server_capabilities = {}
-
-  client.server_capabilities.hoverProvider = hover_provider
+local ok, blink = pcall(require, 'blink.cmp')
+if ok then
+  capabilities = blink.get_lsp_capabilities(capabilities)
 end
 
-local marksman = LspConfig:new('marksman', 'marksman')
-marksman.config = {
-  on_attach = function(client, bufnr)
-    if obsidian.is_vault(bufnr) then
-      restrict_marksman_to_hover_only(client)
-    end
-  end,
+local markdown_oxide = LspConfig:new('markdown_oxide', 'markdown-oxide')
+markdown_oxide.config = {
+  capabilities = capabilities,
 }
 
-M.lspconfigs = { marksman }
+M.lspconfigs = { markdown_oxide }
 
 return M
