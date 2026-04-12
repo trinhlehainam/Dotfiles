@@ -15,6 +15,9 @@ export interface ClaudeHookInput {
   title?: string;
   notification_type?: string;
   stop_reason?: string;
+  error?: string;
+  tool_name?: string;
+  tool_input?: Record<string, unknown>;
 }
 
 export interface ParsedNotification {
@@ -31,6 +34,10 @@ export interface ParsedCliArgs {
   stdin: boolean;
 }
 
+const ESC = String.fromCharCode(27);
+const BEL = String.fromCharCode(7);
+const ST = `${ESC}\\`;
+
 // ---------------------------------------------------------------------------
 // Pure helpers (exported for testing)
 // ---------------------------------------------------------------------------
@@ -38,7 +45,7 @@ export interface ParsedCliArgs {
 /** Extract project name from cwd path */
 export function projectName(cwd?: string): string {
   if (!cwd) return "";
-  const parts = cwd.replace(/\/+$/, "").split("/");
+  const parts = cwd.replace(/[\\/]+$/, "").split(/[\\/]/);
   return parts[parts.length - 1] ?? "";
 }
 
@@ -60,20 +67,49 @@ export function notificationTypeLabel(type?: string): string {
 
 /** Sanitize text interpolated into OSC 777 fields — strip controls and escape semicolons */
 export function sanitizeOscField(value: string): string {
-  return value
-    .replace(/[\x00-\x1F\x7F]/g, "")
-    .replace(/;/g, ":");
+  let sanitized = "";
+
+  for (const character of value) {
+    const code = character.charCodeAt(0);
+    if ((code >= 0 && code <= 31) || code === 127) {
+      continue;
+    }
+
+    sanitized += character === ";" ? ":" : character;
+  }
+
+  return sanitized;
 }
 
 /** Build OSC 777 escape sequence */
 export function buildOsc777(title: string, body: string): string {
-  return `\x1b]777;notify;${sanitizeOscField(title)};${sanitizeOscField(body)}\x07`;
+  return `${ESC}]777;notify;${sanitizeOscField(title)};${sanitizeOscField(body)}${ST}`;
 }
 
 /** DCS-wrap an escape sequence for tmux passthrough */
 export function wrapForTmux(sequence: string, isTmux: boolean): string {
   if (!isTmux) return sequence;
-  return `\x1bPtmux;\x1b${sequence.replace(/\x1b/g, "\x1b\x1b")}\x1b\\`;
+  return `${ESC}Ptmux;${ESC}${sequence.split(ESC).join(`${ESC}${ESC}`)}${ST}`;
+}
+
+/** Only emit OSC 777 for known WezTerm sessions. BEL remains the universal fallback. */
+export function supportsOsc777(env: NodeJS.ProcessEnv): boolean {
+  return env.TERM_PROGRAM === "WezTerm"
+    || env.WEZTERM_PANE !== undefined
+    || env.WEZTERM_EXECUTABLE !== undefined;
+}
+
+/** Build the terminal control sequence for one notification. */
+export function buildTerminalNotification(
+  title: string,
+  body: string,
+  env: NodeJS.ProcessEnv = process.env,
+): string {
+  if (!supportsOsc777(env)) {
+    return BEL;
+  }
+
+  return `${BEL}${wrapForTmux(buildOsc777(title, body), !!env.TMUX)}`;
 }
 
 /** Format Claude Code hook input into rich notification */
@@ -86,7 +122,7 @@ export function formatClaudeHook(input: ClaudeHookInput): ParsedNotification {
       const typeLabel = notificationTypeLabel(input.notification_type);
       return {
         title: `Claude Code${projectLabel}`,
-        body: `${typeLabel}: ${input.message ?? "Notification"}`,
+        body: `${typeLabel}: ${input.message ?? input.title ?? "Notification"}`,
         source: "claude",
         event: input.notification_type ?? "notification",
         cwd: input.cwd,
@@ -98,6 +134,29 @@ export function formatClaudeHook(input: ClaudeHookInput): ParsedNotification {
         body: "Task complete",
         source: "claude",
         event: "stop",
+        cwd: input.cwd,
+      };
+    }
+    case "StopFailure": {
+      return {
+        title: `Claude Code${projectLabel}`,
+        body: input.error ? `Task failed: ${input.error}` : "Task failed",
+        source: "claude",
+        event: "stop_failure",
+        cwd: input.cwd,
+      };
+    }
+    case "PermissionRequest": {
+      const tool = input.tool_name ?? "tool";
+      const cmd = typeof input.tool_input?.command === "string"
+        ? input.tool_input.command
+        : "";
+      const body = cmd ? `${tool}: ${cmd.length > 80 ? cmd.slice(0, 77) + "..." : cmd}` : `Permission: ${tool}`;
+      return {
+        title: `Claude Code${projectLabel}`,
+        body,
+        source: "claude",
+        event: "permission_request",
         cwd: input.cwd,
       };
     }
@@ -113,7 +172,7 @@ export function formatClaudeHook(input: ClaudeHookInput): ParsedNotification {
     default: {
       return {
         title: `Claude Code${projectLabel}`,
-        body: input.message ?? input.hook_event_name,
+        body: input.message ?? input.title ?? input.hook_event_name,
         source: "claude",
         event: input.hook_event_name,
         cwd: input.cwd,
@@ -149,28 +208,72 @@ export function parseArgs(args: string[]): ParsedCliArgs {
 // I/O helpers (side-effecting, not exported)
 // ---------------------------------------------------------------------------
 
-/** Send terminal bell to /dev/tty */
-function sendBell(): void {
-  writeToTty("\x07");
+function defaultNotification(): ParsedNotification {
+  return {
+    title: "Notification",
+    body: "Agent event",
+    source: "unknown",
+    event: "unknown",
+  };
 }
 
-/** Write raw bytes to /dev/tty (fallback to stderr) */
-function writeToTty(data: string): void {
+function terminalDevicePath(): string {
+  return process.platform === "win32" ? "CONOUT$" : "/dev/tty";
+}
+
+/** Write raw bytes to the controlling terminal. */
+function writeToTerminal(data: string): void {
   try {
-    const fd = openSync("/dev/tty", "w");
-    writeSync(fd, data);
-    closeSync(fd);
+    const fd = openSync(terminalDevicePath(), "w");
+    try {
+      writeSync(fd, data);
+    } finally {
+      closeSync(fd);
+    }
   } catch {
-    process.stderr.write(data);
+    if (process.stderr.isTTY) {
+      process.stderr.write(data);
+    }
   }
 }
 
-/** Send OSC 777 notification toast */
-function sendOsc777(title: string, body: string): void {
-  const isTmux = !!process.env.TMUX;
-  const osc = buildOsc777(title, body);
-  const out = wrapForTmux(osc, isTmux);
-  writeToTty(out);
+function isClaudeHookInput(value: unknown): value is ClaudeHookInput {
+  return typeof value === "object" && value !== null && "hook_event_name" in value;
+}
+
+function parseNotificationFromStdin(input: string, strictJson: boolean): ParsedNotification {
+  const trimmed = input.trim();
+
+  if (!trimmed) {
+    return defaultNotification();
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+
+    if (isClaudeHookInput(parsed)) {
+      return formatClaudeHook(parsed);
+    }
+
+    if (strictJson) {
+      return defaultNotification();
+    }
+  } catch {
+    if (strictJson) {
+      return defaultNotification();
+    }
+  }
+
+  return {
+    title: "Notification",
+    body: trimmed,
+    source: "unknown",
+    event: "unknown",
+  };
+}
+
+function sendNotification(notification: ParsedNotification): void {
+  writeToTerminal(buildTerminalNotification(notification.title, notification.body));
 }
 
 
@@ -206,12 +309,7 @@ export async function main(): Promise<void> {
   let notification: ParsedNotification;
 
   if (parsed.stdin) {
-    try {
-      const input = await readStdin();
-      notification = formatClaudeHook(JSON.parse(input) as ClaudeHookInput);
-    } catch {
-      notification = { title: "Notification", body: "Agent event", source: "unknown", event: "unknown" };
-    }
+    notification = parseNotificationFromStdin(await readStdin(), true);
   } else if (parsed.title) {
     notification = {
       title: parsed.title,
@@ -220,25 +318,10 @@ export async function main(): Promise<void> {
       event: "manual",
     };
   } else {
-    try {
-      const input = await readStdin();
-      if (input.trim()) {
-        const json = JSON.parse(input);
-        if ("hook_event_name" in json) {
-          notification = formatClaudeHook(json as ClaudeHookInput);
-        } else {
-          notification = { title: "Notification", body: input.trim(), source: "unknown", event: "unknown" };
-        }
-      } else {
-        notification = { title: "Notification", body: "Agent event", source: "unknown", event: "unknown" };
-      }
-    } catch {
-      notification = { title: "Notification", body: "Agent event", source: "unknown", event: "unknown" };
-    }
+    notification = parseNotificationFromStdin(await readStdin(), false);
   }
 
-  sendBell();
-  sendOsc777(notification.title, notification.body);
+  sendNotification(notification);
 }
 
 if (import.meta.main) {

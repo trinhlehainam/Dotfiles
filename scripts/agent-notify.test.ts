@@ -1,12 +1,14 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  buildTerminalNotification,
   buildOsc777,
   formatClaudeHook,
   notificationTypeLabel,
   parseArgs,
   projectName,
   sanitizeOscField,
+  supportsOsc777,
   wrapForTmux,
   type ClaudeHookInput,
 } from "./agent-notify.ts";
@@ -34,6 +36,11 @@ describe("projectName", () => {
 
   test("handles root path", () => {
     expect(projectName("/")).toBe("");
+  });
+
+  test("handles Windows paths", () => {
+    expect(projectName("C:\\Users\\user\\myproject")).toBe("myproject");
+    expect(projectName("C:\\Users\\user\\myproject\\")).toBe("myproject");
   });
 });
 
@@ -147,6 +154,21 @@ describe("formatClaudeHook", () => {
     expect(result.event).toBe("subagent_stop");
   });
 
+  test("formats StopFailure event", () => {
+    const input: ClaudeHookInput = {
+      ...baseInput,
+      hook_event_name: "StopFailure",
+      error: "server_error",
+      cwd: "/home/user/myproject",
+    };
+
+    const result = formatClaudeHook(input);
+
+    expect(result.title).toBe("Claude Code \u2014 myproject");
+    expect(result.body).toBe("Task failed: server_error");
+    expect(result.event).toBe("stop_failure");
+  });
+
   test("formats unknown event", () => {
     const input: ClaudeHookInput = {
       ...baseInput,
@@ -170,6 +192,50 @@ describe("formatClaudeHook", () => {
 
     expect(result.body).toBe("CustomEvent");
   });
+
+  test("formats PermissionRequest with tool_name and command", () => {
+    const input: ClaudeHookInput = {
+      ...baseInput,
+      hook_event_name: "PermissionRequest",
+      tool_name: "Bash",
+      tool_input: { command: "rm -rf node_modules" },
+      cwd: "/home/user/myproject",
+    };
+
+    const result = formatClaudeHook(input);
+
+    expect(result.title).toBe("Claude Code \u2014 myproject");
+    expect(result.body).toBe("Bash: rm -rf node_modules");
+    expect(result.event).toBe("permission_request");
+  });
+
+  test("formats PermissionRequest without tool_input", () => {
+    const input: ClaudeHookInput = {
+      ...baseInput,
+      hook_event_name: "PermissionRequest",
+      tool_name: "Edit",
+    };
+
+    const result = formatClaudeHook(input);
+
+    expect(result.body).toBe("Permission: Edit");
+  });
+
+  test("formats PermissionRequest with long command (truncated)", () => {
+    const longCmd = "a".repeat(150);
+    const input: ClaudeHookInput = {
+      ...baseInput,
+      hook_event_name: "PermissionRequest",
+      tool_name: "Bash",
+      tool_input: { command: longCmd },
+    };
+
+    const result = formatClaudeHook(input);
+
+    expect(result.body.length).toBeLessThan(100);
+    expect(result.body).toContain("Bash:");
+    expect(result.body).toContain("...");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -180,25 +246,25 @@ describe("buildOsc777", () => {
   test("produces correct OSC 777 sequence", () => {
     const result = buildOsc777("Title", "Body text");
 
-    expect(result).toBe("\x1b]777;notify;Title;Body text\x07");
+    expect(result).toBe("\x1b]777;notify;Title;Body text\x1b\\");
   });
 
   test("handles empty body", () => {
     const result = buildOsc777("Title", "");
 
-    expect(result).toBe("\x1b]777;notify;Title;\x07");
+    expect(result).toBe("\x1b]777;notify;Title;\x1b\\");
   });
 
   test("sanitizes control characters from title and body", () => {
     const result = buildOsc777("Title\x07\x1b", "Body\x07\x1btext");
 
-    expect(result).toBe("\x1b]777;notify;Title;Bodytext\x07");
+    expect(result).toBe("\x1b]777;notify;Title;Bodytext\x1b\\");
   });
 
   test("replaces semicolons with colons", () => {
     const result = buildOsc777("Title;extra", "Body;text");
 
-    expect(result).toBe("\x1b]777;notify;Title:extra;Body:text\x07");
+    expect(result).toBe("\x1b]777;notify;Title:extra;Body:text\x1b\\");
   });
 });
 
@@ -234,31 +300,69 @@ describe("sanitizeOscField", () => {
 
 describe("wrapForTmux", () => {
   test("returns sequence unchanged when not in tmux", () => {
-    const sequence = "\x1b]777;notify;Title;Body\x07";
+    const sequence = "\x1b]777;notify;Title;Body\x1b\\";
 
     expect(wrapForTmux(sequence, false)).toBe(sequence);
   });
 
   test("wraps sequence in DCS passthrough when in tmux", () => {
-    const sequence = "\x1b]777;notify;Title;Body\x07";
+    const sequence = "\x1b]777;notify;Title;Body\x1b\\";
     const result = wrapForTmux(sequence, true);
 
-    // DCS format: \ePtmux;\e + (content with every \e doubled) + \e\\
-    // Original has 1 ESC before ]777 → doubled to 2 ESCs, plus 1 from prefix = 3 ESCs
-    expect(result).toBe("\x1bPtmux;\x1b\x1b\x1b]777;notify;Title;Body\x07\x1b\\");
+    expect(result).toBe("\x1bPtmux;\x1b\x1b\x1b]777;notify;Title;Body\x1b\x1b\\\x1b\\");
   });
 
   test("doubles all ESC characters in the wrapped sequence", () => {
-    const sequence = "\x1b]777;notify;\x1bTitle;Body\x07";
+    const sequence = "\x1b]777;notify;\x1bTitle;Body\x1b\\";
     const result = wrapForTmux(sequence, true);
 
-    // Original has 2 ESCs → each doubled → 4 ESCs in content + 1 from prefix
-    expect(result).toBe("\x1bPtmux;\x1b\x1b\x1b]777;notify;\x1b\x1bTitle;Body\x07\x1b\\");
+    expect(result).toBe("\x1bPtmux;\x1b\x1b\x1b]777;notify;\x1b\x1bTitle;Body\x1b\x1b\\\x1b\\");
   });
 
   test("handles empty sequence", () => {
     expect(wrapForTmux("", false)).toBe("");
     expect(wrapForTmux("", true)).toBe("\x1bPtmux;\x1b\x1b\\");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// supportsOsc777
+// ---------------------------------------------------------------------------
+
+describe("supportsOsc777", () => {
+  test("detects WezTerm via TERM_PROGRAM", () => {
+    expect(supportsOsc777({ TERM_PROGRAM: "WezTerm" })).toBe(true);
+  });
+
+  test("detects WezTerm via WEZTERM_PANE", () => {
+    expect(supportsOsc777({ WEZTERM_PANE: "1" })).toBe(true);
+  });
+
+  test("returns false for other terminals", () => {
+    expect(supportsOsc777({ TERM_PROGRAM: "Apple_Terminal" })).toBe(false);
+    expect(supportsOsc777({})).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildTerminalNotification
+// ---------------------------------------------------------------------------
+
+describe("buildTerminalNotification", () => {
+  test("returns bell only for unknown terminals", () => {
+    expect(buildTerminalNotification("Title", "Body", {})).toBe("\x07");
+  });
+
+  test("returns bell plus OSC 777 for WezTerm", () => {
+    expect(buildTerminalNotification("Title", "Body", { TERM_PROGRAM: "WezTerm" })).toBe(
+      "\x07\x1b]777;notify;Title;Body\x1b\\",
+    );
+  });
+
+  test("wraps WezTerm OSC 777 for tmux", () => {
+    expect(buildTerminalNotification("Title", "Body", { TERM_PROGRAM: "WezTerm", TMUX: "/tmp/tmux" })).toBe(
+      "\x07\x1bPtmux;\x1b\x1b\x1b]777;notify;Title;Body\x1b\x1b\\\x1b\\",
+    );
   });
 });
 
