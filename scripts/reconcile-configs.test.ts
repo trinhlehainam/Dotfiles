@@ -7,6 +7,7 @@ import {
   reconcileAllTools,
   reconcileTool,
   resolveLogMode,
+  resolvePathOverrides,
   runCli,
   tokenizeShellWords,
   type LogMode,
@@ -196,6 +197,83 @@ describe("log mode helpers", () => {
     expect(resolveLogMode(`chezmoi apply --source="/tmp/my --debug repo"`)).toBe(
       "info",
     );
+  });
+});
+
+describe("resolvePathOverrides", () => {
+  test("returns empty overrides when no path flags are present", () => {
+    expect(resolvePathOverrides("chezmoi apply -v")).toEqual({
+      sourceDir: undefined,
+      workingTree: undefined,
+    });
+  });
+
+  test("resolves --source to sourceDir", () => {
+    expect(resolvePathOverrides("chezmoi apply --source /tmp/worktree/home")).toEqual({
+      sourceDir: "/tmp/worktree/home",
+      workingTree: undefined,
+    });
+  });
+
+  test("resolves -S short flag to sourceDir", () => {
+    expect(resolvePathOverrides("chezmoi apply -S /tmp/worktree/home")).toEqual({
+      sourceDir: "/tmp/worktree/home",
+      workingTree: undefined,
+    });
+  });
+
+  test("resolves --working-tree to workingTree", () => {
+    expect(resolvePathOverrides("chezmoi apply --working-tree /tmp/worktree")).toEqual({
+      sourceDir: undefined,
+      workingTree: "/tmp/worktree",
+    });
+  });
+
+  test("resolves -W short flag to workingTree", () => {
+    expect(resolvePathOverrides("chezmoi apply -W /tmp/worktree")).toEqual({
+      sourceDir: undefined,
+      workingTree: "/tmp/worktree",
+    });
+  });
+
+  test("resolves both flags together", () => {
+    expect(
+      resolvePathOverrides(
+        "chezmoi apply -S /tmp/worktree/home -W /tmp/worktree",
+      ),
+    ).toEqual({
+      sourceDir: "/tmp/worktree/home",
+      workingTree: "/tmp/worktree",
+    });
+  });
+
+  test("resolves long flags together with extra flags", () => {
+    expect(
+      resolvePathOverrides(
+        "chezmoi diff --init --source /wt/home --working-tree /wt -v",
+      ),
+    ).toEqual({
+      sourceDir: "/wt/home",
+      workingTree: "/wt",
+    });
+  });
+
+  test("handles quoted paths with spaces", () => {
+    expect(
+      resolvePathOverrides(
+        `chezmoi apply -S "/tmp/my worktree/home" -W "/tmp/my worktree"`,
+      ),
+    ).toEqual({
+      sourceDir: "/tmp/my worktree/home",
+      workingTree: "/tmp/my worktree",
+    });
+  });
+
+  test("returns empty overrides for empty args", () => {
+    expect(resolvePathOverrides("")).toEqual({
+      sourceDir: undefined,
+      workingTree: undefined,
+    });
   });
 });
 

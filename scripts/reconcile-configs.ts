@@ -58,6 +58,28 @@ type LogWriters = {
   now: () => Date;
 };
 
+export type PathOverrides = {
+  sourceDir?: string;
+  workingTree?: string;
+};
+
+export function resolvePathOverrides(rawChezMoiArgs: string): PathOverrides {
+  const { values } = parseArgs({
+    args: tokenizeShellWords(rawChezMoiArgs),
+    options: {
+      source: { type: "string", short: "S" },
+      "working-tree": { type: "string", short: "W" },
+    },
+    strict: false,
+    allowPositionals: true,
+  });
+
+  return {
+    sourceDir: values.source as string | undefined,
+    workingTree: values["working-tree"] as string | undefined,
+  };
+}
+
 export type ReconcileOptions = {
   hostHome?: string;
   hostKind?: PlatformKind;
@@ -238,8 +260,9 @@ function createLogger(logPrefix: string, logMode: LogMode, writers: LogWriters):
 }
 
 function createRuntime(tool: ToolConfig, options: ReconcileOptions = {}): ReconcileRuntime {
-  const repoRoot = options.repoRoot ?? defaultRepoRoot;
-  const sourceStateRoot = options.sourceStateRoot ?? path.join(repoRoot, "home");
+  const pathOverrides = resolvePathOverrides(process.env.CHEZMOI_ARGS ?? "");
+  const repoRoot = options.repoRoot ?? pathOverrides.workingTree ?? defaultRepoRoot;
+  const sourceStateRoot = options.sourceStateRoot ?? pathOverrides.sourceDir ?? path.join(repoRoot, "home");
   const hostHome = options.hostHome ?? os.homedir();
   const hostKind = options.hostKind ?? defaultHostKind;
   const logMode = options.logMode ?? resolveLogMode(process.env.CHEZMOI_ARGS ?? "");
@@ -698,8 +721,9 @@ export async function reconcileAllTools(
     }
   }
 
-  const repoRoot = options.repoRoot ?? defaultRepoRoot;
-  const sourceStateRoot = options.sourceStateRoot ?? path.join(repoRoot, "home");
+  const pathOverrides = resolvePathOverrides(process.env.CHEZMOI_ARGS ?? "");
+  const repoRoot = options.repoRoot ?? pathOverrides.workingTree ?? defaultRepoRoot;
+  const sourceStateRoot = options.sourceStateRoot ?? pathOverrides.sourceDir ?? path.join(repoRoot, "home");
   const removeManifestPath = options.removeManifestPath ?? path.join(sourceStateRoot, ".chezmoiremove");
   const logMode = options.logMode ?? resolveLogMode(process.env.CHEZMOI_ARGS ?? "");
   const writers: LogWriters = {
