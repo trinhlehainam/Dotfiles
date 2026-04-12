@@ -4,13 +4,13 @@ local M = LanguageSetting:new()
 
 M.treesitter.filetypes = { 'markdown', 'markdown_inline' }
 
-local capabilities = {
+local capabilities = vim.tbl_deep_extend('force', vim.lsp.protocol.make_client_capabilities(), {
   workspace = {
     didChangeWatchedFiles = {
       dynamicRegistration = true,
     },
   },
-}
+})
 
 local ok, blink = pcall(require, 'blink.cmp')
 if ok then
