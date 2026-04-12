@@ -11,8 +11,12 @@ type SessionContext = {
   pendingPermission?: string
 }
 
+// `session.idle` only gives `sessionID`, so keep the latest useful context here
+// and render it when the session finishes.
 const sessions = new Map<string, SessionContext>()
 
+// OpenCode permission payloads differ between published plugin types and newer
+// runtime/docs. Normalize the small shared shape we need for notifications.
 type PermissionLike = {
   sessionID: string
   type?: string
@@ -87,6 +91,8 @@ export const NotifyPlugin: Plugin = async ({ $ }) => {
         return
       }
 
+      // Newer OpenCode runtimes emit `permission.asked` before the published
+      // `@opencode-ai/plugin` package types fully catch up.
       const permissionAsked = event as { type: string; properties: PermissionLike }
       if (permissionAsked.type === "permission.asked") {
         const session = getSession(permissionAsked.properties.sessionID, "")
