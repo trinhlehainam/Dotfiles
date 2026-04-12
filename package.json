@@ -8,7 +8,7 @@
     "reconcile:configs": "bun run scripts/reconcile-configs.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
-    "typecheck:opencode": "tsc --noEmit --pretty false"
+    "typecheck:opencode": "tsc --noEmit --pretty false",
     "worktree:context": "bun run scripts/worktree-dev.ts context",
     "worktree:diff": "bun run scripts/worktree-dev.ts diff",
     "worktree:dry-run": "bun run scripts/worktree-dev.ts dry-run",

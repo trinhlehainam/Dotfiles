@@ -24,7 +24,7 @@ export interface ClaudeHookInput {
 
 /** Codex CLI notify payload — passed as single argv JSON argument. */
 export interface CodexNotifyPayload {
-  /** Event type. Currently only "agent-turn-complete" is supported. */
+  /** Event type. Known type is "agent-turn-complete", but unknown types still format generically. */
   type: string;
   "thread-id"?: string;
   "turn-id"?: string;
@@ -116,7 +116,7 @@ export function formatCodexEvent(payload: CodexNotifyPayload): ParsedNotificatio
       };
     default:
       return {
-        title: "Codex",
+        title: `Codex${projectLabel}`,
         body: payload["last-assistant-message"] ?? payload.type,
         source: "codex",
         event: payload.type,
@@ -556,7 +556,10 @@ export async function main(): Promise<void> {
       notification = parseNotificationFromStdin(stdinText, false);
     } else if (parsed.title) {
       // No stdin — check if title is actually a Codex JSON payload
-      const codex = parseCodexArgv(parsed.title);
+      const maybeCodexTitle = parsed.title.trimStart();
+      const codex = maybeCodexTitle.startsWith("{")
+        ? parseCodexArgv(parsed.title)
+        : defaultNotification();
       if (codex.source === "codex") {
         notification = codex;
       } else {

@@ -19,10 +19,16 @@ const sessions = new Map<string, SessionContext>()
 // runtime/docs. Normalize the small shared shape we need for notifications.
 type PermissionLike = {
   sessionID: string
+  title?: string
   type?: string
   permission?: string
   pattern?: string | string[]
   patterns?: string[]
+}
+
+type PermissionAskedEvent = {
+  type: "permission.asked"
+  properties: PermissionLike
 }
 
 function projectName(directory: string): string {
@@ -32,6 +38,7 @@ function projectName(directory: string): string {
 
 function clip(text: string, max = 140): string {
   const trimmed = text.replace(/\s+/g, " ").trim()
+  if (max <= 3) return trimmed.slice(0, max)
   return trimmed.length > max ? `${trimmed.slice(0, max - 3)}...` : trimmed
 }
 
@@ -54,11 +61,42 @@ function idleBody(session: SessionContext): string {
 }
 
 function permissionBody(permission: PermissionLike): string {
+  if (permission.title) return permission.title
+
   const kind = permission.type ?? permission.permission ?? "permission"
   const pattern = Array.isArray(permission.pattern)
     ? permission.pattern.join(", ")
     : permission.pattern ?? permission.patterns?.join(", ") ?? "*"
   return `${kind} (${pattern})`
+}
+
+function isPermissionAskedEvent(
+  event: { type: string; properties?: unknown },
+): event is PermissionAskedEvent {
+  if (event.type !== "permission.asked") return false
+  if (typeof event.properties !== "object" || event.properties === null) return false
+  return typeof (event.properties as PermissionLike).sessionID === "string"
+}
+
+async function notify(
+  $: Parameters<Plugin>[0]["$"],
+  session: SessionContext,
+  body: string,
+): Promise<void> {
+  try {
+    await $`${NOTIFY_BIN} -t ${titleFor(session)} -b ${body}`
+  } catch (error) {
+    console.error("notify.ts: agent-notify failed", error)
+  }
+}
+
+async function notifyPermission(
+  $: Parameters<Plugin>[0]["$"],
+  permission: PermissionLike,
+): Promise<void> {
+  const session = getSession(permission.sessionID, "")
+  session.pendingPermission = permissionBody(permission)
+  await notify($, session, `Permission required: ${session.pendingPermission}`)
 }
 
 export const NotifyPlugin: Plugin = async ({ $ }) => {
@@ -85,19 +123,15 @@ export const NotifyPlugin: Plugin = async ({ $ }) => {
       }
 
       if (event.type === "permission.updated") {
-        const session = getSession(event.properties.sessionID, "")
-        session.pendingPermission = permissionBody(event.properties)
-        await $`${NOTIFY_BIN} -t ${titleFor(session)} -b ${`Permission required: ${session.pendingPermission}`}`
+        await notifyPermission($, event.properties)
         return
       }
 
       // Newer OpenCode runtimes emit `permission.asked` before the published
       // `@opencode-ai/plugin` package types fully catch up.
-      const permissionAsked = event as { type: string; properties: PermissionLike }
-      if (permissionAsked.type === "permission.asked") {
-        const session = getSession(permissionAsked.properties.sessionID, "")
-        session.pendingPermission = permissionBody(permissionAsked.properties)
-        await $`${NOTIFY_BIN} -t ${titleFor(session)} -b ${`Permission required: ${session.pendingPermission}`}`
+      const permissionAskedEvent = event as { type: string; properties?: unknown }
+      if (isPermissionAskedEvent(permissionAskedEvent)) {
+        await notifyPermission($, permissionAskedEvent.properties)
         return
       }
 
@@ -105,21 +139,25 @@ export const NotifyPlugin: Plugin = async ({ $ }) => {
         const sessionID = event.properties.sessionID
         const session = sessionID ? getSession(sessionID, "") : { project: "" }
         const body = session.lastText ? `Session error after: ${session.lastText}` : "Session error"
-        await $`${NOTIFY_BIN} -t ${titleFor(session)} -b ${body}`
-        if (sessionID) sessions.delete(sessionID)
+        try {
+          await notify($, session, body)
+        } finally {
+          if (sessionID) sessions.delete(sessionID)
+        }
         return
       }
 
       if (event.type === "session.idle") {
         const session = getSession(event.properties.sessionID, "")
-        await $`${NOTIFY_BIN} -t ${titleFor(session)} -b ${idleBody(session)}`
-        sessions.delete(event.properties.sessionID)
+        try {
+          await notify($, session, idleBody(session))
+        } finally {
+          sessions.delete(event.properties.sessionID)
+        }
       }
     },
     "permission.ask": async (input) => {
-      const session = getSession(input.sessionID, "")
-      session.pendingPermission = permissionBody(input)
-      await $`${NOTIFY_BIN} -t ${titleFor(session)} -b ${`Permission required: ${session.pendingPermission}`}`
+      await notifyPermission($, input)
     },
   }
 }

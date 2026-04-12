@@ -720,12 +720,13 @@ describe("formatCodexEvent", () => {
     const payload: CodexNotifyPayload = {
       type: "custom-event",
       "thread-id": "t1",
+      cwd: "/home/user/myproject",
       "last-assistant-message": "Done working",
     };
 
     const result = formatCodexEvent(payload);
 
-    expect(result.title).toBe("Codex");
+    expect(result.title).toBe("Codex — myproject");
     expect(result.body).toBe("Done working");
     expect(result.event).toBe("custom-event");
   });
