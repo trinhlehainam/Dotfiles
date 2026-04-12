@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
-import { closeSync, openSync, writeSync } from "node:fs";
+import { writeFileSync } from "node:fs";
+import { text as readStreamText } from "node:stream/consumers";
 import { parseArgs as nodeParseArgs } from "node:util";
 
 // ---------------------------------------------------------------------------
@@ -82,7 +83,7 @@ export function sanitizeOscField(value: string): string {
 
   for (const character of value) {
     const code = character.charCodeAt(0);
-    if ((code >= 0 && code <= 31) || code === 127) {
+    if ((code >= 0 && code <= 31) || (code >= 127 && code <= 159)) {
       continue;
     }
 
@@ -100,7 +101,7 @@ export function buildOsc777(title: string, body: string): string {
 /** DCS-wrap an escape sequence for tmux passthrough */
 export function wrapForTmux(sequence: string, isTmux: boolean): string {
   if (!isTmux) return sequence;
-  return `${ESC}Ptmux;${ESC}${sequence.split(ESC).join(`${ESC}${ESC}`)}${ST}`;
+  return `${ESC}Ptmux;${sequence.replaceAll(ESC, `${ESC}${ESC}`)}${ST}`;
 }
 
 /** Parse a `tmux list-clients -F '#{client_termname}|#{client_termtype}'` line. */
@@ -147,10 +148,13 @@ export function supportsOsc777(
     return false;
   }
 
+  if (env.TMUX) {
+    return supportsOsc777ViaTmuxClientInfo(tmuxClientInfo);
+  }
+
   return env.TERM_PROGRAM === "WezTerm"
     || env.WEZTERM_PANE !== undefined
     || env.WEZTERM_EXECUTABLE !== undefined
-    || supportsOsc777ViaTmuxClientInfo(tmuxClientInfo);
 }
 
 /** Decide which terminal path is safe for notifications in the current process. */
@@ -173,11 +177,12 @@ export function buildTerminalNotification(
   env: NodeJS.ProcessEnv = process.env,
   tmuxClientInfo: TmuxClientInfo | null = null,
 ): string {
-  if (!selectNotificationTransport(env, tmuxClientInfo).allowOsc777) {
-    return BEL;
-  }
-
-  return `${BEL}${wrapForTmux(buildOsc777(title, body), !!env.TMUX)}`;
+  return terminalNotificationSequence(
+    title,
+    body,
+    selectNotificationTransport(env, tmuxClientInfo),
+    !!env.TMUX,
+  );
 }
 
 /** Format Claude Code hook input into rich notification */
@@ -262,13 +267,15 @@ export function parseArgs(args: string[]): ParsedCliArgs {
     allowPositionals: true,
   });
 
-  const title = values.title ?? positionals[0];
-  const body = values.body ?? (positionals.length > 1 && !values.title ? positionals[1] : undefined);
+  const explicitTitle = stringOption(values.title as string | string[] | undefined);
+  const explicitBody = stringOption(values.body as string | string[] | undefined);
+  const title = explicitTitle ?? positionals[0];
+  const body = explicitBody ?? (positionals.length > 1 && explicitTitle === undefined ? positionals[1] : undefined);
 
   return {
     stdin: !!values.stdin,
-    title: title as string | undefined,
-    body: body as string | undefined,
+    title,
+    body,
   };
 }
 
@@ -285,44 +292,55 @@ function defaultNotification(): ParsedNotification {
   };
 }
 
+function stringOption(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value.at(-1) : value;
+}
+
+function terminalNotificationSequence(
+  title: string,
+  body: string,
+  transport: Pick<NotificationTransport, "allowOsc777">,
+  isTmux: boolean,
+): string {
+  if (!transport.allowOsc777) {
+    return BEL;
+  }
+
+  return `${BEL}${wrapForTmux(buildOsc777(title, body), isTmux)}`;
+}
+
 function terminalDevicePath(): string {
   return process.platform === "win32" ? "CONOUT$" : "/dev/tty";
 }
 
-function currentPaneTtyPath(): string | null {
-  const paneId = process.env.TMUX_PANE;
-  if (!paneId) {
-    return null;
-  }
-
+function tmuxCapture(args: string[]): string | null {
   try {
-    const tty = execFileSync(
+    const output = execFileSync(
       "tmux",
-      ["display-message", "-p", "-t", paneId, "#{pane_tty}"],
+      args,
       { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
     ).trim();
-    return tty || null;
+    return output || null;
   } catch {
     return null;
   }
 }
 
-function currentSessionId(): string | null {
+function tmuxDisplayValue(format: string): string | null {
   const paneId = process.env.TMUX_PANE;
   if (!paneId) {
     return null;
   }
 
-  try {
-    const sessionId = execFileSync(
-      "tmux",
-      ["display-message", "-p", "-t", paneId, "#{session_id}"],
-      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
-    ).trim();
-    return sessionId || null;
-  } catch {
-    return null;
-  }
+  return tmuxCapture(["display-message", "-p", "-t", paneId, format]);
+}
+
+function currentPaneTtyPath(): string | null {
+  return tmuxDisplayValue("#{pane_tty}");
+}
+
+function currentSessionId(): string | null {
+  return tmuxDisplayValue("#{session_id}");
 }
 
 function detectTmuxClientInfo(): TmuxClientInfo | null {
@@ -335,11 +353,10 @@ function detectTmuxClientInfo(): TmuxClientInfo | null {
     const args = sessionId
       ? ["list-clients", "-t", sessionId, "-F", "#{client_termname}|#{client_termtype}"]
       : ["list-clients", "-F", "#{client_termname}|#{client_termtype}"];
-    const output = execFileSync(
-      "tmux",
-      args,
-      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
-    );
+    const output = tmuxCapture(args);
+    if (output === null) {
+      return null;
+    }
 
     const clientInfos: TmuxClientInfo[] = [];
     for (const line of output.split(/\r?\n/)) {
@@ -357,13 +374,8 @@ function detectTmuxClientInfo(): TmuxClientInfo | null {
 
 function writeToPath(path: string, data: string): boolean {
   try {
-    const fd = openSync(path, "w");
-    try {
-      writeSync(fd, data);
-      return true;
-    } finally {
-      closeSync(fd);
-    }
+    writeFileSync(path, data, { flag: "w" });
+    return true;
   } catch {
     return false;
   }
@@ -373,6 +385,8 @@ function writeToPath(path: string, data: string): boolean {
 function writeToTerminal(data: string, transport: NotificationTransport): void {
   const paneTtyPath = currentPaneTtyPath();
 
+  // Neovim terminal buffers are rendered by libvterm, so pane PTY output is the
+  // only reliable route back to the outer terminal when tmux is available.
   if (transport.preferTmuxPaneTty && paneTtyPath && writeToPath(paneTtyPath, data)) {
     return;
   }
@@ -391,7 +405,12 @@ function writeToTerminal(data: string, transport: NotificationTransport): void {
 }
 
 function isClaudeHookInput(value: unknown): value is ClaudeHookInput {
-  return typeof value === "object" && value !== null && "hook_event_name" in value;
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const candidate = value as Partial<Record<keyof ClaudeHookInput, unknown>>;
+  return typeof candidate.hook_event_name === "string" && typeof candidate.session_id === "string";
 }
 
 function parseNotificationFromStdin(input: string, strictJson: boolean): ParsedNotification {
@@ -429,7 +448,7 @@ function sendNotification(notification: ParsedNotification): void {
   const tmuxClientInfo = detectTmuxClientInfo();
   const transport = selectNotificationTransport(process.env, tmuxClientInfo);
   writeToTerminal(
-    buildTerminalNotification(notification.title, notification.body, process.env, tmuxClientInfo),
+    terminalNotificationSequence(notification.title, notification.body, transport, !!process.env.TMUX),
     transport,
   );
 }
@@ -439,26 +458,16 @@ function sendNotification(notification: ParsedNotification): void {
 // Main
 // ---------------------------------------------------------------------------
 
-function readStdin(): Promise<string> {
-  return new Promise((resolve) => {
-    let data = "";
-    let settled = false;
-    if (process.stdin.isTTY) {
-      resolve(data);
-      return;
-    }
-    process.stdin.setEncoding("utf8");
-    process.stdin.on("data", (chunk: string) => {
-      data += chunk;
-    });
-    const timer = setTimeout(() => {
-      if (!settled) { settled = true; resolve(data); }
-    }, 2000);
-    process.stdin.on("end", () => {
-      clearTimeout(timer);
-      if (!settled) { settled = true; resolve(data); }
-    });
-  });
+async function readStdin(): Promise<string> {
+  if (process.stdin.isTTY) {
+    return "";
+  }
+
+  try {
+    return await readStreamText(process.stdin);
+  } catch {
+    return "";
+  }
 }
 
 export async function main(): Promise<void> {

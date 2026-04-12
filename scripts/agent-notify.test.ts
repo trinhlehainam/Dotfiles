@@ -292,6 +292,10 @@ describe("sanitizeOscField", () => {
     expect(sanitizeOscField("hello\n\tworld")).toBe("helloworld");
   });
 
+  test("strips C1 control characters", () => {
+    expect(sanitizeOscField("hello\u009bworld")).toBe("helloworld");
+  });
+
   test("replaces semicolons with colons", () => {
     expect(sanitizeOscField("a;b;c")).toBe("a:b:c");
   });
@@ -316,19 +320,19 @@ describe("wrapForTmux", () => {
     const sequence = "\x1b]777;notify;Title;Body\x1b\\";
     const result = wrapForTmux(sequence, true);
 
-    expect(result).toBe("\x1bPtmux;\x1b\x1b\x1b]777;notify;Title;Body\x1b\x1b\\\x1b\\");
+    expect(result).toBe("\x1bPtmux;\x1b\x1b]777;notify;Title;Body\x1b\x1b\\\x1b\\");
   });
 
   test("doubles all ESC characters in the wrapped sequence", () => {
     const sequence = "\x1b]777;notify;\x1bTitle;Body\x1b\\";
     const result = wrapForTmux(sequence, true);
 
-    expect(result).toBe("\x1bPtmux;\x1b\x1b\x1b]777;notify;\x1b\x1bTitle;Body\x1b\x1b\\\x1b\\");
+    expect(result).toBe("\x1bPtmux;\x1b\x1b]777;notify;\x1b\x1bTitle;Body\x1b\x1b\\\x1b\\");
   });
 
   test("handles empty sequence", () => {
     expect(wrapForTmux("", false)).toBe("");
-    expect(wrapForTmux("", true)).toBe("\x1bPtmux;\x1b\x1b\\");
+    expect(wrapForTmux("", true)).toBe("\x1bPtmux;\x1b\\");
   });
 });
 
@@ -469,6 +473,10 @@ describe("supportsOsc777", () => {
     ).toBe(true);
   });
 
+  test("does not trust TERM_PROGRAM inside tmux without WezTerm client metadata", () => {
+    expect(supportsOsc777({ TMUX: "/tmp/tmux", TERM_PROGRAM: "WezTerm" }, null)).toBe(false);
+  });
+
   test("returns false inside Neovim terminal without tmux bypass", () => {
     expect(supportsOsc777({ NVIM: "/tmp/nvim.sock", TERM_PROGRAM: "WezTerm" })).toBe(false);
   });
@@ -495,9 +503,7 @@ describe("buildTerminalNotification", () => {
   });
 
   test("wraps WezTerm OSC 777 for tmux", () => {
-    expect(buildTerminalNotification("Title", "Body", { TERM_PROGRAM: "WezTerm", TMUX: "/tmp/tmux" })).toBe(
-      "\x07\x1bPtmux;\x1b\x1b\x1b]777;notify;Title;Body\x1b\x1b\\\x1b\\",
-    );
+    expect(buildTerminalNotification("Title", "Body", { TERM_PROGRAM: "WezTerm", TMUX: "/tmp/tmux" })).toBe("\x07");
   });
 
   test("wraps OSC 777 when tmux client info identifies WezTerm", () => {
@@ -508,7 +514,7 @@ describe("buildTerminalNotification", () => {
         { TERM_PROGRAM: "tmux", TMUX: "/tmp/tmux" },
         { termname: "xterm-256color", termtype: "WezTerm 20240203" },
       ),
-    ).toBe("\x07\x1bPtmux;\x1b\x1b\x1b]777;notify;Title;Body\x1b\x1b\\\x1b\\");
+    ).toBe("\x07\x1bPtmux;\x1b\x1b]777;notify;Title;Body\x1b\x1b\\\x1b\\");
   });
 
   test("returns bell only inside Neovim terminal without tmux bypass", () => {
@@ -573,5 +579,12 @@ describe("parseArgs", () => {
 
     expect(result.title).toBe("Flag");
     expect(result.body).toBeUndefined();
+  });
+
+  test("uses the last repeated string option", () => {
+    const result = parseArgs(["--title", "First", "--title", "Second", "--body", "One", "--body", "Two"]);
+
+    expect(result.title).toBe("Second");
+    expect(result.body).toBe("Two");
   });
 });
