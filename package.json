@@ -7,7 +7,11 @@
     "build:notify": "bun build --compile scripts/agent-notify.ts --outfile ~/.local/bin/agent-notify",
     "reconcile:configs": "bun run scripts/reconcile-configs.ts",
     "test": "bun test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "worktree:context": "bun run scripts/worktree-dev.ts context",
+    "worktree:diff": "bun run scripts/worktree-dev.ts diff",
+    "worktree:dry-run": "bun run scripts/worktree-dev.ts dry-run",
+    "worktree:apply-temp": "bun run scripts/worktree-dev.ts apply-temp"
   },
   "devDependencies": {
     "@types/bun": "latest",
