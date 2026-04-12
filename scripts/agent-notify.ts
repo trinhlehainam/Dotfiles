@@ -22,7 +22,9 @@ export interface ClaudeHookInput {
   tool_input?: Record<string, unknown>;
 }
 
+/** Codex CLI notify payload — passed as single argv JSON argument. */
 export interface CodexNotifyPayload {
+  /** Event type. Currently only "agent-turn-complete" is supported. */
   type: string;
   "thread-id"?: string;
   "turn-id"?: string;
