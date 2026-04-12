@@ -502,7 +502,7 @@ describe("buildTerminalNotification", () => {
     );
   });
 
-  test("wraps WezTerm OSC 777 for tmux", () => {
+  test("returns bell only in tmux without trusted WezTerm client metadata", () => {
     expect(buildTerminalNotification("Title", "Body", { TERM_PROGRAM: "WezTerm", TMUX: "/tmp/tmux" })).toBe("\x07");
   });
 
