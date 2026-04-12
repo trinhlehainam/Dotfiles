@@ -22,6 +22,16 @@ export interface ClaudeHookInput {
   tool_input?: Record<string, unknown>;
 }
 
+export interface CodexNotifyPayload {
+  type: string;
+  "thread-id"?: string;
+  "turn-id"?: string;
+  cwd?: string;
+  "input-messages"?: string[];
+  "last-assistant-message"?: string;
+  client?: string;
+}
+
 export interface ParsedNotification {
   title: string;
   body: string;
@@ -34,6 +44,8 @@ export interface ParsedCliArgs {
   title?: string;
   body?: string;
   stdin: boolean;
+  format: "auto" | "claude" | "codex";
+  positionals: string[];
 }
 
 export interface TmuxClientInfo {
@@ -74,6 +86,40 @@ export function notificationTypeLabel(type?: string): string {
       return "Question";
     default:
       return "Notification";
+  }
+}
+
+/** Detect Codex CLI notify payloads by checking for Codex-specific fields. */
+export function isCodexNotifyPayload(value: unknown): value is CodexNotifyPayload {
+  if (typeof value !== "object" || value === null) return false;
+  const candidate = value as Partial<CodexNotifyPayload>;
+  return typeof candidate.type === "string"
+    && (typeof candidate["thread-id"] === "string"
+      || typeof candidate["turn-id"] === "string");
+}
+
+/** Format Codex CLI notify payload into a standard notification. */
+export function formatCodexEvent(payload: CodexNotifyPayload): ParsedNotification {
+  const project = projectName(payload.cwd);
+  const projectLabel = project ? ` \u2014 ${project}` : "";
+
+  switch (payload.type) {
+    case "agent-turn-complete":
+      return {
+        title: `Codex${projectLabel}`,
+        body: "Task complete",
+        source: "codex",
+        event: payload.type,
+        cwd: payload.cwd,
+      };
+    default:
+      return {
+        title: "Codex",
+        body: payload["last-assistant-message"] ?? payload.type,
+        source: "codex",
+        event: payload.type,
+        cwd: payload.cwd,
+      };
   }
 }
 
@@ -262,10 +308,18 @@ export function parseArgs(args: string[]): ParsedCliArgs {
       stdin: { type: "boolean" },
       title: { type: "string", short: "t" },
       body: { type: "string", short: "b" },
+      format: { type: "string" },
     },
     strict: false,
     allowPositionals: true,
   });
+
+  const rawFormat = stringOption(values.format as string | string[] | undefined);
+  const format: "auto" | "claude" | "codex" = rawFormat === "claude" || rawFormat === "codex" ? rawFormat : "auto";
+
+  if (format === "codex") {
+    return { stdin: !!values.stdin, format, positionals };
+  }
 
   const explicitTitle = stringOption(values.title as string | string[] | undefined);
   const explicitBody = stringOption(values.body as string | string[] | undefined);
@@ -276,6 +330,8 @@ export function parseArgs(args: string[]): ParsedCliArgs {
     stdin: !!values.stdin,
     title,
     body,
+    format,
+    positionals,
   };
 }
 
@@ -444,6 +500,17 @@ function parseNotificationFromStdin(input: string, strictJson: boolean): ParsedN
   };
 }
 
+function parseCodexArgv(argvJson: string | undefined): ParsedNotification {
+  if (!argvJson) return defaultNotification();
+  try {
+    const parsed = JSON.parse(argvJson) as unknown;
+    if (isCodexNotifyPayload(parsed)) return formatCodexEvent(parsed);
+  } catch {
+    // fall through
+  }
+  return defaultNotification();
+}
+
 function sendNotification(notification: ParsedNotification): void {
   const tmuxClientInfo = detectTmuxClientInfo();
   const transport = selectNotificationTransport(process.env, tmuxClientInfo);
@@ -475,17 +542,32 @@ export async function main(): Promise<void> {
 
   let notification: ParsedNotification;
 
-  if (parsed.stdin) {
+  if (parsed.format === "codex") {
+    notification = parseCodexArgv(parsed.positionals[0]);
+  } else if (parsed.format === "claude" || parsed.stdin) {
     notification = parseNotificationFromStdin(await readStdin(), true);
-  } else if (parsed.title) {
-    notification = {
-      title: parsed.title,
-      body: parsed.body ?? "",
-      source: "manual",
-      event: "manual",
-    };
   } else {
-    notification = parseNotificationFromStdin(await readStdin(), false);
+    // auto mode: Claude stdin → Codex argv → manual title/body → default
+    const stdinText = await readStdin();
+
+    if (stdinText.trim()) {
+      notification = parseNotificationFromStdin(stdinText, false);
+    } else if (parsed.title) {
+      // No stdin — check if title is actually a Codex JSON payload
+      const codex = parseCodexArgv(parsed.title);
+      if (codex.source === "codex") {
+        notification = codex;
+      } else {
+        notification = {
+          title: parsed.title,
+          body: parsed.body ?? "",
+          source: "manual",
+          event: "manual",
+        };
+      }
+    } else {
+      notification = defaultNotification();
+    }
   }
 
   sendNotification(notification);
