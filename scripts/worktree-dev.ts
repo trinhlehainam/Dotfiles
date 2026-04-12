@@ -103,7 +103,14 @@ const commandArgs: Record<WorktreeCommand, (worktree: string) => string[]> = {
   diff: (worktree) => ["diff", ...commonArgs(worktree)],
   "dry-run": (worktree) => ["apply", ...commonArgs(worktree), "-n", "-v"],
   "apply-temp": (worktree) => {
-    const destDir = mkdtempSync(path.join(os.tmpdir(), "chezmoi-worktree-"));
+    let destDir: string;
+
+    try {
+      destDir = mkdtempSync(path.join(os.tmpdir(), "chezmoi-worktree-"));
+    } catch (error) {
+      fail(error instanceof Error ? error.message : String(error));
+    }
+
     process.stderr.write(`temporary destination: ${destDir}\n`);
     return ["apply", ...commonArgs(worktree), "-v", "-D", destDir];
   },

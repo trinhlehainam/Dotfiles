@@ -21,11 +21,13 @@ export function tokenizeShellWords(
   const tokens: string[] = [];
   let current = "";
   let quote: '"' | "'" | null = null;
+  let tokenWasQuoted = false;
 
   function pushCurrent(): void {
-    if (current.length > 0) {
+    if (current.length > 0 || tokenWasQuoted) {
       tokens.push(current);
       current = "";
+      tokenWasQuoted = false;
     }
   }
 
@@ -40,6 +42,7 @@ export function tokenizeShellWords(
 
       if (character === '"' || character === "'") {
         quote = character;
+        tokenWasQuoted = true;
         continue;
       }
 

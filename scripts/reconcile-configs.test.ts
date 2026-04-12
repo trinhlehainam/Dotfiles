@@ -281,6 +281,24 @@ describe("resolvePathOverrides", () => {
     });
   });
 
+  test("preserves quoted empty values", () => {
+    expect(tokenizeShellWords(`chezmoi apply --source "" -W /tmp/worktree`)).toEqual([
+      "chezmoi",
+      "apply",
+      "--source",
+      "",
+      "-W",
+      "/tmp/worktree",
+    ]);
+  });
+
+  test("keeps empty quoted source override from consuming next flag", () => {
+    expect(resolvePathOverrides(`chezmoi apply --source "" -W /tmp/worktree`)).toEqual({
+      sourceDir: "",
+      workingTree: "/tmp/worktree",
+    });
+  });
+
   test("returns empty overrides for empty args", () => {
     expect(resolvePathOverrides("")).toEqual({
       sourceDir: undefined,
