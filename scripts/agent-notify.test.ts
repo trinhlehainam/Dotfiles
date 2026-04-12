@@ -5,12 +5,16 @@ import {
   buildOsc777,
   formatClaudeHook,
   notificationTypeLabel,
+  parseTmuxClientInfo,
   parseArgs,
   projectName,
   sanitizeOscField,
+  selectTmuxClientInfo,
   supportsOsc777,
+  supportsOsc777ViaTmuxClientInfo,
   wrapForTmux,
   type ClaudeHookInput,
+  type TmuxClientInfo,
 } from "./agent-notify.ts";
 
 // ---------------------------------------------------------------------------
@@ -326,6 +330,77 @@ describe("wrapForTmux", () => {
 });
 
 // ---------------------------------------------------------------------------
+// parseTmuxClientInfo
+// ---------------------------------------------------------------------------
+
+describe("parseTmuxClientInfo", () => {
+  test("parses client termname and termtype", () => {
+    expect(parseTmuxClientInfo("wezterm|WezTerm 20240203")).toEqual({
+      termname: "wezterm",
+      termtype: "WezTerm 20240203",
+    });
+  });
+
+  test("returns null for empty line", () => {
+    expect(parseTmuxClientInfo("")).toBeNull();
+    expect(parseTmuxClientInfo("|")).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// selectTmuxClientInfo
+// ---------------------------------------------------------------------------
+
+describe("selectTmuxClientInfo", () => {
+  test("returns first client when all clients support WezTerm OSC", () => {
+    const clients: TmuxClientInfo[] = [
+      { termname: "xterm-256color", termtype: "WezTerm 20240203" },
+      { termname: "wezterm", termtype: "xterm-256color" },
+    ];
+
+    expect(selectTmuxClientInfo(clients)).toEqual({
+      termname: "xterm-256color",
+      termtype: "WezTerm 20240203",
+    });
+  });
+
+  test("returns null when any attached client is not WezTerm", () => {
+    const clients: TmuxClientInfo[] = [
+      { termname: "xterm-256color", termtype: "WezTerm 20240203" },
+      { termname: "xterm-256color", termtype: "tmux-256color" },
+    ];
+
+    expect(selectTmuxClientInfo(clients)).toBeNull();
+  });
+
+  test("returns null for empty client list", () => {
+    expect(selectTmuxClientInfo([])).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// supportsOsc777ViaTmuxClientInfo
+// ---------------------------------------------------------------------------
+
+describe("supportsOsc777ViaTmuxClientInfo", () => {
+  test("detects wezterm termname", () => {
+    const info: TmuxClientInfo = { termname: "wezterm", termtype: "xterm-256color" };
+    expect(supportsOsc777ViaTmuxClientInfo(info)).toBe(true);
+  });
+
+  test("detects wezterm client termtype", () => {
+    const info: TmuxClientInfo = { termname: "xterm-256color", termtype: "WezTerm 20240203" };
+    expect(supportsOsc777ViaTmuxClientInfo(info)).toBe(true);
+  });
+
+  test("returns false for non-wezterm clients", () => {
+    const info: TmuxClientInfo = { termname: "xterm-256color", termtype: "tmux-256color" };
+    expect(supportsOsc777ViaTmuxClientInfo(info)).toBe(false);
+    expect(supportsOsc777ViaTmuxClientInfo(null)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // supportsOsc777
 // ---------------------------------------------------------------------------
 
@@ -336,6 +411,15 @@ describe("supportsOsc777", () => {
 
   test("detects WezTerm via WEZTERM_PANE", () => {
     expect(supportsOsc777({ WEZTERM_PANE: "1" })).toBe(true);
+  });
+
+  test("detects WezTerm via tmux client info when pane env is tmux", () => {
+    expect(
+      supportsOsc777(
+        { TMUX: "/tmp/tmux", TERM_PROGRAM: "tmux" },
+        { termname: "xterm-256color", termtype: "WezTerm 20240203" },
+      ),
+    ).toBe(true);
   });
 
   test("returns false for other terminals", () => {
@@ -363,6 +447,17 @@ describe("buildTerminalNotification", () => {
     expect(buildTerminalNotification("Title", "Body", { TERM_PROGRAM: "WezTerm", TMUX: "/tmp/tmux" })).toBe(
       "\x07\x1bPtmux;\x1b\x1b\x1b]777;notify;Title;Body\x1b\x1b\\\x1b\\",
     );
+  });
+
+  test("wraps OSC 777 when tmux client info identifies WezTerm", () => {
+    expect(
+      buildTerminalNotification(
+        "Title",
+        "Body",
+        { TERM_PROGRAM: "tmux", TMUX: "/tmp/tmux" },
+        { termname: "xterm-256color", termtype: "WezTerm 20240203" },
+      ),
+    ).toBe("\x07\x1bPtmux;\x1b\x1b\x1b]777;notify;Title;Body\x1b\x1b\\\x1b\\");
   });
 });
 

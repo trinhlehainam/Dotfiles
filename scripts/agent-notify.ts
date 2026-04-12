@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { closeSync, openSync, writeSync } from "node:fs";
 import { parseArgs as nodeParseArgs } from "node:util";
 
@@ -32,6 +33,11 @@ export interface ParsedCliArgs {
   title?: string;
   body?: string;
   stdin: boolean;
+}
+
+export interface TmuxClientInfo {
+  termname: string;
+  termtype: string;
 }
 
 const ESC = String.fromCharCode(27);
@@ -92,11 +98,45 @@ export function wrapForTmux(sequence: string, isTmux: boolean): string {
   return `${ESC}Ptmux;${ESC}${sequence.split(ESC).join(`${ESC}${ESC}`)}${ST}`;
 }
 
+/** Parse a `tmux list-clients -F '#{client_termname}|#{client_termtype}'` line. */
+export function parseTmuxClientInfo(line: string): TmuxClientInfo | null {
+  const [termname = "", termtype = ""] = line.trim().split("|");
+  if (!termname && !termtype) {
+    return null;
+  }
+
+  return { termname, termtype };
+}
+
+/** Only enable WezTerm-specific OSC when every attached client for a session supports it. */
+export function selectTmuxClientInfo(clientInfos: TmuxClientInfo[]): TmuxClientInfo | null {
+  if (clientInfos.length === 0) {
+    return null;
+  }
+
+  return clientInfos.every((clientInfo) => supportsOsc777ViaTmuxClientInfo(clientInfo))
+    ? clientInfos[0] ?? null
+    : null;
+}
+
+/** Detect WezTerm via tmux client metadata when running inside tmux. */
+export function supportsOsc777ViaTmuxClientInfo(clientInfo: TmuxClientInfo | null): boolean {
+  if (clientInfo === null) {
+    return false;
+  }
+
+  return clientInfo.termname === "wezterm" || clientInfo.termtype.startsWith("WezTerm ");
+}
+
 /** Only emit OSC 777 for known WezTerm sessions. BEL remains the universal fallback. */
-export function supportsOsc777(env: NodeJS.ProcessEnv): boolean {
+export function supportsOsc777(
+  env: NodeJS.ProcessEnv,
+  tmuxClientInfo: TmuxClientInfo | null = null,
+): boolean {
   return env.TERM_PROGRAM === "WezTerm"
     || env.WEZTERM_PANE !== undefined
-    || env.WEZTERM_EXECUTABLE !== undefined;
+    || env.WEZTERM_EXECUTABLE !== undefined
+    || supportsOsc777ViaTmuxClientInfo(tmuxClientInfo);
 }
 
 /** Build the terminal control sequence for one notification. */
@@ -104,8 +144,9 @@ export function buildTerminalNotification(
   title: string,
   body: string,
   env: NodeJS.ProcessEnv = process.env,
+  tmuxClientInfo: TmuxClientInfo | null = null,
 ): string {
-  if (!supportsOsc777(env)) {
+  if (!supportsOsc777(env, tmuxClientInfo)) {
     return BEL;
   }
 
@@ -221,6 +262,72 @@ function terminalDevicePath(): string {
   return process.platform === "win32" ? "CONOUT$" : "/dev/tty";
 }
 
+function currentPaneTtyPath(): string | null {
+  const paneId = process.env.TMUX_PANE;
+  if (!paneId) {
+    return null;
+  }
+
+  try {
+    const tty = execFileSync(
+      "tmux",
+      ["display-message", "-p", "-t", paneId, "#{pane_tty}"],
+      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+    ).trim();
+    return tty || null;
+  } catch {
+    return null;
+  }
+}
+
+function currentSessionId(): string | null {
+  const paneId = process.env.TMUX_PANE;
+  if (!paneId) {
+    return null;
+  }
+
+  try {
+    const sessionId = execFileSync(
+      "tmux",
+      ["display-message", "-p", "-t", paneId, "#{session_id}"],
+      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+    ).trim();
+    return sessionId || null;
+  } catch {
+    return null;
+  }
+}
+
+function detectTmuxClientInfo(): TmuxClientInfo | null {
+  if (!process.env.TMUX) {
+    return null;
+  }
+
+  try {
+    const sessionId = currentSessionId();
+    const args = sessionId
+      ? ["list-clients", "-t", sessionId, "-F", "#{client_termname}|#{client_termtype}"]
+      : ["list-clients", "-F", "#{client_termname}|#{client_termtype}"];
+    const output = execFileSync(
+      "tmux",
+      args,
+      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+    );
+
+    const clientInfos: TmuxClientInfo[] = [];
+    for (const line of output.split(/\r?\n/)) {
+      const parsed = parseTmuxClientInfo(line);
+      if (parsed !== null) {
+        clientInfos.push(parsed);
+      }
+    }
+
+    return selectTmuxClientInfo(clientInfos);
+  } catch {
+    return null;
+  }
+}
+
 /** Write raw bytes to the controlling terminal. */
 function writeToTerminal(data: string): void {
   try {
@@ -231,6 +338,21 @@ function writeToTerminal(data: string): void {
       closeSync(fd);
     }
   } catch {
+    const paneTtyPath = currentPaneTtyPath();
+    if (paneTtyPath) {
+      try {
+        const fd = openSync(paneTtyPath, "w");
+        try {
+          writeSync(fd, data);
+          return;
+        } finally {
+          closeSync(fd);
+        }
+      } catch {
+        // Fall through to stderr TTY fallback.
+      }
+    }
+
     if (process.stderr.isTTY) {
       process.stderr.write(data);
     }
@@ -273,7 +395,14 @@ function parseNotificationFromStdin(input: string, strictJson: boolean): ParsedN
 }
 
 function sendNotification(notification: ParsedNotification): void {
-  writeToTerminal(buildTerminalNotification(notification.title, notification.body));
+  writeToTerminal(
+    buildTerminalNotification(
+      notification.title,
+      notification.body,
+      process.env,
+      detectTmuxClientInfo(),
+    ),
+  );
 }
 
 
