@@ -167,7 +167,7 @@ export function parseTmuxClientInfo(line: string): TmuxClientInfo | null {
   return { termname, termtype };
 }
 
-/** Parse a `tmux list-clients -F '#{client_tty}|#{client_termname}|#{client_termtype}'` line. */
+/** Parse a `tmux list-clients -F '#{client_tty}|#{client_termname}|#{client_termtype}|#{client_flags}'` line. */
 export function parseClientLine(
   line: string,
 ): TmuxClientTarget | null {
@@ -475,7 +475,7 @@ function writeToPath(path: string, data: string): boolean {
   }
 }
 
-/** Write notification bytes directly to every tmux client TTY (cross-session support). */
+/** Write notification bytes directly to tmux client TTYs, preferring focused clients first. */
 function notifyTmuxClients(title: string, body: string): boolean {
   if (!process.env.TMUX) return false;
 
@@ -497,6 +497,7 @@ function notifyTmuxClients(title: string, body: string): boolean {
   if (clients.length === 0) return false;
 
   const preferredClients = selectClientTargets(clients);
+  const noFocusedClients = preferredClients.length === clients.length;
   let notified = false;
 
   for (const client of preferredClients) {
@@ -507,7 +508,8 @@ function notifyTmuxClients(title: string, body: string): boolean {
     }
   }
 
-  if (notified || preferredClients.length === clients.length) {
+  // If focus filtering did not narrow the list, we already attempted every client.
+  if (notified || noFocusedClients) {
     return notified;
   }
 
