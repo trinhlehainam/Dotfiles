@@ -4,8 +4,9 @@ return {
     config.scrollback_lines = 10000
 
     -- Agent notification support
-    -- Show OSC 777/OSC 9 toast notifications from all panes (including unfocused)
-    config.notification_handling = 'AlwaysShow'
+    -- Suppress OSC 777 toasts from the focused pane to avoid duplicating the
+    -- OSC 1337-based toast emitted by events/agent_notify.lua
+    config.notification_handling = 'SuppressFromFocusedPane'
 
     -- Audible bell: play system sound on BEL (\a) from agents
     config.audible_bell = 'SystemBeep'

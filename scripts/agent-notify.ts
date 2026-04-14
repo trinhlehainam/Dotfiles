@@ -151,6 +151,16 @@ export function buildOsc777(title: string, body: string): string {
   return `${ESC}]777;notify;${sanitizeOscField(title)};${sanitizeOscField(body)}${ST}`;
 }
 
+/** Encode a string as base64 */
+export function toBase64(value: string): string {
+  return Buffer.from(value, "utf-8").toString("base64");
+}
+
+/** Build OSC 1337 SetUserVar sequence for WezTerm agent notifications */
+export function buildOsc1337SetUserVar(name: string, value: string): string {
+  return `${ESC}]1337;SetUserVar=${name}=${toBase64(value)}${BEL}`;
+}
+
 /** DCS-wrap an escape sequence for tmux passthrough */
 export function wrapForTmux(sequence: string, isTmux: boolean): string {
   if (!isTmux) return sequence;
@@ -194,7 +204,7 @@ export function clientNotificationSequence(
   client: { termname: string; termtype: string },
 ): string {
   return supportsOsc777ViaTmuxClientInfo(client)
-    ? `${BEL}${buildOsc777(title, body)}`
+    ? `${BEL}${buildOsc1337SetUserVar("AGENT_NOTIFY", JSON.stringify({ t: title, b: body }))}`
     : BEL;
 }
 
