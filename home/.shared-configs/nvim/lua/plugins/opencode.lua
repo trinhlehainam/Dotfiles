@@ -3,7 +3,29 @@ return {
   dependencies = { 'folke/snacks.nvim' },
   config = function()
     -- https://github.com/nickjvandyke/opencode.nvim?tab=readme-ov-file#customization
-    local opencode_cmd = 'opencode --port'
+    -- Run OpenCode inside a hardened Docker container (Option B from safety research)
+    local port = os.getenv('OPENCODE_PORT') or '4097'
+    local uid = vim.fn.systemlist('id -u')[1] or '1000'
+    local gid = vim.fn.systemlist('id -g')[1] or '1000'
+    local cwd = vim.fn.getcwd()
+    local opencode_cmd = string.format(
+      'docker run --rm -it --init'
+        .. ' --user %s:%s'
+        .. ' --mount type=bind,src=%s,dst=/workspace'
+        .. ' --workdir /workspace'
+        .. ' --cap-drop ALL'
+        .. ' --security-opt no-new-privileges'
+        .. ' --tmpfs /tmp:rw,exec,nosuid,size=1g'
+        .. ' --publish 127.0.0.1:%s:%s'
+        .. ' ghcr.io/anomalyco/opencode'
+        .. ' --port %s',
+      uid,
+      gid,
+      cwd,
+      port,
+      port,
+      port
+    )
     ---@type snacks.terminal.Opts
     local snacks_terminal_opts = {
       win = {
