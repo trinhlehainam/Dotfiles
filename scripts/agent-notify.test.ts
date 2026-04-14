@@ -3,11 +3,13 @@ import { describe, expect, test } from "bun:test";
 import {
   buildTerminalNotification,
   buildOsc777,
+  clientNotificationSequence,
   formatClaudeHook,
   formatCodexEvent,
   isCodexNotifyPayload,
   isEmbeddedNvimTerminal,
   notificationTypeLabel,
+  parseClientLine,
   parseTmuxClientInfo,
   parseArgs,
   projectName,
@@ -740,5 +742,101 @@ describe("formatCodexEvent", () => {
     const result = formatCodexEvent(payload);
 
     expect(result.body).toBe("custom-event");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// parseClientLine
+// ---------------------------------------------------------------------------
+
+describe("parseClientLine", () => {
+  test("parses valid line with tty, termname, termtype", () => {
+    expect(parseClientLine("/dev/pts/3|wezterm|WezTerm 20240203")).toEqual({
+      tty: "/dev/pts/3",
+      termname: "wezterm",
+      termtype: "WezTerm 20240203",
+    });
+  });
+
+  test("parses non-WezTerm client", () => {
+    expect(parseClientLine("/dev/pts/5|xterm-256color|tmux-256color")).toEqual({
+      tty: "/dev/pts/5",
+      termname: "xterm-256color",
+      termtype: "tmux-256color",
+    });
+  });
+
+  test("returns null for empty line", () => {
+    expect(parseClientLine("")).toBeNull();
+  });
+
+  test("returns null for separators only", () => {
+    expect(parseClientLine("||")).toBeNull();
+  });
+
+  test("trims whitespace before parsing", () => {
+    expect(parseClientLine("  /dev/pts/1|wezterm|WezTerm 1  ")).toEqual({
+      tty: "/dev/pts/1",
+      termname: "wezterm",
+      termtype: "WezTerm 1",
+    });
+  });
+
+  test("returns null when tty field is empty", () => {
+    expect(parseClientLine("|wezterm|WezTerm 20240203")).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// clientNotificationSequence
+// ---------------------------------------------------------------------------
+
+describe("clientNotificationSequence", () => {
+  test("WezTerm client gets BEL + raw OSC 777", () => {
+    const seq = clientNotificationSequence("Title", "Body", {
+      termname: "wezterm",
+      termtype: "WezTerm 20240203",
+    });
+
+    expect(seq).toBe("\x07\x1b]777;notify;Title;Body\x1b\\");
+  });
+
+  test("WezTerm via termtype gets BEL + raw OSC 777", () => {
+    const seq = clientNotificationSequence("Title", "Body", {
+      termname: "xterm-256color",
+      termtype: "WezTerm 20240203",
+    });
+
+    expect(seq).toBe("\x07\x1b]777;notify;Title;Body\x1b\\");
+  });
+
+  test("non-WezTerm client gets BEL only", () => {
+    const seq = clientNotificationSequence("Title", "Body", {
+      termname: "xterm-256color",
+      termtype: "tmux-256color",
+    });
+
+    expect(seq).toBe("\x07");
+  });
+
+  test("OSC 777 is NOT DCS-wrapped (bypasses tmux)", () => {
+    const seq = clientNotificationSequence("Title", "Body", {
+      termname: "wezterm",
+      termtype: "WezTerm 20240203",
+    });
+
+    // Must NOT contain DCS passthrough prefix
+    expect(seq).not.toContain("\x1bPtmux;");
+  });
+
+  test("sanitizes title and body in OSC 777", () => {
+    const seq = clientNotificationSequence("Title;bad", "Body\x07ctrl", {
+      termname: "wezterm",
+      termtype: "WezTerm 20240203",
+    });
+
+    expect(seq).toContain("Title:bad");
+    expect(seq).not.toContain("Title;bad");
+    expect(seq).not.toContain("\x07ctrl");
   });
 });

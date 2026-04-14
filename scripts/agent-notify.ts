@@ -162,6 +162,26 @@ export function parseTmuxClientInfo(line: string): TmuxClientInfo | null {
   return { termname, termtype };
 }
 
+/** Parse a `tmux list-clients -F '#{client_tty}|#{client_termname}|#{client_termtype}'` line. */
+export function parseClientLine(
+  line: string,
+): { tty: string; termname: string; termtype: string } | null {
+  const [tty = "", termname = "", termtype = ""] = line.trim().split("|");
+  if (!tty) return null;
+  return { tty, termname, termtype };
+}
+
+/** Build notification bytes for one tmux client TTY. */
+export function clientNotificationSequence(
+  title: string,
+  body: string,
+  client: { termname: string; termtype: string },
+): string {
+  return supportsOsc777ViaTmuxClientInfo(client)
+    ? `${BEL}${buildOsc777(title, body)}`
+    : BEL;
+}
+
 /** Only enable WezTerm-specific OSC when every attached client for a session supports it. */
 export function selectTmuxClientInfo(clientInfos: TmuxClientInfo[]): TmuxClientInfo | null {
   if (clientInfos.length === 0) {
@@ -439,6 +459,32 @@ function writeToPath(path: string, data: string): boolean {
   }
 }
 
+/** Write notification bytes directly to every tmux client TTY (cross-session support). */
+function notifyTmuxClients(title: string, body: string): boolean {
+  if (!process.env.TMUX) return false;
+
+  const output = tmuxCapture([
+    "list-clients",
+    "-F",
+    "#{client_tty}|#{client_termname}|#{client_termtype}",
+  ]);
+  if (!output) return false;
+
+  let notified = false;
+
+  for (const line of output.split(/\r?\n/)) {
+    const client = parseClientLine(line);
+    if (!client) continue;
+    const sequence = clientNotificationSequence(title, body, client);
+
+    if (writeToPath(client.tty, sequence)) {
+      notified = true;
+    }
+  }
+
+  return notified;
+}
+
 /** Write raw bytes to the safest available terminal endpoint. */
 function writeToTerminal(data: string, transport: NotificationTransport): void {
   const paneTtyPath = currentPaneTtyPath();
@@ -514,12 +560,16 @@ function parseCodexArgv(argvJson: string | undefined): ParsedNotification {
 }
 
 function sendNotification(notification: ParsedNotification): void {
-  const tmuxClientInfo = detectTmuxClientInfo();
-  const transport = selectNotificationTransport(process.env, tmuxClientInfo);
-  writeToTerminal(
-    terminalNotificationSequence(notification.title, notification.body, transport, !!process.env.TMUX),
-    transport,
-  );
+  // Try broadcasting directly to tmux client TTYs first (cross-session support)
+  if (!notifyTmuxClients(notification.title, notification.body)) {
+    // Fallback: original behavior (agent's own controlling TTY / pane TTY)
+    const tmuxClientInfo = detectTmuxClientInfo();
+    const transport = selectNotificationTransport(process.env, tmuxClientInfo);
+    writeToTerminal(
+      terminalNotificationSequence(notification.title, notification.body, transport, !!process.env.TMUX),
+      transport,
+    );
+  }
 }
 
 
