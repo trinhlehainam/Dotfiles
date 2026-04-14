@@ -55,6 +55,11 @@ export interface TmuxClientInfo {
   termtype: string;
 }
 
+export interface TmuxClientTarget extends TmuxClientInfo {
+  tty: string;
+  flags: string[];
+}
+
 export interface NotificationTransport {
   preferTmuxPaneTty: boolean;
   allowOsc777: boolean;
@@ -160,6 +165,37 @@ export function parseTmuxClientInfo(line: string): TmuxClientInfo | null {
   }
 
   return { termname, termtype };
+}
+
+/** Parse a `tmux list-clients -F '#{client_tty}|#{client_termname}|#{client_termtype}|#{client_flags}'` line. */
+export function parseClientLine(
+  line: string,
+): TmuxClientTarget | null {
+  const [tty = "", termname = "", termtype = "", flags = ""] = line.trim().split("|");
+  if (!tty) return null;
+  return {
+    tty,
+    termname,
+    termtype,
+    flags: flags ? flags.split(",").filter(Boolean) : [],
+  };
+}
+
+/** Prefer focused tmux clients to reduce duplicate notifications when possible. */
+export function selectClientTargets(clients: TmuxClientTarget[]): TmuxClientTarget[] {
+  const focusedClients = clients.filter((client) => client.flags.includes("focused"));
+  return focusedClients.length > 0 ? focusedClients : clients;
+}
+
+/** Build notification bytes for one tmux client TTY. */
+export function clientNotificationSequence(
+  title: string,
+  body: string,
+  client: { termname: string; termtype: string },
+): string {
+  return supportsOsc777ViaTmuxClientInfo(client)
+    ? `${BEL}${buildOsc777(title, body)}`
+    : BEL;
 }
 
 /** Only enable WezTerm-specific OSC when every attached client for a session supports it. */
@@ -439,6 +475,56 @@ function writeToPath(path: string, data: string): boolean {
   }
 }
 
+/** Write notification bytes directly to tmux client TTYs, preferring focused clients first. */
+function notifyTmuxClients(title: string, body: string): boolean {
+  if (!process.env.TMUX) return false;
+
+  const output = tmuxCapture([
+    "list-clients",
+    "-F",
+    "#{client_tty}|#{client_termname}|#{client_termtype}|#{client_flags}",
+  ]);
+  if (!output) return false;
+
+  const clients: TmuxClientTarget[] = [];
+
+  for (const line of output.split(/\r?\n/)) {
+    const client = parseClientLine(line);
+    if (!client) continue;
+    clients.push(client);
+  }
+
+  if (clients.length === 0) return false;
+
+  const preferredClients = selectClientTargets(clients);
+  const noFocusedClients = preferredClients.length === clients.length;
+  let notified = false;
+
+  for (const client of preferredClients) {
+    const sequence = clientNotificationSequence(title, body, client);
+
+    if (writeToPath(client.tty, sequence)) {
+      notified = true;
+    }
+  }
+
+  // If focus filtering did not narrow the list, we already attempted every client.
+  if (notified || noFocusedClients) {
+    return notified;
+  }
+
+  for (const client of clients) {
+    if (preferredClients.includes(client)) continue;
+
+    const sequence = clientNotificationSequence(title, body, client);
+    if (writeToPath(client.tty, sequence)) {
+      notified = true;
+    }
+  }
+
+  return notified;
+}
+
 /** Write raw bytes to the safest available terminal endpoint. */
 function writeToTerminal(data: string, transport: NotificationTransport): void {
   const paneTtyPath = currentPaneTtyPath();
@@ -514,12 +600,16 @@ function parseCodexArgv(argvJson: string | undefined): ParsedNotification {
 }
 
 function sendNotification(notification: ParsedNotification): void {
-  const tmuxClientInfo = detectTmuxClientInfo();
-  const transport = selectNotificationTransport(process.env, tmuxClientInfo);
-  writeToTerminal(
-    terminalNotificationSequence(notification.title, notification.body, transport, !!process.env.TMUX),
-    transport,
-  );
+  // Try broadcasting directly to tmux client TTYs first (cross-session support)
+  if (!notifyTmuxClients(notification.title, notification.body)) {
+    // Fallback: original behavior (agent's own controlling TTY / pane TTY)
+    const tmuxClientInfo = detectTmuxClientInfo();
+    const transport = selectNotificationTransport(process.env, tmuxClientInfo);
+    writeToTerminal(
+      terminalNotificationSequence(notification.title, notification.body, transport, !!process.env.TMUX),
+      transport,
+    );
+  }
 }
 
 
