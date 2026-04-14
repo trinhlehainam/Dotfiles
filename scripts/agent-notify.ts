@@ -161,6 +161,11 @@ export function buildOsc1337SetUserVar(name: string, value: string): string {
   return `${ESC}]1337;SetUserVar=${name}=${toBase64(value)}${BEL}`;
 }
 
+/** Generate a short unique notification id for dedup. */
+export function generateNotificationId(): string {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
 /** DCS-wrap an escape sequence for tmux passthrough */
 export function wrapForTmux(sequence: string, isTmux: boolean): string {
   if (!isTmux) return sequence;
@@ -199,12 +204,12 @@ export function selectClientTargets(clients: TmuxClientTarget[]): TmuxClientTarg
 
 /** Build notification bytes for one tmux client TTY. */
 export function clientNotificationSequence(
-  title: string,
-  body: string,
+  id: string,
+  notification: ParsedNotification,
   client: { termname: string; termtype: string },
 ): string {
   return supportsOsc777ViaTmuxClientInfo(client)
-    ? `${BEL}${buildOsc1337SetUserVar("AGENT_NOTIFY", JSON.stringify({ t: title, b: body }))}`
+    ? `${BEL}${buildOsc1337SetUserVar("AGENT_NOTIFY", JSON.stringify({ id, t: notification.title, b: notification.body, s: notification.source, e: notification.event }))}`
     : BEL;
 }
 
@@ -266,14 +271,14 @@ export function selectNotificationTransport(
 
 /** Build the terminal control sequence for one notification. */
 export function buildTerminalNotification(
-  title: string,
-  body: string,
+  id: string,
+  notification: ParsedNotification,
   env: NodeJS.ProcessEnv = process.env,
   tmuxClientInfo: TmuxClientInfo | null = null,
 ): string {
   return terminalNotificationSequence(
-    title,
-    body,
+    id,
+    notification,
     selectNotificationTransport(env, tmuxClientInfo),
     !!env.TMUX,
   );
@@ -401,8 +406,8 @@ function stringOption(value: string | string[] | undefined): string | undefined 
 }
 
 function terminalNotificationSequence(
-  title: string,
-  body: string,
+  id: string,
+  notification: ParsedNotification,
   transport: Pick<NotificationTransport, "allowOsc777">,
   isTmux: boolean,
 ): string {
@@ -410,7 +415,8 @@ function terminalNotificationSequence(
     return BEL;
   }
 
-  return `${BEL}${wrapForTmux(buildOsc777(title, body), isTmux)}`;
+  const payload = JSON.stringify({ id, t: notification.title, b: notification.body, s: notification.source, e: notification.event });
+  return `${BEL}${wrapForTmux(buildOsc1337SetUserVar("AGENT_NOTIFY", payload), isTmux)}`;
 }
 
 function terminalDevicePath(): string {
@@ -485,8 +491,8 @@ function writeToPath(path: string, data: string): boolean {
   }
 }
 
-/** Write notification bytes directly to tmux client TTYs, preferring focused clients first. */
-function notifyTmuxClients(title: string, body: string): boolean {
+/** Write notification bytes directly to tmux client TTYs. */
+function notifyTmuxClients(id: string, notification: ParsedNotification): boolean {
   if (!process.env.TMUX) return false;
 
   const output = tmuxCapture([
@@ -506,29 +512,38 @@ function notifyTmuxClients(title: string, body: string): boolean {
 
   if (clients.length === 0) return false;
 
-  const preferredClients = selectClientTargets(clients);
-  const noFocusedClients = preferredClients.length === clients.length;
+  const weztermClients = clients.filter((c) => supportsOsc777ViaTmuxClientInfo(c));
+  const otherClients = clients.filter((c) => !supportsOsc777ViaTmuxClientInfo(c));
   let notified = false;
 
-  for (const client of preferredClients) {
-    const sequence = clientNotificationSequence(title, body, client);
-
+  // WezTerm: send to ALL clients — dedup happens in WezTerm Lua handler
+  for (const client of weztermClients) {
+    const sequence = clientNotificationSequence(id, notification, client);
     if (writeToPath(client.tty, sequence)) {
       notified = true;
     }
   }
 
-  // If focus filtering did not narrow the list, we already attempted every client.
-  if (notified || noFocusedClients) {
-    return notified;
-  }
+  // Non-WezTerm: keep focus-based routing for BEL-only delivery
+  if (otherClients.length > 0) {
+    const preferredClients = selectClientTargets(otherClients);
+    const noFocusedClients = preferredClients.length === otherClients.length;
 
-  for (const client of clients) {
-    if (preferredClients.includes(client)) continue;
+    for (const client of preferredClients) {
+      const sequence = clientNotificationSequence(id, notification, client);
+      if (writeToPath(client.tty, sequence)) {
+        notified = true;
+      }
+    }
 
-    const sequence = clientNotificationSequence(title, body, client);
-    if (writeToPath(client.tty, sequence)) {
-      notified = true;
+    if (!notified && !noFocusedClients) {
+      for (const client of otherClients) {
+        if (preferredClients.includes(client)) continue;
+        const sequence = clientNotificationSequence(id, notification, client);
+        if (writeToPath(client.tty, sequence)) {
+          notified = true;
+        }
+      }
     }
   }
 
@@ -610,13 +625,15 @@ function parseCodexArgv(argvJson: string | undefined): ParsedNotification {
 }
 
 function sendNotification(notification: ParsedNotification): void {
+  const id = generateNotificationId();
+
   // Try broadcasting directly to tmux client TTYs first (cross-session support)
-  if (!notifyTmuxClients(notification.title, notification.body)) {
+  if (!notifyTmuxClients(id, notification)) {
     // Fallback: original behavior (agent's own controlling TTY / pane TTY)
     const tmuxClientInfo = detectTmuxClientInfo();
     const transport = selectNotificationTransport(process.env, tmuxClientInfo);
     writeToTerminal(
-      terminalNotificationSequence(notification.title, notification.body, transport, !!process.env.TMUX),
+      terminalNotificationSequence(id, notification, transport, !!process.env.TMUX),
       transport,
     );
   }

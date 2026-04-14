@@ -7,6 +7,7 @@ import {
   clientNotificationSequence,
   formatClaudeHook,
   formatCodexEvent,
+  generateNotificationId,
   isCodexNotifyPayload,
   isEmbeddedNvimTerminal,
   notificationTypeLabel,
@@ -25,6 +26,7 @@ import {
   type ClaudeHookInput,
   type CodexNotifyPayload,
   type NotificationTransport,
+  type ParsedNotification,
   type TmuxClientInfo,
 } from "./agent-notify.ts";
 
@@ -500,33 +502,35 @@ describe("supportsOsc777", () => {
 // ---------------------------------------------------------------------------
 
 describe("buildTerminalNotification", () => {
+  const notif: ParsedNotification = { title: "Title", body: "Body", source: "test", event: "unit" };
+
   test("returns bell only for unknown terminals", () => {
-    expect(buildTerminalNotification("Title", "Body", {})).toBe("\x07");
+    expect(buildTerminalNotification("id1", notif, {})).toBe("\x07");
   });
 
-  test("returns bell plus OSC 777 for WezTerm", () => {
-    expect(buildTerminalNotification("Title", "Body", { TERM_PROGRAM: "WezTerm" })).toBe(
-      "\x07\x1b]777;notify;Title;Body\x1b\\",
-    );
+  test("returns bell plus OSC 1337 for WezTerm (non-tmux)", () => {
+    const result = buildTerminalNotification("id1", notif, { TERM_PROGRAM: "WezTerm" });
+    expect(result).toContain("SetUserVar=AGENT_NOTIFY=");
+    expect(result.startsWith("\x07")).toBe(true);
   });
 
   test("returns bell only in tmux without trusted WezTerm client metadata", () => {
-    expect(buildTerminalNotification("Title", "Body", { TERM_PROGRAM: "WezTerm", TMUX: "/tmp/tmux" })).toBe("\x07");
+    expect(buildTerminalNotification("id1", notif, { TERM_PROGRAM: "WezTerm", TMUX: "/tmp/tmux" })).toBe("\x07");
   });
 
-  test("wraps OSC 777 when tmux client info identifies WezTerm", () => {
-    expect(
-      buildTerminalNotification(
-        "Title",
-        "Body",
-        { TERM_PROGRAM: "tmux", TMUX: "/tmp/tmux" },
-        { termname: "xterm-256color", termtype: "WezTerm 20240203" },
-      ),
-    ).toBe("\x07\x1bPtmux;\x1b\x1b]777;notify;Title;Body\x1b\x1b\\\x1b\\");
+  test("wraps OSC 1337 with DCS when tmux client info identifies WezTerm", () => {
+    const result = buildTerminalNotification(
+      "id1",
+      notif,
+      { TERM_PROGRAM: "tmux", TMUX: "/tmp/tmux" },
+      { termname: "xterm-256color", termtype: "WezTerm 20240203" },
+    );
+    expect(result).toContain("\x1bPtmux;");
+    expect(result).toContain("SetUserVar=AGENT_NOTIFY=");
   });
 
   test("returns bell only inside Neovim terminal without tmux bypass", () => {
-    expect(buildTerminalNotification("Title", "Body", { NVIM: "/tmp/nvim.sock", TERM_PROGRAM: "WezTerm" })).toBe(
+    expect(buildTerminalNotification("id1", notif, { NVIM: "/tmp/nvim.sock", TERM_PROGRAM: "WezTerm" })).toBe(
       "\x07",
     );
   });
@@ -842,6 +846,25 @@ describe("selectClientTargets", () => {
 });
 
 // ---------------------------------------------------------------------------
+// generateNotificationId
+// ---------------------------------------------------------------------------
+
+describe("generateNotificationId", () => {
+  test("produces a non-empty string", () => {
+    const id = generateNotificationId();
+    expect(id.length).toBeGreaterThan(0);
+  });
+
+  test("produces unique ids across calls", () => {
+    const ids = new Set<string>();
+    for (let i = 0; i < 100; i++) {
+      ids.add(generateNotificationId());
+    }
+    expect(ids.size).toBe(100);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // toBase64
 // ---------------------------------------------------------------------------
 
@@ -878,26 +901,40 @@ describe("buildOsc1337SetUserVar", () => {
 // ---------------------------------------------------------------------------
 
 describe("clientNotificationSequence", () => {
-  test("WezTerm client gets BEL + OSC 1337 SetUserVar", () => {
-    const seq = clientNotificationSequence("Title", "Body", {
+  const notif: ParsedNotification = { title: "Title", body: "Body", source: "test", event: "unit" };
+
+  test("WezTerm client gets BEL + OSC 1337 SetUserVar with full payload", () => {
+    const seq = clientNotificationSequence("test-id", notif, {
       termname: "wezterm",
       termtype: "WezTerm 20240203",
     });
 
-    expect(seq).toBe("\x07\x1b]1337;SetUserVar=AGENT_NOTIFY=eyJ0IjoiVGl0bGUiLCJiIjoiQm9keSJ9\x07");
+    expect(seq.startsWith("\x07")).toBe(true);
+    expect(seq).toContain("SetUserVar=AGENT_NOTIFY=");
+
+    // Decode payload
+    const b64Match = seq.match(/SetUserVar=AGENT_NOTIFY=([A-Za-z0-9+/=]+)/);
+    expect(b64Match).not.toBeNull();
+    const decoded = Buffer.from(b64Match![1], "base64").toString("utf-8");
+    const parsed = JSON.parse(decoded) as Record<string, string>;
+    expect(parsed.id).toBe("test-id");
+    expect(parsed.t).toBe("Title");
+    expect(parsed.b).toBe("Body");
+    expect(parsed.s).toBe("test");
+    expect(parsed.e).toBe("unit");
   });
 
   test("WezTerm via termtype gets BEL + OSC 1337 SetUserVar", () => {
-    const seq = clientNotificationSequence("Title", "Body", {
+    const seq = clientNotificationSequence("test-id", notif, {
       termname: "xterm-256color",
       termtype: "WezTerm 20240203",
     });
 
-    expect(seq).toBe("\x07\x1b]1337;SetUserVar=AGENT_NOTIFY=eyJ0IjoiVGl0bGUiLCJiIjoiQm9keSJ9\x07");
+    expect(seq).toContain("SetUserVar=AGENT_NOTIFY=");
   });
 
   test("non-WezTerm client gets BEL only", () => {
-    const seq = clientNotificationSequence("Title", "Body", {
+    const seq = clientNotificationSequence("test-id", notif, {
       termname: "xterm-256color",
       termtype: "tmux-256color",
     });
@@ -906,7 +943,7 @@ describe("clientNotificationSequence", () => {
   });
 
   test("OSC 1337 is NOT DCS-wrapped (bypasses tmux)", () => {
-    const seq = clientNotificationSequence("Title", "Body", {
+    const seq = clientNotificationSequence("test-id", notif, {
       termname: "wezterm",
       termtype: "WezTerm 20240203",
     });
@@ -914,18 +951,17 @@ describe("clientNotificationSequence", () => {
     expect(seq).not.toContain("\x1bPtmux;");
   });
 
-  test("payload is base64-encoded JSON with title and body", () => {
-    const seq = clientNotificationSequence("Title;bad", "Body\x07ctrl", {
+  test("payload preserves special characters in base64", () => {
+    const specialNotif: ParsedNotification = { title: "Title;bad", body: "Body\x07ctrl", source: "s", event: "e" };
+    const seq = clientNotificationSequence("id1", specialNotif, {
       termname: "wezterm",
       termtype: "WezTerm 20240203",
     });
 
-    // Extract base64 portion between "AGENT_NOTIFY=" and the trailing BEL
     const b64Match = seq.match(/SetUserVar=AGENT_NOTIFY=([A-Za-z0-9+/=]+)/);
     expect(b64Match).not.toBeNull();
-
     const decoded = Buffer.from(b64Match![1], "base64").toString("utf-8");
-    const parsed = JSON.parse(decoded) as { t: string; b: string };
+    const parsed = JSON.parse(decoded) as Record<string, string>;
     expect(parsed.t).toBe("Title;bad");
     expect(parsed.b).toBe("Body\x07ctrl");
   });
