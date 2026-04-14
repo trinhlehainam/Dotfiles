@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { text as readStreamText } from "node:stream/consumers";
 import { parseArgs as nodeParseArgs } from "node:util";
 
@@ -42,11 +42,22 @@ export interface ParsedNotification {
   cwd?: string;
 }
 
+export interface OpenCodeSessionState {
+  project: string;
+  cwd?: string;
+  model?: string;
+  lastText?: string;
+  lastTool?: string;
+  errored?: boolean;
+  notifiedPermissions: string[];
+  updatedAt: number;
+}
+
 export interface ParsedCliArgs {
   title?: string;
   body?: string;
   stdin: boolean;
-  format: "auto" | "claude" | "codex";
+  format: "auto" | "claude" | "codex" | "opencode-event";
   positionals: string[];
 }
 
@@ -123,6 +134,63 @@ export function formatCodexEvent(payload: CodexNotifyPayload): ParsedNotificatio
         cwd: payload.cwd,
       };
   }
+}
+
+/** Clip text to max characters with ellipsis. */
+export function clip(value: string, max = 140): string {
+  const trimmed = value.replace(/\s+/g, " ").trim();
+  if (max <= 3) return trimmed.slice(0, max);
+  return trimmed.length > max ? `${trimmed.slice(0, max - 3)}...` : trimmed;
+}
+
+/** Extract sessionID from any OpenCode event shape. */
+export function extractSessionId(event: unknown): string | null {
+  if (typeof event !== "object" || event === null) return null;
+  const candidate = event as Record<string, unknown>;
+  const props = candidate.properties;
+  if (typeof props === "object" && props !== null) {
+    const sid = (props as Record<string, unknown>).sessionID;
+    if (typeof sid === "string") return sid;
+  }
+  return null;
+}
+
+/** Check if a value looks like an OpenCode event `{ type, properties }`. */
+export function isOpenCodeEvent(value: unknown): boolean {
+  if (typeof value !== "object" || value === null) return false;
+  const candidate = value as Record<string, unknown>;
+  return typeof candidate.type === "string" && typeof candidate.properties === "object" && candidate.properties !== null;
+}
+
+/** Format permission display text from OpenCode event properties. */
+export function formatOpenCodePermissionBody(props: Record<string, unknown>): string {
+  if (typeof props.title === "string" && props.title !== "") return props.title;
+
+  const kind = (typeof props.type === "string" ? props.type : null)
+    ?? (typeof props.permission === "string" ? props.permission : null)
+    ?? "permission";
+
+  const rawPattern = Array.isArray(props.pattern)
+    ? props.pattern.join(", ")
+    : typeof props.pattern === "string"
+      ? props.pattern
+      : Array.isArray(props.patterns)
+        ? (props.patterns as string[]).join(", ")
+        : null;
+
+  return rawPattern ? `${kind} (${rawPattern})` : kind;
+}
+
+/** Build "OpenCode — project" label from session state. */
+export function opencodeProjectLabel(state: OpenCodeSessionState | null): string {
+  if (!state) return "OpenCode";
+  const project = projectName(state.cwd) || state.project;
+  return project ? `OpenCode \u2014 ${project}` : "OpenCode";
+}
+
+/** Create a fresh session state. */
+export function createSessionState(project = ""): OpenCodeSessionState {
+  return { project, notifiedPermissions: [], updatedAt: Date.now() };
 }
 
 /** Sanitize text interpolated into OSC 777 fields — strip controls and escape semicolons */
@@ -317,7 +385,9 @@ export function parseArgs(args: string[]): ParsedCliArgs {
   });
 
   const rawFormat = stringOption(values.format as string | string[] | undefined);
-  const format: "auto" | "claude" | "codex" = rawFormat === "claude" || rawFormat === "codex" ? rawFormat : "auto";
+  const format: ParsedCliArgs["format"] = rawFormat === "claude" || rawFormat === "codex" || rawFormat === "opencode-event"
+    ? rawFormat
+    : "auto";
 
   if (format === "codex") {
     return { stdin: !!values.stdin, format, positionals };
@@ -513,6 +583,228 @@ function parseCodexArgv(argvJson: string | undefined): ParsedNotification {
   return defaultNotification();
 }
 
+// ---------------------------------------------------------------------------
+// OpenCode session state file management
+// ---------------------------------------------------------------------------
+
+const SESSION_STATE_SUBDIR = "opencode-sessions";
+const STALE_SESSION_MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes
+
+export function sessionStateDir(baseDir?: string): string {
+  const base = baseDir ?? (process.env.TMPDIR || "/tmp");
+  const dir = `${base}/${SESSION_STATE_SUBDIR}`;
+  try {
+    mkdirSync(dir, { recursive: true });
+  } catch {
+    // best effort
+  }
+  return dir;
+}
+
+export function sessionStatePath(sessionID: string, baseDir?: string): string {
+  // Sanitize sessionID for use as filename
+  const safe = sessionID.replace(/[^a-zA-Z0-9._-]/g, "_");
+  return `${sessionStateDir(baseDir)}/${safe}.json`;
+}
+
+export function loadSessionState(sessionID: string, baseDir?: string): OpenCodeSessionState | null {
+  try {
+    const data = readFileSync(sessionStatePath(sessionID, baseDir), "utf8");
+    return JSON.parse(data) as OpenCodeSessionState;
+  } catch {
+    return null;
+  }
+}
+
+export function saveSessionState(sessionID: string, state: OpenCodeSessionState, baseDir?: string): void {
+  try {
+    state.updatedAt = Date.now();
+    writeFileSync(sessionStatePath(sessionID, baseDir), JSON.stringify(state), "utf8");
+  } catch {
+    // best effort
+  }
+}
+
+export function deleteSessionState(sessionID: string, baseDir?: string): void {
+  try {
+    unlinkSync(sessionStatePath(sessionID, baseDir));
+  } catch {
+    // best effort
+  }
+}
+
+export function cleanStaleSessions(maxAgeMs = STALE_SESSION_MAX_AGE_MS, baseDir?: string): void {
+  const dir = sessionStateDir(baseDir);
+  try {
+    const entries = readdirSync(dir);
+    const cutoff = Date.now() - maxAgeMs;
+    for (const entry of entries) {
+      if (!entry.endsWith(".json")) continue;
+      try {
+        const stat = statSync(`${dir}/${entry}`);
+        if (stat.mtimeMs < cutoff) {
+          unlinkSync(`${dir}/${entry}`);
+        }
+      } catch {
+        // skip
+      }
+    }
+  } catch {
+    // best effort
+  }
+}
+
+// ---------------------------------------------------------------------------
+// OpenCode event processing
+// ---------------------------------------------------------------------------
+
+export function processOpenCodeEvent(
+  raw: unknown,
+  baseDir?: string,
+): { notification?: ParsedNotification; stateId?: string } | null {
+  if (!isOpenCodeEvent(raw)) return null;
+
+  const event = raw as { type: string; properties: Record<string, unknown> };
+  const { type, properties } = event;
+
+  const sessionID = extractSessionId(event);
+  cleanStaleSessions(STALE_SESSION_MAX_AGE_MS, baseDir);
+
+  // --- Intermediate events: accumulate session state ---
+
+  if (type === "message.updated") {
+    const info = properties.info as Record<string, unknown> | undefined;
+    if (!info || info.role !== "assistant") return null;
+    const path = info.path as Record<string, unknown> | undefined;
+    const sid = (info.sessionID as string) ?? sessionID;
+    if (!sid) return null;
+
+    const state = loadSessionState(sid, baseDir) ?? createSessionState();
+    if (path?.cwd && typeof path.cwd === "string") state.cwd = path.cwd;
+    if (typeof info.providerID === "string" && typeof info.modelID === "string") {
+      state.model = `${info.providerID}/${info.modelID}`;
+    }
+    saveSessionState(sid, state, baseDir);
+    return { stateId: sid };
+  }
+
+  if (type === "message.part.updated") {
+    const part = properties.part as Record<string, unknown> | undefined;
+    if (!part) return null;
+    const sid = (part.sessionID as string) ?? sessionID;
+    if (!sid) return null;
+
+    const state = loadSessionState(sid, baseDir) ?? createSessionState();
+
+    if (part.type === "text" && typeof part.text === "string") {
+      const time = part.time as Record<string, unknown> | undefined;
+      if (time?.end) {
+        state.lastText = clip(part.text as string);
+      }
+    }
+
+    if (part.type === "tool") {
+      const pstate = part.state as Record<string, unknown> | undefined;
+      const status = pstate?.status;
+      if (status === "completed" || status === "error") {
+        state.lastTool = `${part.tool ?? "tool"} ${status}`;
+      }
+    }
+
+    saveSessionState(sid, state, baseDir);
+    return { stateId: sid };
+  }
+
+  // --- Permission events: render immediately ---
+
+  if (type === "permission.asked" || type === "permission.updated") {
+    const permId = properties.id as string | undefined;
+    const sid = sessionID;
+    const state = sid ? loadSessionState(sid, baseDir) : null;
+
+    // Dedupe by permission ID
+    if (permId && state?.notifiedPermissions.includes(permId)) return null;
+
+    const body = `Permission required: ${formatOpenCodePermissionBody(properties)}`;
+    const notification: ParsedNotification = {
+      title: opencodeProjectLabel(state),
+      body,
+      source: "opencode",
+      event: type,
+      cwd: state?.cwd,
+    };
+
+    // Record permission ID for dedupe
+    if (permId && sid) {
+      const st = state ?? createSessionState();
+      st.notifiedPermissions.push(permId);
+      saveSessionState(sid, st, baseDir);
+    }
+
+    return { notification, stateId: sid ?? undefined };
+  }
+
+  // --- Terminal events: render and clean up ---
+
+  if (type === "session.idle" || (type === "session.status" && (properties.status as Record<string, unknown>)?.type === "idle")) {
+    if (!sessionID) return null;
+    const state = loadSessionState(sessionID, baseDir);
+
+    // Suppress stale idle after error
+    if (state?.errored) {
+      deleteSessionState(sessionID, baseDir);
+      return null;
+    }
+
+    const detail = state?.lastText ?? state?.lastTool ?? "Task complete";
+    const body = state?.model ? `${state.model} \u00b7 ${detail}` : detail;
+    const notification: ParsedNotification = {
+      title: opencodeProjectLabel(state ?? null),
+      body,
+      source: "opencode",
+      event: type,
+      cwd: state?.cwd,
+    };
+
+    deleteSessionState(sessionID, baseDir);
+    return { notification, stateId: sessionID };
+  }
+
+  if (type === "session.error") {
+    if (!sessionID) return null;
+    const state = loadSessionState(sessionID, baseDir);
+
+    // Don't double-notify if already errored
+    if (state?.errored) {
+      deleteSessionState(sessionID, baseDir);
+      return null;
+    }
+
+    const errorData = properties.error as Record<string, unknown> | undefined;
+    const errorMsg = errorData?.data && typeof (errorData.data as Record<string, unknown>).message === "string"
+      ? (errorData.data as Record<string, unknown>).message as string
+      : undefined;
+    const lastDetail = state?.lastText;
+    const body = lastDetail
+      ? `Session error${errorMsg ? ` (${errorMsg})` : ""} after: ${lastDetail}`
+      : `Session error${errorMsg ? `: ${errorMsg}` : ""}`;
+
+    const notification: ParsedNotification = {
+      title: opencodeProjectLabel(state ?? null),
+      body,
+      source: "opencode",
+      event: "session.error",
+      cwd: state?.cwd,
+    };
+
+    deleteSessionState(sessionID, baseDir);
+    return { notification, stateId: sessionID };
+  }
+
+  // Unknown event — no-op
+  return null;
+}
+
 function sendNotification(notification: ParsedNotification): void {
   const tmuxClientInfo = detectTmuxClientInfo();
   const transport = selectNotificationTransport(process.env, tmuxClientInfo);
@@ -546,6 +838,21 @@ export async function main(): Promise<void> {
 
   if (parsed.format === "codex") {
     notification = parseCodexArgv(parsed.positionals[0]);
+  } else if (parsed.format === "opencode-event") {
+    const stdinText = await readStdin();
+    if (stdinText.trim()) {
+      try {
+        const raw = JSON.parse(stdinText.trim()) as unknown;
+        const result = processOpenCodeEvent(raw);
+        if (result?.notification) {
+          sendNotification(result.notification);
+        }
+        return;
+      } catch {
+        return;
+      }
+    }
+    return;
   } else if (parsed.format === "claude" || parsed.stdin) {
     notification = parseNotificationFromStdin(await readStdin(), true);
   } else {
