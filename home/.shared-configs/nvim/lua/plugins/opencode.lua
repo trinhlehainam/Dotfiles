@@ -53,8 +53,6 @@ return {
     local config_src = vim.fn.expand('~/.config/opencode')
     local data_src = vim.fn.expand('~/.local/share/opencode')
     local port = opencode_port()
-    local notifier_config =
-      '{"sound":false,"notification":false,"bell":false,"command":{"enabled":false}}'
     local event_connect_max_attempts = 180
     local event_connect_interval_ms = 1000
 
@@ -69,10 +67,8 @@ return {
       'set -eu'
         .. ' && mkdir -p /opencode-config/opencode /opencode-data/opencode'
         .. ' && cp -R /opencode-config-ro/. /opencode-config/opencode/'
-        .. ' && printf %%s %s > /opencode-config/opencode/opencode-notifier-container.json'
         .. ' && if [ -f /opencode-data-ro/auth.json ]; then cp /opencode-data-ro/auth.json /opencode-data/opencode/auth.json; fi'
         .. ' && exec opencode --hostname 0.0.0.0 --port %d',
-      shell_arg(notifier_config),
       port
     )
     local opencode_cmd = string.format(
@@ -95,7 +91,6 @@ return {
         .. ' --env OPENCODE_DISABLE_AUTOUPDATE=1'
         .. ' --env OPENCODE_NOTIFY_TRANSPORT=host-nvim'
         .. ' --env OPENCODE_AGENT_NOTIFY_DISABLED=1'
-        .. ' --env OPENCODE_NOTIFIER_CONFIG_PATH=/opencode-config/opencode/opencode-notifier-container.json'
         .. '%s'
         .. '%s'
         .. ' --entrypoint sh'
