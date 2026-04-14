@@ -3,28 +3,81 @@ return {
   dependencies = { 'folke/snacks.nvim' },
   config = function()
     -- https://github.com/nickjvandyke/opencode.nvim?tab=readme-ov-file#customization
-    -- Run OpenCode inside a hardened Docker container (Option B from safety research)
-    local port = os.getenv('OPENCODE_PORT') or '4097'
+    -- Run OpenCode inside a hardened Docker container
+    local function shell_arg(value)
+      return vim.fn.shellescape(tostring(value))
+    end
+
+    local function bind_mount(src, dst, readonly)
+      return shell_arg(('type=bind,src=%s,dst=%s%s'):format(src, dst, readonly and ',ro' or ''))
+    end
+
+    local function opencode_port()
+      local current = vim.g.opencode_container_port
+      if type(current) == 'number' then
+        return current
+      end
+
+      local uv = vim.uv or vim.loop
+      local tcp = assert(uv.new_tcp())
+      assert(tcp:bind('127.0.0.1', 0))
+      local sockname = assert(tcp:getsockname())
+      tcp:close()
+
+      vim.g.opencode_container_port = sockname.port
+      return sockname.port
+    end
+
     local uid = vim.fn.systemlist('id -u')[1] or '1000'
     local gid = vim.fn.systemlist('id -g')[1] or '1000'
-    local cwd = vim.fn.getcwd()
+    local cwd = vim.fn.getcwd(-1, -1)
+    local config_src = vim.fn.expand('~/.config/opencode')
+    local data_src = vim.fn.expand('~/.local/share/opencode')
+    local port = opencode_port()
+
+    vim.fn.mkdir(config_src, 'p')
+    vim.fn.mkdir(data_src, 'p')
+
+    -- Config + auth: read-only bind mounts at staging paths, copied to writable
+    -- tmpfs so OpenCode can write runtime state without modifying host files.
+    -- The full data dir can contain large session snapshots, so only auth.json
+    -- is copied from host state.
+    local init_script = string.format(
+      'set -eu'
+        .. ' && cp -R /opencode-config-ro/. /opencode-config/'
+        .. ' && if [ -f /opencode-data-ro/auth.json ]; then cp /opencode-data-ro/auth.json /opencode-data/auth.json; fi'
+        .. ' && exec opencode --hostname 0.0.0.0 --port %d',
+      port
+    )
     local opencode_cmd = string.format(
       'docker run --rm -it --init'
         .. ' --user %s:%s'
-        .. ' --mount type=bind,src=%s,dst=/workspace'
-        .. ' --workdir /workspace'
+        .. ' --mount %s'
+        .. ' --mount %s'
+        .. ' --mount %s'
+        .. ' --tmpfs /opencode-config:rw,exec,nosuid,size=100m'
+        .. ' --tmpfs /opencode-data:rw,exec,nosuid,size=1g'
+        .. ' --workdir %s'
+        .. ' --read-only'
         .. ' --cap-drop ALL'
         .. ' --security-opt no-new-privileges'
         .. ' --tmpfs /tmp:rw,exec,nosuid,size=1g'
-        .. ' --publish 127.0.0.1:%s:%s'
+        .. ' --publish %s'
+        .. ' --env HOME=/tmp/opencode-home'
+        .. ' --env XDG_CONFIG_HOME=/opencode-config'
+        .. ' --env XDG_DATA_HOME=/opencode-data'
+        .. ' --env OPENCODE_DISABLE_AUTOUPDATE=1'
+        .. ' --entrypoint sh'
         .. ' ghcr.io/anomalyco/opencode'
-        .. ' --port %s',
+        .. ' -c %s',
       uid,
       gid,
-      cwd,
-      port,
-      port,
-      port
+      bind_mount(cwd, cwd, false),
+      bind_mount(config_src, '/opencode-config-ro', true),
+      bind_mount(data_src, '/opencode-data-ro', true),
+      shell_arg(cwd),
+      shell_arg(('127.0.0.1:%d:%d'):format(port, port)),
+      shell_arg(init_script)
     )
     ---@type snacks.terminal.Opts
     local snacks_terminal_opts = {
@@ -44,6 +97,7 @@ return {
     ---@type opencode.Opts
     vim.g.opencode_opts = {
       server = {
+        port = port,
         start = function()
           require('snacks.terminal').open(opencode_cmd, snacks_terminal_opts)
         end,
