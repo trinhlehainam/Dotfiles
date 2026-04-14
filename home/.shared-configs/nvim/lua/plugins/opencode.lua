@@ -44,13 +44,14 @@ return {
     -- is copied from host state.
     local init_script = string.format(
       'set -eu'
-        .. ' && cp -R /opencode-config-ro/. /opencode-config/'
-        .. ' && if [ -f /opencode-data-ro/auth.json ]; then cp /opencode-data-ro/auth.json /opencode-data/auth.json; fi'
+        .. ' && mkdir -p /opencode-config/opencode /opencode-data/opencode'
+        .. ' && cp -R /opencode-config-ro/. /opencode-config/opencode/'
+        .. ' && if [ -f /opencode-data-ro/auth.json ]; then cp /opencode-data-ro/auth.json /opencode-data/opencode/auth.json; fi'
         .. ' && exec opencode --hostname 0.0.0.0 --port %d',
       port
     )
     local opencode_cmd = string.format(
-      'docker run --rm -it --init'
+      'docker run --rm -it --pull always --init'
         .. ' --user %s:%s'
         .. ' --mount %s'
         .. ' --mount %s'
@@ -68,7 +69,7 @@ return {
         .. ' --env XDG_DATA_HOME=/opencode-data'
         .. ' --env OPENCODE_DISABLE_AUTOUPDATE=1'
         .. ' --entrypoint sh'
-        .. ' ghcr.io/anomalyco/opencode'
+        .. ' ghcr.io/anomalyco/opencode:latest'
         .. ' -c %s',
       uid,
       gid,
