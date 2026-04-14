@@ -55,6 +55,11 @@ export interface TmuxClientInfo {
   termtype: string;
 }
 
+export interface TmuxClientTarget extends TmuxClientInfo {
+  tty: string;
+  flags: string[];
+}
+
 export interface NotificationTransport {
   preferTmuxPaneTty: boolean;
   allowOsc777: boolean;
@@ -165,10 +170,21 @@ export function parseTmuxClientInfo(line: string): TmuxClientInfo | null {
 /** Parse a `tmux list-clients -F '#{client_tty}|#{client_termname}|#{client_termtype}'` line. */
 export function parseClientLine(
   line: string,
-): { tty: string; termname: string; termtype: string } | null {
-  const [tty = "", termname = "", termtype = ""] = line.trim().split("|");
+): TmuxClientTarget | null {
+  const [tty = "", termname = "", termtype = "", flags = ""] = line.trim().split("|");
   if (!tty) return null;
-  return { tty, termname, termtype };
+  return {
+    tty,
+    termname,
+    termtype,
+    flags: flags ? flags.split(",").filter(Boolean) : [],
+  };
+}
+
+/** Prefer focused tmux clients to reduce duplicate notifications when possible. */
+export function selectClientTargets(clients: TmuxClientTarget[]): TmuxClientTarget[] {
+  const focusedClients = clients.filter((client) => client.flags.includes("focused"));
+  return focusedClients.length > 0 ? focusedClients : clients;
 }
 
 /** Build notification bytes for one tmux client TTY. */
@@ -466,17 +482,39 @@ function notifyTmuxClients(title: string, body: string): boolean {
   const output = tmuxCapture([
     "list-clients",
     "-F",
-    "#{client_tty}|#{client_termname}|#{client_termtype}",
+    "#{client_tty}|#{client_termname}|#{client_termtype}|#{client_flags}",
   ]);
   if (!output) return false;
 
-  let notified = false;
+  const clients: TmuxClientTarget[] = [];
 
   for (const line of output.split(/\r?\n/)) {
     const client = parseClientLine(line);
     if (!client) continue;
+    clients.push(client);
+  }
+
+  if (clients.length === 0) return false;
+
+  const preferredClients = selectClientTargets(clients);
+  let notified = false;
+
+  for (const client of preferredClients) {
     const sequence = clientNotificationSequence(title, body, client);
 
+    if (writeToPath(client.tty, sequence)) {
+      notified = true;
+    }
+  }
+
+  if (notified || preferredClients.length === clients.length) {
+    return notified;
+  }
+
+  for (const client of clients) {
+    if (preferredClients.includes(client)) continue;
+
+    const sequence = clientNotificationSequence(title, body, client);
     if (writeToPath(client.tty, sequence)) {
       notified = true;
     }

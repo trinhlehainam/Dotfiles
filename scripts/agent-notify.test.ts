@@ -14,6 +14,7 @@ import {
   parseArgs,
   projectName,
   sanitizeOscField,
+  selectClientTargets,
   selectNotificationTransport,
   selectTmuxClientInfo,
   supportsOsc777,
@@ -755,6 +756,7 @@ describe("parseClientLine", () => {
       tty: "/dev/pts/3",
       termname: "wezterm",
       termtype: "WezTerm 20240203",
+      flags: [],
     });
   });
 
@@ -763,6 +765,16 @@ describe("parseClientLine", () => {
       tty: "/dev/pts/5",
       termname: "xterm-256color",
       termtype: "tmux-256color",
+      flags: [],
+    });
+  });
+
+  test("parses client flags when present", () => {
+    expect(parseClientLine("/dev/pts/3|wezterm|WezTerm 20240203|attached,focused,UTF-8")).toEqual({
+      tty: "/dev/pts/3",
+      termname: "wezterm",
+      termtype: "WezTerm 20240203",
+      flags: ["attached", "focused", "UTF-8"],
     });
   });
 
@@ -779,11 +791,51 @@ describe("parseClientLine", () => {
       tty: "/dev/pts/1",
       termname: "wezterm",
       termtype: "WezTerm 1",
+      flags: [],
     });
   });
 
   test("returns null when tty field is empty", () => {
     expect(parseClientLine("|wezterm|WezTerm 20240203")).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// selectClientTargets
+// ---------------------------------------------------------------------------
+
+describe("selectClientTargets", () => {
+  test("prefers focused clients when present", () => {
+    const clients = [
+      { tty: "/dev/pts/1", termname: "wezterm", termtype: "WezTerm 1", flags: ["attached"] },
+      { tty: "/dev/pts/2", termname: "wezterm", termtype: "WezTerm 1", flags: ["attached", "focused"] },
+    ];
+
+    expect(selectClientTargets(clients)).toEqual([
+      { tty: "/dev/pts/2", termname: "wezterm", termtype: "WezTerm 1", flags: ["attached", "focused"] },
+    ]);
+  });
+
+  test("returns all clients when none are focused", () => {
+    const clients = [
+      { tty: "/dev/pts/1", termname: "wezterm", termtype: "WezTerm 1", flags: ["attached"] },
+      { tty: "/dev/pts/2", termname: "xterm-256color", termtype: "tmux-256color", flags: ["attached"] },
+    ];
+
+    expect(selectClientTargets(clients)).toEqual(clients);
+  });
+
+  test("supports multiple focused clients", () => {
+    const clients = [
+      { tty: "/dev/pts/1", termname: "wezterm", termtype: "WezTerm 1", flags: ["attached", "focused"] },
+      { tty: "/dev/pts/2", termname: "wezterm", termtype: "WezTerm 2", flags: ["attached", "focused"] },
+      { tty: "/dev/pts/3", termname: "wezterm", termtype: "WezTerm 3", flags: ["attached"] },
+    ];
+
+    expect(selectClientTargets(clients)).toEqual([
+      { tty: "/dev/pts/1", termname: "wezterm", termtype: "WezTerm 1", flags: ["attached", "focused"] },
+      { tty: "/dev/pts/2", termname: "wezterm", termtype: "WezTerm 2", flags: ["attached", "focused"] },
+    ]);
   });
 });
 
