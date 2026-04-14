@@ -208,9 +208,12 @@ export function clientNotificationSequence(
   notification: ParsedNotification,
   client: { termname: string; termtype: string },
 ): string {
-  return supportsOsc777ViaTmuxClientInfo(client)
-    ? `${BEL}${buildOsc1337SetUserVar("AGENT_NOTIFY", JSON.stringify({ id, t: notification.title, b: notification.body, s: notification.source, e: notification.event }))}`
-    : BEL;
+  if (supportsOsc777ViaTmuxClientInfo(client)) {
+    // WezTerm: OSC 1337 only — dedup + toast happens in Lua handler.
+    // No BEL here to avoid duplicate audible_bell across multiple local windows.
+    return buildOsc1337SetUserVar("AGENT_NOTIFY", JSON.stringify({ id, t: notification.title, b: notification.body, s: notification.source, e: notification.event }));
+  }
+  return BEL;
 }
 
 /** Only enable WezTerm-specific OSC when every attached client for a session supports it. */
@@ -415,8 +418,9 @@ function terminalNotificationSequence(
     return BEL;
   }
 
+  // WezTerm: OSC 1337 only — no BEL to avoid duplicate audible_bell
   const payload = JSON.stringify({ id, t: notification.title, b: notification.body, s: notification.source, e: notification.event });
-  return `${BEL}${wrapForTmux(buildOsc1337SetUserVar("AGENT_NOTIFY", payload), isTmux)}`;
+  return wrapForTmux(buildOsc1337SetUserVar("AGENT_NOTIFY", payload), isTmux);
 }
 
 function terminalDevicePath(): string {

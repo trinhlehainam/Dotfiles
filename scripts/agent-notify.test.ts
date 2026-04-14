@@ -508,10 +508,12 @@ describe("buildTerminalNotification", () => {
     expect(buildTerminalNotification("id1", notif, {})).toBe("\x07");
   });
 
-  test("returns bell plus OSC 1337 for WezTerm (non-tmux)", () => {
+  test("returns OSC 1337 for WezTerm (non-tmux) without extra BEL prefix", () => {
     const result = buildTerminalNotification("id1", notif, { TERM_PROGRAM: "WezTerm" });
     expect(result).toContain("SetUserVar=AGENT_NOTIFY=");
-    expect(result.startsWith("\x07")).toBe(true);
+    // No extra BEL prefix before the OSC sequence (BEL in OSC 1337 is the
+    // sequence terminator, not an audible bell trigger)
+    expect(result.startsWith("\x07")).toBe(false);
   });
 
   test("returns bell only in tmux without trusted WezTerm client metadata", () => {
@@ -903,13 +905,14 @@ describe("buildOsc1337SetUserVar", () => {
 describe("clientNotificationSequence", () => {
   const notif: ParsedNotification = { title: "Title", body: "Body", source: "test", event: "unit" };
 
-  test("WezTerm client gets BEL + OSC 1337 SetUserVar with full payload", () => {
+  test("WezTerm client gets OSC 1337 SetUserVar with full payload (no extra BEL prefix)", () => {
     const seq = clientNotificationSequence("test-id", notif, {
       termname: "wezterm",
       termtype: "WezTerm 20240203",
     });
 
-    expect(seq.startsWith("\x07")).toBe(true);
+    // No extra BEL prefix — sound is handled by window:toast_notification()
+    expect(seq.startsWith("\x07")).toBe(false);
     expect(seq).toContain("SetUserVar=AGENT_NOTIFY=");
 
     // Decode payload
@@ -924,13 +927,14 @@ describe("clientNotificationSequence", () => {
     expect(parsed.e).toBe("unit");
   });
 
-  test("WezTerm via termtype gets BEL + OSC 1337 SetUserVar", () => {
+  test("WezTerm via termtype gets OSC 1337 SetUserVar (no extra BEL prefix)", () => {
     const seq = clientNotificationSequence("test-id", notif, {
       termname: "xterm-256color",
       termtype: "WezTerm 20240203",
     });
 
     expect(seq).toContain("SetUserVar=AGENT_NOTIFY=");
+    expect(seq.startsWith("\x07")).toBe(false);
   });
 
   test("non-WezTerm client gets BEL only", () => {

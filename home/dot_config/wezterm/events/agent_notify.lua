@@ -1,34 +1,63 @@
 local wezterm = require('wezterm') ---@type Wezterm
 
 -- Machine-local dedup using filesystem markers under $XDG_RUNTIME_DIR.
--- Each notification gets an atomic mkdir marker keyed by notification id.
+-- Each notification gets a marker file keyed by notification id.
 -- First WezTerm process (or window) to create the marker shows the toast;
--- later attempts find the directory already exists and skip.
+-- later attempts find the file already exists and skip.
+--
+-- All per-event operations use portable Lua io/os APIs — no POSIX shell
+-- commands needed. Only the one-time marker directory creation uses
+-- wezterm.run_child_process.
 
 local MARKER_DIR = (os.getenv('XDG_RUNTIME_DIR') or '/tmp')
   .. '/agent-notify'
 
---- Ensure the marker directory exists.
+local MARKER_TTL = 60 -- seconds before lazy cleanup evicts old markers
+
+--- Ensure the marker directory exists (one-time, at startup).
 local function ensure_marker_dir()
   pcall(wezterm.run_child_process, { 'mkdir', '-p', MARKER_DIR })
 end
 
---- Prune marker directories older than 60 seconds (lazy cleanup).
+--- Prune marker files older than MARKER_TTL seconds.
+--- Uses wezterm.glob (portable) + os.remove (Lua built-in).
 local function prune_old_markers()
-  pcall(wezterm.run_child_process, {
-    'find', MARKER_DIR, '-mindepth', '1', '-maxdepth', '1',
-    '-type', 'd', '-mmin', '+1', '-exec', 'rm', '-rf', '{}', '+',
-  })
+  local now = os.time()
+  local cutoff = now - MARKER_TTL
+  local ok, files = pcall(wezterm.glob, MARKER_DIR .. '/*')
+  if not ok or not files then
+    return
+  end
+  for _, path in ipairs(files) do
+    local f = io.open(path, 'r')
+    if f then
+      local ts = f:read('*n') -- read number (timestamp)
+      f:close()
+      if ts and ts < cutoff then
+        os.remove(path)
+      end
+    end
+  end
 end
 
---- Try to atomically claim a notification id. Returns true if this is the
---- first claim (caller should show the toast).
+--- Try to claim a notification id. Returns true if this is the first claim.
+--- Uses portable Lua io — no shell commands.
 local function try_claim(id)
-  -- mkdir without -p fails atomically if the directory already exists
-  local ok, success = pcall(wezterm.run_child_process, {
-    'mkdir', MARKER_DIR .. '/' .. id,
-  })
-  return ok and success
+  local marker = MARKER_DIR .. '/' .. id
+  -- Check if already claimed
+  local f = io.open(marker, 'r')
+  if f then
+    f:close()
+    return false -- already claimed
+  end
+  -- Claim: write current timestamp
+  f = io.open(marker, 'w')
+  if not f then
+    return false -- could not create (dir missing?)
+  end
+  f:write(tostring(os.time()))
+  f:close()
+  return true
 end
 
 return function()
@@ -54,7 +83,7 @@ return function()
     -- Lazy prune old markers on each event
     prune_old_markers()
 
-    -- Machine-local atomic dedup
+    -- Machine-local dedup
     if not try_claim(id) then
       return
     end
