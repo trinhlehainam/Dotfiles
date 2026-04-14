@@ -12,6 +12,14 @@ return {
       return shell_arg(('type=bind,src=%s,dst=%s%s'):format(src, dst, readonly and ',ro' or ''))
     end
 
+    local function docker_env(name, value)
+      if value == nil or value == '' then
+        return ''
+      end
+
+      return ' --env ' .. shell_arg(('%s=%s'):format(name, value))
+    end
+
     local function opencode_port()
       local current = vim.g.opencode_container_port
       if type(current) == 'number' then
@@ -19,13 +27,24 @@ return {
       end
 
       local uv = vim.uv or vim.loop
-      local tcp = assert(uv.new_tcp())
-      assert(tcp:bind('127.0.0.1', 0))
-      local sockname = assert(tcp:getsockname())
-      tcp:close()
+      local tcp = uv.new_tcp()
+      local ok = tcp and pcall(function()
+        assert(tcp:bind('127.0.0.1', 0))
+      end)
 
-      vim.g.opencode_container_port = sockname.port
-      return sockname.port
+      if ok and tcp then
+        local sockname = assert(tcp:getsockname())
+        tcp:close()
+        vim.g.opencode_container_port = sockname.port
+        return sockname.port
+      end
+
+      if tcp then
+        tcp:close()
+      end
+
+      vim.g.opencode_container_port = 40000 + (vim.fn.getpid() % 20000)
+      return vim.g.opencode_container_port
     end
 
     local uid = vim.fn.systemlist('id -u')[1] or '1000'
@@ -34,6 +53,10 @@ return {
     local config_src = vim.fn.expand('~/.config/opencode')
     local data_src = vim.fn.expand('~/.local/share/opencode')
     local port = opencode_port()
+    local notifier_config =
+      '{"sound":false,"notification":false,"bell":false,"command":{"enabled":false}}'
+    local event_connect_max_attempts = 180
+    local event_connect_interval_ms = 1000
 
     vim.fn.mkdir(config_src, 'p')
     vim.fn.mkdir(data_src, 'p')
@@ -46,8 +69,10 @@ return {
       'set -eu'
         .. ' && mkdir -p /opencode-config/opencode /opencode-data/opencode'
         .. ' && cp -R /opencode-config-ro/. /opencode-config/opencode/'
+        .. ' && printf %%s %s > /opencode-config/opencode/opencode-notifier-container.json'
         .. ' && if [ -f /opencode-data-ro/auth.json ]; then cp /opencode-data-ro/auth.json /opencode-data/opencode/auth.json; fi'
         .. ' && exec opencode --hostname 0.0.0.0 --port %d',
+      shell_arg(notifier_config),
       port
     )
     local opencode_cmd = string.format(
@@ -68,6 +93,11 @@ return {
         .. ' --env XDG_CONFIG_HOME=/opencode-config'
         .. ' --env XDG_DATA_HOME=/opencode-data'
         .. ' --env OPENCODE_DISABLE_AUTOUPDATE=1'
+        .. ' --env OPENCODE_NOTIFY_TRANSPORT=host-nvim'
+        .. ' --env OPENCODE_AGENT_NOTIFY_DISABLED=1'
+        .. ' --env OPENCODE_NOTIFIER_CONFIG_PATH=/opencode-config/opencode/opencode-notifier-container.json'
+        .. '%s'
+        .. '%s'
         .. ' --entrypoint sh'
         .. ' ghcr.io/anomalyco/opencode:latest'
         .. ' -c %s',
@@ -78,8 +108,52 @@ return {
       bind_mount(data_src, '/opencode-data-ro', true),
       shell_arg(cwd),
       shell_arg(('127.0.0.1:%d:%d'):format(port, port)),
+      docker_env('TERM', vim.env.TERM or 'xterm-256color'),
+      docker_env('COLORTERM', vim.env.COLORTERM or 'truecolor'),
       shell_arg(init_script)
     )
+
+    local event_connecting = false
+    local function connect_opencode_events()
+      if event_connecting then
+        return
+      end
+
+      event_connecting = true
+      local attempts = 0
+      local function try_connect()
+        attempts = attempts + 1
+
+        local connected_server = require('opencode.events').connected_server
+        if connected_server and connected_server.port == port then
+          event_connecting = false
+          return
+        end
+
+        require('opencode.server')
+          .new(port)
+          :next(function(server)
+            require('opencode.events').connect(server)
+            event_connecting = false
+          end)
+          :catch(function()
+            if attempts >= event_connect_max_attempts then
+              event_connecting = false
+              vim.notify(
+                'OpenCode event bridge did not connect; host notifications are disabled for this container session',
+                vim.log.levels.WARN,
+                { title = 'opencode' }
+              )
+              return
+            end
+
+            vim.defer_fn(try_connect, event_connect_interval_ms)
+          end)
+      end
+
+      vim.defer_fn(try_connect, event_connect_interval_ms)
+    end
+
     ---@type snacks.terminal.Opts
     local snacks_terminal_opts = {
       win = {
@@ -92,6 +166,7 @@ return {
         on_win = function(win)
           -- Set up keymaps and cleanup for an arbitrary terminal
           require('opencode.terminal').setup(win.win)
+          connect_opencode_events()
         end,
       },
     }
@@ -101,15 +176,19 @@ return {
         port = port,
         start = function()
           require('snacks.terminal').open(opencode_cmd, snacks_terminal_opts)
+          connect_opencode_events()
         end,
         stop = function()
           require('snacks.terminal').get(opencode_cmd, snacks_terminal_opts):close()
         end,
         toggle = function()
           require('snacks.terminal').toggle(opencode_cmd, snacks_terminal_opts)
+          connect_opencode_events()
         end,
       },
     }
+
+    require('configs.plugins.opencode_notify').setup()
 
     -- Required for `opts.events.reload`.
     vim.o.autoread = true

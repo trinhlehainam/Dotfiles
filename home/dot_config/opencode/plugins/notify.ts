@@ -1,6 +1,9 @@
 import type { Plugin } from "@opencode-ai/plugin"
 
-const NOTIFY_BIN = `${process.env.HOME}/.local/bin/agent-notify`
+const NOTIFY_BIN = process.env.OPENCODE_NOTIFY_BIN ?? `${process.env.HOME}/.local/bin/agent-notify`
+const NOTIFY_DISABLED =
+  process.env.OPENCODE_AGENT_NOTIFY_DISABLED === "1" ||
+  process.env.OPENCODE_NOTIFY_TRANSPORT === "host-nvim"
 
 type SessionContext = {
   project: string
@@ -100,6 +103,8 @@ async function notifyPermission(
 }
 
 export const NotifyPlugin: Plugin = async ({ $ }) => {
+  if (NOTIFY_DISABLED) return {}
+
   return {
     event: async ({ event }) => {
       if (event.type === "message.updated" && event.properties.info.role === "assistant") {
