@@ -65,6 +65,10 @@ export interface NotificationTransport {
   allowWezTermNotifications: boolean;
 }
 
+export interface NotificationTransportOptions {
+  preferLocalTmuxEnv?: boolean;
+}
+
 const ESC = String.fromCharCode(27);
 const BEL = String.fromCharCode(7);
 const ST = `${ESC}\\`;
@@ -220,6 +224,13 @@ export function isWezTermClientInfo(clientInfo: TmuxClientInfo | null): boolean 
   return clientInfo.termname === "wezterm" || clientInfo.termtype.startsWith("WezTerm ");
 }
 
+/** Detect whether this process is running inside a local WezTerm environment. */
+export function isLocalWezTermEnv(env: NodeJS.ProcessEnv): boolean {
+  return env.TERM_PROGRAM === "WezTerm"
+    || env.WEZTERM_PANE !== undefined
+    || env.WEZTERM_EXECUTABLE !== undefined;
+}
+
 /** Neovim terminal jobs are rendered by libvterm, not by the outer terminal directly. */
 export function isEmbeddedNvimTerminal(env: NodeJS.ProcessEnv): boolean {
   return env.NVIM !== undefined;
@@ -229,30 +240,34 @@ export function isEmbeddedNvimTerminal(env: NodeJS.ProcessEnv): boolean {
 export function supportsWezTermNotifications(
   env: NodeJS.ProcessEnv,
   tmuxClientInfo: TmuxClientInfo | null = null,
+  options: NotificationTransportOptions = {},
 ): boolean {
   if (isEmbeddedNvimTerminal(env) && env.TMUX_PANE === undefined) {
     return false;
   }
 
   if (env.TMUX) {
+    if (options.preferLocalTmuxEnv) {
+      return isLocalWezTermEnv(env) || isWezTermClientInfo(tmuxClientInfo);
+    }
+
     return isWezTermClientInfo(tmuxClientInfo);
   }
 
-  return env.TERM_PROGRAM === "WezTerm"
-    || env.WEZTERM_PANE !== undefined
-    || env.WEZTERM_EXECUTABLE !== undefined
+  return isLocalWezTermEnv(env);
 }
 
 /** Decide which terminal path is safe for notifications in the current process. */
 export function selectNotificationTransport(
   env: NodeJS.ProcessEnv,
   tmuxClientInfo: TmuxClientInfo | null = null,
+  options: NotificationTransportOptions = {},
 ): NotificationTransport {
   const preferTmuxPaneTty = isEmbeddedNvimTerminal(env) && env.TMUX_PANE !== undefined;
 
   return {
     preferTmuxPaneTty,
-    allowWezTermNotifications: supportsWezTermNotifications(env, tmuxClientInfo),
+    allowWezTermNotifications: supportsWezTermNotifications(env, tmuxClientInfo, options),
   };
 }
 
@@ -262,11 +277,12 @@ export function buildTerminalNotification(
   notification: ParsedNotification,
   env: NodeJS.ProcessEnv = process.env,
   tmuxClientInfo: TmuxClientInfo | null = null,
+  options: NotificationTransportOptions = {},
 ): string {
   return terminalNotificationSequence(
     id,
     notification,
-    selectNotificationTransport(env, tmuxClientInfo),
+    selectNotificationTransport(env, tmuxClientInfo, options),
     !!env.TMUX,
   );
 }
@@ -617,9 +633,11 @@ function sendNotification(notification: ParsedNotification): void {
 
   // Try broadcasting directly to tmux client TTYs first (cross-session support)
   if (!notifyTmuxClients(id, notification)) {
-    // Fallback: original behavior (agent's own controlling TTY / pane TTY)
+    // Fallback: target current local terminal, even in mixed-client tmux sessions.
     const tmuxClientInfo = detectTmuxClientInfo();
-    const transport = selectNotificationTransport(process.env, tmuxClientInfo);
+    const transport = selectNotificationTransport(process.env, tmuxClientInfo, {
+      preferLocalTmuxEnv: true,
+    });
     writeToTerminal(
       terminalNotificationSequence(id, notification, transport, !!process.env.TMUX),
       transport,

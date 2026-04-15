@@ -9,6 +9,7 @@ import {
   generateNotificationId,
   isCodexNotifyPayload,
   isEmbeddedNvimTerminal,
+  isLocalWezTermEnv,
   notificationTypeLabel,
   parseClientLine,
   parseTmuxClientInfo,
@@ -317,6 +318,24 @@ describe("isEmbeddedNvimTerminal", () => {
 });
 
 // ---------------------------------------------------------------------------
+// isLocalWezTermEnv
+// ---------------------------------------------------------------------------
+
+describe("isLocalWezTermEnv", () => {
+  test("detects WezTerm via TERM_PROGRAM", () => {
+    expect(isLocalWezTermEnv({ TERM_PROGRAM: "WezTerm" })).toBe(true);
+  });
+
+  test("detects WezTerm via WEZTERM_PANE", () => {
+    expect(isLocalWezTermEnv({ WEZTERM_PANE: "1" })).toBe(true);
+  });
+
+  test("returns false for non-WezTerm env", () => {
+    expect(isLocalWezTermEnv({ TERM_PROGRAM: "tmux" })).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // selectTmuxClientInfo
 // ---------------------------------------------------------------------------
 
@@ -425,6 +444,16 @@ describe("supportsWezTermNotifications", () => {
     expect(supportsWezTermNotifications({ TMUX: "/tmp/tmux", TERM_PROGRAM: "WezTerm" }, null)).toBe(false);
   });
 
+  test("can trust local WezTerm env for fallback inside tmux", () => {
+    expect(
+      supportsWezTermNotifications(
+        { TMUX: "/tmp/tmux", TERM_PROGRAM: "WezTerm" },
+        null,
+        { preferLocalTmuxEnv: true },
+      ),
+    ).toBe(true);
+  });
+
   test("returns false inside Neovim terminal without tmux bypass", () => {
     expect(supportsWezTermNotifications({ NVIM: "/tmp/nvim.sock", TERM_PROGRAM: "WezTerm" })).toBe(false);
   });
@@ -456,6 +485,19 @@ describe("buildTerminalNotification", () => {
 
   test("returns bell only in tmux without trusted WezTerm client metadata", () => {
     expect(buildTerminalNotification("id1", notif, { TERM_PROGRAM: "WezTerm", TMUX: "/tmp/tmux" })).toBe("\x07");
+  });
+
+  test("uses OSC 1337 for local WezTerm fallback in mixed tmux sessions", () => {
+    const result = buildTerminalNotification(
+      "id1",
+      notif,
+      { TERM_PROGRAM: "WezTerm", TMUX: "/tmp/tmux" },
+      null,
+      { preferLocalTmuxEnv: true },
+    );
+
+    expect(result).toContain("\x1bPtmux;");
+    expect(result).toContain("SetUserVar=AGENT_NOTIFY=");
   });
 
   test("wraps OSC 1337 with DCS when tmux client info identifies WezTerm", () => {
