@@ -190,6 +190,59 @@ export function selectClientTargets(clients: TmuxClientTarget[]): TmuxClientTarg
   return focusedClients.length > 0 ? focusedClients : clients;
 }
 
+/**
+ * Write notification bytes directly to tmux client TTYs.
+ *
+ * WezTerm clients are broadcast to all attached windows because Lua-side dedup
+ * suppresses duplicates. Non-WezTerm clients keep focus-first BEL delivery.
+ */
+export function notifyClientTargets(
+  id: string,
+  notification: ParsedNotification,
+  clients: TmuxClientTarget[],
+  write: (path: string, data: string) => boolean,
+): boolean {
+  const weztermClients = clients.filter((c) => isWezTermClientInfo(c));
+  const otherClients = clients.filter((c) => !isWezTermClientInfo(c));
+  let notified = false;
+
+  for (const client of weztermClients) {
+    const sequence = clientNotificationSequence(id, notification, client);
+    if (write(client.tty, sequence)) {
+      notified = true;
+    }
+  }
+
+  if (otherClients.length === 0) {
+    return notified;
+  }
+
+  const preferredClients = selectClientTargets(otherClients);
+  const noFocusedClients = preferredClients.length === otherClients.length;
+  let otherNotified = false;
+
+  for (const client of preferredClients) {
+    const sequence = clientNotificationSequence(id, notification, client);
+    if (write(client.tty, sequence)) {
+      notified = true;
+      otherNotified = true;
+    }
+  }
+
+  if (!otherNotified && !noFocusedClients) {
+    for (const client of otherClients) {
+      if (preferredClients.includes(client)) continue;
+      const sequence = clientNotificationSequence(id, notification, client);
+      if (write(client.tty, sequence)) {
+        notified = true;
+        otherNotified = true;
+      }
+    }
+  }
+
+  return notified;
+}
+
 /** Build notification bytes for one tmux client TTY. */
 export function clientNotificationSequence(
   id: string,
@@ -514,44 +567,7 @@ function notifyTmuxClients(id: string, notification: ParsedNotification): boolea
     clients.push(client);
   }
 
-  if (clients.length === 0) return false;
-
-  const weztermClients = clients.filter((c) => isWezTermClientInfo(c));
-  const otherClients = clients.filter((c) => !isWezTermClientInfo(c));
-  let notified = false;
-
-  // WezTerm: send to ALL clients — dedup happens in WezTerm Lua handler
-  for (const client of weztermClients) {
-    const sequence = clientNotificationSequence(id, notification, client);
-    if (writeToPath(client.tty, sequence)) {
-      notified = true;
-    }
-  }
-
-  // Non-WezTerm: keep focus-based routing for BEL-only delivery
-  if (otherClients.length > 0) {
-    const preferredClients = selectClientTargets(otherClients);
-    const noFocusedClients = preferredClients.length === otherClients.length;
-
-    for (const client of preferredClients) {
-      const sequence = clientNotificationSequence(id, notification, client);
-      if (writeToPath(client.tty, sequence)) {
-        notified = true;
-      }
-    }
-
-    if (!notified && !noFocusedClients) {
-      for (const client of otherClients) {
-        if (preferredClients.includes(client)) continue;
-        const sequence = clientNotificationSequence(id, notification, client);
-        if (writeToPath(client.tty, sequence)) {
-          notified = true;
-        }
-      }
-    }
-  }
-
-  return notified;
+  return clients.length > 0 && notifyClientTargets(id, notification, clients, writeToPath);
 }
 
 /** Write raw bytes to the safest available terminal endpoint. */

@@ -10,6 +10,7 @@ import {
   isCodexNotifyPayload,
   isEmbeddedNvimTerminal,
   isLocalWezTermEnv,
+  notifyClientTargets,
   notificationTypeLabel,
   parseClientLine,
   parseTmuxClientInfo,
@@ -824,6 +825,53 @@ describe("selectClientTargets", () => {
       { tty: "/dev/pts/1", termname: "wezterm", termtype: "WezTerm 1", flags: ["attached", "focused"] },
       { tty: "/dev/pts/2", termname: "wezterm", termtype: "WezTerm 2", flags: ["attached", "focused"] },
     ]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// notifyClientTargets
+// ---------------------------------------------------------------------------
+
+describe("notifyClientTargets", () => {
+  const notif: ParsedNotification = { title: "Title", body: "Body", source: "test", event: "unit" };
+
+  test("retries unfocused non-WezTerm clients even after WezTerm delivery succeeds", () => {
+    const writes: Array<{ path: string; data: string }> = [];
+    const clients = [
+      { tty: "/dev/pts/1", termname: "wezterm", termtype: "WezTerm 1", flags: ["attached"] },
+      { tty: "/dev/pts/2", termname: "xterm-256color", termtype: "tmux-256color", flags: ["attached", "focused"] },
+      { tty: "/dev/pts/3", termname: "xterm-256color", termtype: "tmux-256color", flags: ["attached"] },
+    ];
+
+    const notified = notifyClientTargets("id1", notif, clients, (path, data) => {
+      writes.push({ path, data });
+      const shouldSucceed = path !== "/dev/pts/2";
+      return shouldSucceed;
+    });
+
+    expect(notified).toBe(true);
+    expect(writes.map((write) => write.path)).toEqual(["/dev/pts/1", "/dev/pts/2", "/dev/pts/3"]);
+    expect(writes[0]?.data).toContain("SetUserVar=AGENT_NOTIFY=");
+    expect(writes[1]?.data).toBe("\x07");
+    expect(writes[2]?.data).toBe("\x07");
+  });
+
+  test("skips unfocused non-WezTerm clients once a focused non-WezTerm client succeeds", () => {
+    const writes: Array<{ path: string; data: string }> = [];
+    const clients = [
+      { tty: "/dev/pts/1", termname: "wezterm", termtype: "WezTerm 1", flags: ["attached"] },
+      { tty: "/dev/pts/2", termname: "xterm-256color", termtype: "tmux-256color", flags: ["attached", "focused"] },
+      { tty: "/dev/pts/3", termname: "xterm-256color", termtype: "tmux-256color", flags: ["attached"] },
+    ];
+
+    const notified = notifyClientTargets("id1", notif, clients, (path, data) => {
+      writes.push({ path, data });
+      const shouldSucceed = path !== "/dev/pts/1";
+      return shouldSucceed;
+    });
+
+    expect(notified).toBe(true);
+    expect(writes.map((write) => write.path)).toEqual(["/dev/pts/1", "/dev/pts/2"]);
   });
 });
 

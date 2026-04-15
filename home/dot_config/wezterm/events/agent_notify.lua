@@ -28,7 +28,11 @@ local function marker_root()
   return first_non_empty(os.getenv('XDG_RUNTIME_DIR'), os.getenv('TMPDIR'), '/tmp')
 end
 
-local MARKER_DIR = table.concat({ marker_root(), 'agent-notify' }, sep)
+local function marker_user()
+  return first_non_empty(os.getenv('USER'), os.getenv('USERNAME'), 'unknown')
+end
+
+local MARKER_DIR = table.concat({ marker_root(), marker_user(), 'agent-notify' }, sep)
 local MARKER_TTL = 60 -- seconds before lazy cleanup evicts old markers
 
 ---@param id string
@@ -171,7 +175,11 @@ return function()
     local id = parsed.id
     local title = parsed.t
     local body = parsed.b
-    if not id or not title then
+    if type(id) ~= 'string' or id == '' or type(title) ~= 'string' or title == '' then
+      return
+    end
+
+    if body ~= nil and type(body) ~= 'string' then
       return
     end
 
