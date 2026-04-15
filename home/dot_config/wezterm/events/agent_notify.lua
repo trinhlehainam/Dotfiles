@@ -31,25 +31,6 @@ end
 local MARKER_DIR = table.concat({ marker_root(), 'agent-notify' }, sep)
 local MARKER_TTL = 60 -- seconds before lazy cleanup evicts old markers
 
----@param parts string[]
----@return string
-local function join_path(parts)
-  return table.concat(parts, sep)
-end
-
----@param text string
----@return string
-local function escape_lua_pattern(text)
-  return text:gsub('([%%%^%$%(%)%.%[%]%*%+%-%?])', '%%%1')
-end
-
----@param path string
----@return string
-local function path_basename(path)
-  local pattern = string.format('([^%s]+)$', escape_lua_pattern(sep))
-  return path:match(pattern) or path
-end
-
 ---@param id string
 ---@return string
 local function marker_key(id)
@@ -60,6 +41,9 @@ end
 ---@param args string[]
 ---@return boolean
 local function run_command(args)
+  -- `run_child_process()` returns success=false for non-zero exit status and
+  -- raises on spawn failure. `try_claim()` checks marker existence afterward to
+  -- distinguish a lost race from infrastructure failure.
   local ok, success = pcall(wezterm.run_child_process, args)
   return ok and success
 end
@@ -84,10 +68,20 @@ local function mkdir_one(path)
   return run_command({ 'mkdir', path })
 end
 
+---@param path string
+---@return boolean
+local function remove_empty_dir(path)
+  if platform.is_win then
+    return run_command({ 'cmd.exe', '/C', 'rmdir', path })
+  end
+
+  return os.remove(path) ~= nil
+end
+
 ---@param id string
 ---@return string
 local function claim_dir(id)
-  return join_path({ MARKER_DIR, marker_key(id) })
+  return MARKER_DIR .. sep .. marker_key(id)
 end
 
 --- Ensure the marker directory exists.
@@ -112,59 +106,16 @@ local function marker_exists(dir)
   return list_dir(dir) ~= nil
 end
 
----@param digit string
----@return number|nil
-local function base36_digit_value(digit)
-  local byte = string.byte(digit)
-  if not byte then
-    return nil
-  end
-
-  if byte >= string.byte('0') and byte <= string.byte('9') then
-    return byte - string.byte('0')
-  end
-
-  if byte >= string.byte('a') and byte <= string.byte('z') then
-    return byte - string.byte('a') + 10
-  end
-
-  if byte >= string.byte('A') and byte <= string.byte('Z') then
-    return byte - string.byte('A') + 10
-  end
-
-  return nil
-end
-
----@param value string
----@return number|nil
-local function parse_base36(value)
-  if value == '' then
-    return nil
-  end
-
-  local result = 0
-  for i = 1, #value do
-    local digit = base36_digit_value(value:sub(i, i))
-    if not digit then
-      return nil
-    end
-
-    result = (result * 36) + digit
-  end
-
-  return result
-end
-
 ---@param dir string
 ---@return number|nil
 local function marker_timestamp_ms(dir)
-  local name = path_basename(dir)
+  local name = dir:match('([^/\\]+)$') or dir
   local prefix = name:match('^([0-9A-Za-z]+)%-')
   if not prefix then
     return nil
   end
 
-  return parse_base36(prefix)
+  return tonumber(prefix, 36)
 end
 
 --- Prune marker directories older than MARKER_TTL seconds.
@@ -178,7 +129,7 @@ local function prune_old_markers()
   for _, dir in ipairs(dirs) do
     local ts = marker_timestamp_ms(dir)
     if ts and ts < cutoff_ms then
-      os.remove(dir)
+      remove_empty_dir(dir)
     end
   end
 end
@@ -203,7 +154,7 @@ local function try_claim(id)
 end
 
 return function()
-  wezterm.on('user-var-changed', function(window, _pane, name, value)
+  wezterm.on('user-var-changed', function(window, _, name, value)
     if name ~= 'AGENT_NOTIFY' then
       return
     end
