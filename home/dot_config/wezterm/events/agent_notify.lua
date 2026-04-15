@@ -52,7 +52,9 @@ end
 ---@return boolean
 local function mkdir_p(path)
   if platform.is_win then
-    return run_command({ 'cmd.exe', '/C', 'mkdir', path })
+    -- WezTerm Lua cannot call Win32 APIs directly, so Windows claims/removals go
+    -- through `cmd.exe`. `/D` disables AutoRun side effects for this helper.
+    return run_command({ 'cmd.exe', '/D', '/C', 'mkdir', path })
   end
 
   return run_command({ 'mkdir', '-p', path })
@@ -62,7 +64,7 @@ end
 ---@return boolean
 local function mkdir_one(path)
   if platform.is_win then
-    return run_command({ 'cmd.exe', '/C', 'mkdir', path })
+    return run_command({ 'cmd.exe', '/D', '/C', 'mkdir', path })
   end
 
   return run_command({ 'mkdir', path })
@@ -72,7 +74,7 @@ end
 ---@return boolean
 local function remove_empty_dir(path)
   if platform.is_win then
-    return run_command({ 'cmd.exe', '/C', 'rmdir', path })
+    return run_command({ 'cmd.exe', '/D', '/C', 'rmdir', path })
   end
 
   return os.remove(path) ~= nil
