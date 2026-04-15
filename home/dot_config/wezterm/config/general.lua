@@ -3,12 +3,12 @@ return {
   apply_to_config = function(config)
     config.scrollback_lines = 10000
 
-    -- Agent notification support
-    -- Show OSC 777/OSC 9 toast notifications from all panes (including unfocused)
-    -- so fallback notifications always surface regardless of focus
+    -- Agent notifications primarily use SetUserVar -> user-var-changed ->
+    -- toast_notification(). Keep AlwaysShow so any non-AGENT_NOTIFY terminal
+    -- notification fallback still surfaces regardless of focus.
     config.notification_handling = 'AlwaysShow'
 
-    -- Audible bell: play system sound on BEL (\a) from agents
+    -- Play system sound for BEL-only fallback terminals.
     config.audible_bell = 'SystemBeep'
   end,
 }

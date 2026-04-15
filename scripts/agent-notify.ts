@@ -62,7 +62,7 @@ export interface TmuxClientTarget extends TmuxClientInfo {
 
 export interface NotificationTransport {
   preferTmuxPaneTty: boolean;
-  allowOsc777: boolean;
+  allowWezTermNotifications: boolean;
 }
 
 const ESC = String.fromCharCode(27);
@@ -130,27 +130,6 @@ export function formatCodexEvent(payload: CodexNotifyPayload): ParsedNotificatio
   }
 }
 
-/** Sanitize text interpolated into OSC 777 fields — strip controls and escape semicolons */
-export function sanitizeOscField(value: string): string {
-  let sanitized = "";
-
-  for (const character of value) {
-    const code = character.charCodeAt(0);
-    if ((code >= 0 && code <= 31) || (code >= 127 && code <= 159)) {
-      continue;
-    }
-
-    sanitized += character === ";" ? ":" : character;
-  }
-
-  return sanitized;
-}
-
-/** Build OSC 777 escape sequence */
-export function buildOsc777(title: string, body: string): string {
-  return `${ESC}]777;notify;${sanitizeOscField(title)};${sanitizeOscField(body)}${ST}`;
-}
-
 /** Encode a string as base64 */
 export function toBase64(value: string): string {
   return Buffer.from(value, "utf-8").toString("base64");
@@ -161,7 +140,12 @@ export function buildOsc1337SetUserVar(name: string, value: string): string {
   return `${ESC}]1337;SetUserVar=${name}=${toBase64(value)}${BEL}`;
 }
 
-/** Generate a short unique notification id for dedup. */
+/**
+ * Generate a short unique notification id for dedup.
+ *
+ * The base36 timestamp prefix is part of the contract: WezTerm uses it to lazily
+ * prune machine-local marker directories without needing a second timestamp file.
+ */
 export function generateNotificationId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
@@ -208,7 +192,7 @@ export function clientNotificationSequence(
   notification: ParsedNotification,
   client: { termname: string; termtype: string },
 ): string {
-  if (supportsOsc777ViaTmuxClientInfo(client)) {
+  if (isWezTermClientInfo(client)) {
     // WezTerm: OSC 1337 only — dedup + toast happens in Lua handler.
     // No BEL here to avoid duplicate audible_bell across multiple local windows.
     return buildOsc1337SetUserVar("AGENT_NOTIFY", JSON.stringify({ id, t: notification.title, b: notification.body, s: notification.source, e: notification.event }));
@@ -216,19 +200,19 @@ export function clientNotificationSequence(
   return BEL;
 }
 
-/** Only enable WezTerm-specific OSC when every attached client for a session supports it. */
+/** Only enable WezTerm transport when every attached client for a session supports it. */
 export function selectTmuxClientInfo(clientInfos: TmuxClientInfo[]): TmuxClientInfo | null {
   if (clientInfos.length === 0) {
     return null;
   }
 
-  return clientInfos.every((clientInfo) => supportsOsc777ViaTmuxClientInfo(clientInfo))
+  return clientInfos.every((clientInfo) => isWezTermClientInfo(clientInfo))
     ? clientInfos[0] ?? null
     : null;
 }
 
 /** Detect WezTerm via tmux client metadata when running inside tmux. */
-export function supportsOsc777ViaTmuxClientInfo(clientInfo: TmuxClientInfo | null): boolean {
+export function isWezTermClientInfo(clientInfo: TmuxClientInfo | null): boolean {
   if (clientInfo === null) {
     return false;
   }
@@ -241,8 +225,8 @@ export function isEmbeddedNvimTerminal(env: NodeJS.ProcessEnv): boolean {
   return env.NVIM !== undefined;
 }
 
-/** Only emit OSC 777 for known WezTerm sessions. BEL remains the universal fallback. */
-export function supportsOsc777(
+/** Only emit WezTerm-specific notifications for known WezTerm sessions. BEL remains the universal fallback. */
+export function supportsWezTermNotifications(
   env: NodeJS.ProcessEnv,
   tmuxClientInfo: TmuxClientInfo | null = null,
 ): boolean {
@@ -251,7 +235,7 @@ export function supportsOsc777(
   }
 
   if (env.TMUX) {
-    return supportsOsc777ViaTmuxClientInfo(tmuxClientInfo);
+    return isWezTermClientInfo(tmuxClientInfo);
   }
 
   return env.TERM_PROGRAM === "WezTerm"
@@ -268,11 +252,11 @@ export function selectNotificationTransport(
 
   return {
     preferTmuxPaneTty,
-    allowOsc777: supportsOsc777(env, tmuxClientInfo),
+    allowWezTermNotifications: supportsWezTermNotifications(env, tmuxClientInfo),
   };
 }
 
-/** Build the terminal control sequence for one notification. */
+/** Build terminal bytes for one notification. WezTerm gets AGENT_NOTIFY; others get BEL. */
 export function buildTerminalNotification(
   id: string,
   notification: ParsedNotification,
@@ -411,10 +395,10 @@ function stringOption(value: string | string[] | undefined): string | undefined 
 function terminalNotificationSequence(
   id: string,
   notification: ParsedNotification,
-  transport: Pick<NotificationTransport, "allowOsc777">,
+  transport: Pick<NotificationTransport, "allowWezTermNotifications">,
   isTmux: boolean,
 ): string {
-  if (!transport.allowOsc777) {
+  if (!transport.allowWezTermNotifications) {
     return BEL;
   }
 
@@ -516,8 +500,8 @@ function notifyTmuxClients(id: string, notification: ParsedNotification): boolea
 
   if (clients.length === 0) return false;
 
-  const weztermClients = clients.filter((c) => supportsOsc777ViaTmuxClientInfo(c));
-  const otherClients = clients.filter((c) => !supportsOsc777ViaTmuxClientInfo(c));
+  const weztermClients = clients.filter((c) => isWezTermClientInfo(c));
+  const otherClients = clients.filter((c) => !isWezTermClientInfo(c));
   let notified = false;
 
   // WezTerm: send to ALL clients — dedup happens in WezTerm Lua handler
