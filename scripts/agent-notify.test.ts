@@ -2,27 +2,31 @@ import { describe, expect, test } from "bun:test";
 
 import {
   buildTerminalNotification,
-  buildOsc777,
+  buildOsc1337SetUserVar,
   clientNotificationSequence,
   formatClaudeHook,
   formatCodexEvent,
+  generateNotificationId,
   isCodexNotifyPayload,
   isEmbeddedNvimTerminal,
+  isLocalWezTermEnv,
+  notifyClientTargets,
   notificationTypeLabel,
   parseClientLine,
   parseTmuxClientInfo,
   parseArgs,
   projectName,
-  sanitizeOscField,
   selectClientTargets,
   selectNotificationTransport,
   selectTmuxClientInfo,
-  supportsOsc777,
-  supportsOsc777ViaTmuxClientInfo,
+  supportsWezTermNotifications,
+  isWezTermClientInfo,
+  toBase64,
   wrapForTmux,
   type ClaudeHookInput,
   type CodexNotifyPayload,
   type NotificationTransport,
+  type ParsedNotification,
   type TmuxClientInfo,
 } from "./agent-notify.ts";
 
@@ -252,66 +256,6 @@ describe("formatClaudeHook", () => {
 });
 
 // ---------------------------------------------------------------------------
-// buildOsc777
-// ---------------------------------------------------------------------------
-
-describe("buildOsc777", () => {
-  test("produces correct OSC 777 sequence", () => {
-    const result = buildOsc777("Title", "Body text");
-
-    expect(result).toBe("\x1b]777;notify;Title;Body text\x1b\\");
-  });
-
-  test("handles empty body", () => {
-    const result = buildOsc777("Title", "");
-
-    expect(result).toBe("\x1b]777;notify;Title;\x1b\\");
-  });
-
-  test("sanitizes control characters from title and body", () => {
-    const result = buildOsc777("Title\x07\x1b", "Body\x07\x1btext");
-
-    expect(result).toBe("\x1b]777;notify;Title;Bodytext\x1b\\");
-  });
-
-  test("replaces semicolons with colons", () => {
-    const result = buildOsc777("Title;extra", "Body;text");
-
-    expect(result).toBe("\x1b]777;notify;Title:extra;Body:text\x1b\\");
-  });
-});
-
-// ---------------------------------------------------------------------------
-// sanitizeOscField
-// ---------------------------------------------------------------------------
-
-describe("sanitizeOscField", () => {
-  test("strips BEL character", () => {
-    expect(sanitizeOscField("hello\x07world")).toBe("helloworld");
-  });
-
-  test("strips ESC character", () => {
-    expect(sanitizeOscField("hello\x1bworld")).toBe("helloworld");
-  });
-
-  test("strips newlines and tabs", () => {
-    expect(sanitizeOscField("hello\n\tworld")).toBe("helloworld");
-  });
-
-  test("strips C1 control characters", () => {
-    expect(sanitizeOscField("hello\u009bworld")).toBe("helloworld");
-  });
-
-  test("replaces semicolons with colons", () => {
-    expect(sanitizeOscField("a;b;c")).toBe("a:b:c");
-  });
-
-  test("returns unchanged safe string", () => {
-    expect(sanitizeOscField("Hello World")).toBe("Hello World");
-  });
-});
-
-// ---------------------------------------------------------------------------
 // wrapForTmux
 // ---------------------------------------------------------------------------
 
@@ -375,6 +319,24 @@ describe("isEmbeddedNvimTerminal", () => {
 });
 
 // ---------------------------------------------------------------------------
+// isLocalWezTermEnv
+// ---------------------------------------------------------------------------
+
+describe("isLocalWezTermEnv", () => {
+  test("detects WezTerm via TERM_PROGRAM", () => {
+    expect(isLocalWezTermEnv({ TERM_PROGRAM: "WezTerm" })).toBe(true);
+  });
+
+  test("detects WezTerm via WEZTERM_PANE", () => {
+    expect(isLocalWezTermEnv({ WEZTERM_PANE: "1" })).toBe(true);
+  });
+
+  test("returns false for non-WezTerm env", () => {
+    expect(isLocalWezTermEnv({ TERM_PROGRAM: "tmux" })).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // selectTmuxClientInfo
 // ---------------------------------------------------------------------------
 
@@ -418,11 +380,11 @@ describe("selectNotificationTransport", () => {
 
     expect(transport).toEqual({
       preferTmuxPaneTty: true,
-      allowOsc777: true,
+      allowWezTermNotifications: true,
     });
   });
 
-  test("disables OSC 777 for Neovim terminal without tmux bypass", () => {
+  test("disables WezTerm notifications for Neovim terminal without tmux bypass", () => {
     const transport: NotificationTransport = selectNotificationTransport(
       { NVIM: "/tmp/nvim.sock", TERM_PROGRAM: "WezTerm" },
       null,
@@ -430,49 +392,49 @@ describe("selectNotificationTransport", () => {
 
     expect(transport).toEqual({
       preferTmuxPaneTty: false,
-      allowOsc777: false,
+      allowWezTermNotifications: false,
     });
   });
 });
 
 // ---------------------------------------------------------------------------
-// supportsOsc777ViaTmuxClientInfo
+// isWezTermClientInfo
 // ---------------------------------------------------------------------------
 
-describe("supportsOsc777ViaTmuxClientInfo", () => {
+describe("isWezTermClientInfo", () => {
   test("detects wezterm termname", () => {
     const info: TmuxClientInfo = { termname: "wezterm", termtype: "xterm-256color" };
-    expect(supportsOsc777ViaTmuxClientInfo(info)).toBe(true);
+    expect(isWezTermClientInfo(info)).toBe(true);
   });
 
   test("detects wezterm client termtype", () => {
     const info: TmuxClientInfo = { termname: "xterm-256color", termtype: "WezTerm 20240203" };
-    expect(supportsOsc777ViaTmuxClientInfo(info)).toBe(true);
+    expect(isWezTermClientInfo(info)).toBe(true);
   });
 
   test("returns false for non-wezterm clients", () => {
     const info: TmuxClientInfo = { termname: "xterm-256color", termtype: "tmux-256color" };
-    expect(supportsOsc777ViaTmuxClientInfo(info)).toBe(false);
-    expect(supportsOsc777ViaTmuxClientInfo(null)).toBe(false);
+    expect(isWezTermClientInfo(info)).toBe(false);
+    expect(isWezTermClientInfo(null)).toBe(false);
   });
 });
 
 // ---------------------------------------------------------------------------
-// supportsOsc777
+// supportsWezTermNotifications
 // ---------------------------------------------------------------------------
 
-describe("supportsOsc777", () => {
+describe("supportsWezTermNotifications", () => {
   test("detects WezTerm via TERM_PROGRAM", () => {
-    expect(supportsOsc777({ TERM_PROGRAM: "WezTerm" })).toBe(true);
+    expect(supportsWezTermNotifications({ TERM_PROGRAM: "WezTerm" })).toBe(true);
   });
 
   test("detects WezTerm via WEZTERM_PANE", () => {
-    expect(supportsOsc777({ WEZTERM_PANE: "1" })).toBe(true);
+    expect(supportsWezTermNotifications({ WEZTERM_PANE: "1" })).toBe(true);
   });
 
   test("detects WezTerm via tmux client info when pane env is tmux", () => {
     expect(
-      supportsOsc777(
+      supportsWezTermNotifications(
         { TMUX: "/tmp/tmux", TERM_PROGRAM: "tmux" },
         { termname: "xterm-256color", termtype: "WezTerm 20240203" },
       ),
@@ -480,16 +442,26 @@ describe("supportsOsc777", () => {
   });
 
   test("does not trust TERM_PROGRAM inside tmux without WezTerm client metadata", () => {
-    expect(supportsOsc777({ TMUX: "/tmp/tmux", TERM_PROGRAM: "WezTerm" }, null)).toBe(false);
+    expect(supportsWezTermNotifications({ TMUX: "/tmp/tmux", TERM_PROGRAM: "WezTerm" }, null)).toBe(false);
+  });
+
+  test("can trust local WezTerm env for fallback inside tmux", () => {
+    expect(
+      supportsWezTermNotifications(
+        { TMUX: "/tmp/tmux", TERM_PROGRAM: "WezTerm" },
+        null,
+        { preferLocalTmuxEnv: true },
+      ),
+    ).toBe(true);
   });
 
   test("returns false inside Neovim terminal without tmux bypass", () => {
-    expect(supportsOsc777({ NVIM: "/tmp/nvim.sock", TERM_PROGRAM: "WezTerm" })).toBe(false);
+    expect(supportsWezTermNotifications({ NVIM: "/tmp/nvim.sock", TERM_PROGRAM: "WezTerm" })).toBe(false);
   });
 
   test("returns false for other terminals", () => {
-    expect(supportsOsc777({ TERM_PROGRAM: "Apple_Terminal" })).toBe(false);
-    expect(supportsOsc777({})).toBe(false);
+    expect(supportsWezTermNotifications({ TERM_PROGRAM: "Apple_Terminal" })).toBe(false);
+    expect(supportsWezTermNotifications({})).toBe(false);
   });
 });
 
@@ -498,33 +470,50 @@ describe("supportsOsc777", () => {
 // ---------------------------------------------------------------------------
 
 describe("buildTerminalNotification", () => {
+  const notif: ParsedNotification = { title: "Title", body: "Body", source: "test", event: "unit" };
+
   test("returns bell only for unknown terminals", () => {
-    expect(buildTerminalNotification("Title", "Body", {})).toBe("\x07");
+    expect(buildTerminalNotification("id1", notif, {})).toBe("\x07");
   });
 
-  test("returns bell plus OSC 777 for WezTerm", () => {
-    expect(buildTerminalNotification("Title", "Body", { TERM_PROGRAM: "WezTerm" })).toBe(
-      "\x07\x1b]777;notify;Title;Body\x1b\\",
-    );
+  test("returns OSC 1337 for WezTerm (non-tmux) without extra BEL prefix", () => {
+    const result = buildTerminalNotification("id1", notif, { TERM_PROGRAM: "WezTerm" });
+    expect(result).toContain("SetUserVar=AGENT_NOTIFY=");
+    // No extra BEL prefix before the OSC sequence (BEL in OSC 1337 is the
+    // sequence terminator, not an audible bell trigger)
+    expect(result.startsWith("\x07")).toBe(false);
   });
 
   test("returns bell only in tmux without trusted WezTerm client metadata", () => {
-    expect(buildTerminalNotification("Title", "Body", { TERM_PROGRAM: "WezTerm", TMUX: "/tmp/tmux" })).toBe("\x07");
+    expect(buildTerminalNotification("id1", notif, { TERM_PROGRAM: "WezTerm", TMUX: "/tmp/tmux" })).toBe("\x07");
   });
 
-  test("wraps OSC 777 when tmux client info identifies WezTerm", () => {
-    expect(
-      buildTerminalNotification(
-        "Title",
-        "Body",
-        { TERM_PROGRAM: "tmux", TMUX: "/tmp/tmux" },
-        { termname: "xterm-256color", termtype: "WezTerm 20240203" },
-      ),
-    ).toBe("\x07\x1bPtmux;\x1b\x1b]777;notify;Title;Body\x1b\x1b\\\x1b\\");
+  test("uses OSC 1337 for local WezTerm fallback in mixed tmux sessions", () => {
+    const result = buildTerminalNotification(
+      "id1",
+      notif,
+      { TERM_PROGRAM: "WezTerm", TMUX: "/tmp/tmux" },
+      null,
+      { preferLocalTmuxEnv: true },
+    );
+
+    expect(result).toContain("\x1bPtmux;");
+    expect(result).toContain("SetUserVar=AGENT_NOTIFY=");
+  });
+
+  test("wraps OSC 1337 with DCS when tmux client info identifies WezTerm", () => {
+    const result = buildTerminalNotification(
+      "id1",
+      notif,
+      { TERM_PROGRAM: "tmux", TMUX: "/tmp/tmux" },
+      { termname: "xterm-256color", termtype: "WezTerm 20240203" },
+    );
+    expect(result).toContain("\x1bPtmux;");
+    expect(result).toContain("SetUserVar=AGENT_NOTIFY=");
   });
 
   test("returns bell only inside Neovim terminal without tmux bypass", () => {
-    expect(buildTerminalNotification("Title", "Body", { NVIM: "/tmp/nvim.sock", TERM_PROGRAM: "WezTerm" })).toBe(
+    expect(buildTerminalNotification("id1", notif, { NVIM: "/tmp/nvim.sock", TERM_PROGRAM: "WezTerm" })).toBe(
       "\x07",
     );
   });
@@ -840,30 +829,164 @@ describe("selectClientTargets", () => {
 });
 
 // ---------------------------------------------------------------------------
+// notifyClientTargets
+// ---------------------------------------------------------------------------
+
+describe("notifyClientTargets", () => {
+  const notif: ParsedNotification = { title: "Title", body: "Body", source: "test", event: "unit" };
+
+  test("retries unfocused non-WezTerm clients even after WezTerm delivery succeeds", () => {
+    const writes: Array<{ path: string; data: string }> = [];
+    const clients = [
+      { tty: "/dev/pts/1", termname: "wezterm", termtype: "WezTerm 1", flags: ["attached"] },
+      { tty: "/dev/pts/2", termname: "xterm-256color", termtype: "tmux-256color", flags: ["attached", "focused"] },
+      { tty: "/dev/pts/3", termname: "xterm-256color", termtype: "tmux-256color", flags: ["attached"] },
+    ];
+
+    const notified = notifyClientTargets("id1", notif, clients, (path, data) => {
+      writes.push({ path, data });
+      const shouldSucceed = path !== "/dev/pts/2";
+      return shouldSucceed;
+    });
+
+    expect(notified).toBe(true);
+    expect(writes.map((write) => write.path)).toEqual(["/dev/pts/1", "/dev/pts/2", "/dev/pts/3"]);
+    expect(writes[0]?.data).toContain("SetUserVar=AGENT_NOTIFY=");
+    expect(writes[1]?.data).toBe("\x07");
+    expect(writes[2]?.data).toBe("\x07");
+  });
+
+  test("skips unfocused non-WezTerm clients once a focused non-WezTerm client succeeds", () => {
+    const writes: Array<{ path: string; data: string }> = [];
+    const clients = [
+      { tty: "/dev/pts/1", termname: "wezterm", termtype: "WezTerm 1", flags: ["attached"] },
+      { tty: "/dev/pts/2", termname: "xterm-256color", termtype: "tmux-256color", flags: ["attached", "focused"] },
+      { tty: "/dev/pts/3", termname: "xterm-256color", termtype: "tmux-256color", flags: ["attached"] },
+    ];
+
+    const notified = notifyClientTargets("id1", notif, clients, (path, data) => {
+      writes.push({ path, data });
+      const shouldSucceed = path !== "/dev/pts/1";
+      return shouldSucceed;
+    });
+
+    expect(notified).toBe(true);
+    expect(writes.map((write) => write.path)).toEqual(["/dev/pts/1", "/dev/pts/2"]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// generateNotificationId
+// ---------------------------------------------------------------------------
+
+describe("generateNotificationId", () => {
+  test("produces a non-empty string", () => {
+    const id = generateNotificationId();
+    expect(id.length).toBeGreaterThan(0);
+  });
+
+  test("prefixes ids with a base36 timestamp for WezTerm marker cleanup", () => {
+    const before = Date.now();
+    const id = generateNotificationId();
+    const [prefix, suffix] = id.split("-");
+    const parsed = Number.parseInt(prefix ?? "", 36);
+    const after = Date.now();
+
+    expect(prefix).toMatch(/^[0-9a-z]+$/);
+    expect(suffix).toMatch(/^[0-9a-z]+$/);
+    expect(Number.isNaN(parsed)).toBe(false);
+    expect(parsed).toBeGreaterThanOrEqual(before);
+    expect(parsed).toBeLessThanOrEqual(after);
+  });
+
+  test("produces unique ids across calls", () => {
+    const ids = new Set<string>();
+    for (let i = 0; i < 100; i++) {
+      ids.add(generateNotificationId());
+    }
+    expect(ids.size).toBe(100);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// toBase64
+// ---------------------------------------------------------------------------
+
+describe("toBase64", () => {
+  test("encodes a simple string", () => {
+    expect(toBase64("hello")).toBe("aGVsbG8=");
+  });
+
+  test("encodes JSON payload", () => {
+    expect(toBase64('{"t":"Title","b":"Body"}')).toBe("eyJ0IjoiVGl0bGUiLCJiIjoiQm9keSJ9");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildOsc1337SetUserVar
+// ---------------------------------------------------------------------------
+
+describe("buildOsc1337SetUserVar", () => {
+  test("produces OSC 1337 with base64-encoded value", () => {
+    const result = buildOsc1337SetUserVar("AGENT_NOTIFY", '{"t":"Title","b":"Body"}');
+
+    expect(result).toBe("\x1b]1337;SetUserVar=AGENT_NOTIFY=eyJ0IjoiVGl0bGUiLCJiIjoiQm9keSJ9\x07");
+  });
+
+  test("terminates with BEL", () => {
+    const result = buildOsc1337SetUserVar("FOO", "bar");
+
+    expect(result.endsWith("\x07")).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // clientNotificationSequence
 // ---------------------------------------------------------------------------
 
 describe("clientNotificationSequence", () => {
-  test("WezTerm client gets BEL + raw OSC 777", () => {
-    const seq = clientNotificationSequence("Title", "Body", {
+  const notif: ParsedNotification = { title: "Title", body: "Body", source: "test", event: "unit" };
+
+  function extractSetUserVarPayload(sequence: string): Record<string, string> {
+    const b64Match = sequence.match(/SetUserVar=AGENT_NOTIFY=([A-Za-z0-9+/=]+)/);
+    expect(b64Match).not.toBeNull();
+
+    const encoded = b64Match?.[1];
+    expect(encoded).toBeDefined();
+
+    return JSON.parse(Buffer.from(encoded ?? "", "base64").toString("utf-8")) as Record<string, string>;
+  }
+
+  test("WezTerm client gets OSC 1337 SetUserVar with full payload (no extra BEL prefix)", () => {
+    const seq = clientNotificationSequence("test-id", notif, {
       termname: "wezterm",
       termtype: "WezTerm 20240203",
     });
 
-    expect(seq).toBe("\x07\x1b]777;notify;Title;Body\x1b\\");
+    // No extra BEL prefix — sound is handled by window:toast_notification()
+    expect(seq.startsWith("\x07")).toBe(false);
+    expect(seq).toContain("SetUserVar=AGENT_NOTIFY=");
+
+    const parsed = extractSetUserVarPayload(seq);
+    expect(parsed.id).toBe("test-id");
+    expect(parsed.t).toBe("Title");
+    expect(parsed.b).toBe("Body");
+    expect(parsed.s).toBe("test");
+    expect(parsed.e).toBe("unit");
   });
 
-  test("WezTerm via termtype gets BEL + raw OSC 777", () => {
-    const seq = clientNotificationSequence("Title", "Body", {
+  test("WezTerm via termtype gets OSC 1337 SetUserVar (no extra BEL prefix)", () => {
+    const seq = clientNotificationSequence("test-id", notif, {
       termname: "xterm-256color",
       termtype: "WezTerm 20240203",
     });
 
-    expect(seq).toBe("\x07\x1b]777;notify;Title;Body\x1b\\");
+    expect(seq).toContain("SetUserVar=AGENT_NOTIFY=");
+    expect(seq.startsWith("\x07")).toBe(false);
   });
 
   test("non-WezTerm client gets BEL only", () => {
-    const seq = clientNotificationSequence("Title", "Body", {
+    const seq = clientNotificationSequence("test-id", notif, {
       termname: "xterm-256color",
       termtype: "tmux-256color",
     });
@@ -871,24 +994,24 @@ describe("clientNotificationSequence", () => {
     expect(seq).toBe("\x07");
   });
 
-  test("OSC 777 is NOT DCS-wrapped (bypasses tmux)", () => {
-    const seq = clientNotificationSequence("Title", "Body", {
+  test("OSC 1337 is NOT DCS-wrapped (bypasses tmux)", () => {
+    const seq = clientNotificationSequence("test-id", notif, {
       termname: "wezterm",
       termtype: "WezTerm 20240203",
     });
 
-    // Must NOT contain DCS passthrough prefix
     expect(seq).not.toContain("\x1bPtmux;");
   });
 
-  test("sanitizes title and body in OSC 777", () => {
-    const seq = clientNotificationSequence("Title;bad", "Body\x07ctrl", {
+  test("payload preserves special characters in base64", () => {
+    const specialNotif: ParsedNotification = { title: "Title;bad", body: "Body\x07ctrl", source: "s", event: "e" };
+    const seq = clientNotificationSequence("id1", specialNotif, {
       termname: "wezterm",
       termtype: "WezTerm 20240203",
     });
 
-    expect(seq).toContain("Title:bad");
-    expect(seq).not.toContain("Title;bad");
-    expect(seq).not.toContain("\x07ctrl");
+    const parsed = extractSetUserVarPayload(seq);
+    expect(parsed.t).toBe("Title;bad");
+    expect(parsed.b).toBe("Body\x07ctrl");
   });
 });
