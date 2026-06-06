@@ -20,19 +20,40 @@ end
 
 local markdown_oxide = LspConfig:new('markdown_oxide', 'markdown-oxide')
 local markdown_oxide_on_attach = assert(vim.lsp.config['markdown_oxide']).on_attach
+
+local obsidian_lsp_capabilities = {
+  'codeActionProvider',
+  'completionProvider',
+  'definitionProvider',
+  'documentSymbolProvider',
+  'referencesProvider',
+  'renameProvider',
+  'workspaceSymbolProvider',
+}
+
 markdown_oxide.config = {
   capabilities = capabilities,
   root_dir = function(bufnr, on_dir)
-    if obsidian.is_vault(bufnr) then
+    local vault_root = obsidian.vault_root(bufnr)
+    if vault_root then
+      on_dir(vault_root)
       return
     end
 
     local path = vim.api.nvim_buf_get_name(bufnr)
     on_dir(vim.fs.root(path, { '.git', '.moxide.toml' }) or vim.fs.dirname(path) or vim.fn.getcwd())
   end,
+  reuse_client = function(client, config)
+    return client.name == config.name
+      and vim.fs.normalize(client.config.root_dir or '')
+        == vim.fs.normalize(config.root_dir or '')
+  end,
   on_attach = function(client, bufnr)
     if obsidian.is_vault(bufnr) then
-      vim.lsp.buf_detach_client(bufnr, client.id)
+      -- TODO: Remove this fallback when obsidian-ls covers the remaining markdown-oxide features.
+      for _, capability in ipairs(obsidian_lsp_capabilities) do
+        client.server_capabilities[capability] = nil
+      end
       return
     end
 
