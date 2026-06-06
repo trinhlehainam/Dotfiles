@@ -2,7 +2,7 @@ return {
   'NickvanDyke/opencode.nvim',
   dependencies = { 'folke/snacks.nvim' },
   config = function()
-    -- https://github.com/nickjvandyke/opencode.nvim?tab=readme-ov-file#customization
+    -- https://github.com/nickjvandyke/opencode.nvim?tab=readme-ov-file#server
     local opencode_cmd = 'opencode --port'
     ---@type snacks.terminal.Opts
     local snacks_terminal_opts = {
@@ -13,10 +13,6 @@ return {
         position = 'right',
         enter = true,
         width = 0.4,
-        on_win = function(win)
-          -- Set up keymaps and cleanup for an arbitrary terminal
-          require('opencode.terminal').setup(win.win)
-        end,
       },
     }
     ---@type opencode.Opts
@@ -24,12 +20,6 @@ return {
       server = {
         start = function()
           require('snacks.terminal').open(opencode_cmd, snacks_terminal_opts)
-        end,
-        stop = function()
-          require('snacks.terminal').get(opencode_cmd, snacks_terminal_opts):close()
-        end,
-        toggle = function()
-          require('snacks.terminal').toggle(opencode_cmd, snacks_terminal_opts)
         end,
       },
     }
@@ -50,7 +40,7 @@ return {
       require('opencode').prompt('@buffer')
     end, { desc = 'Add current buffer' })
     vim.keymap.set({ 'n', 't' }, '<leader>oc', function()
-      require('opencode').toggle()
+      require('snacks.terminal').toggle(opencode_cmd, snacks_terminal_opts)
     end, { desc = 'Toggle opencode' })
 
     -- Passthrough <C-A-d> and <C-A-u> to OpenCode terminal
