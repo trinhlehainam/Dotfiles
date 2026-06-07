@@ -24,20 +24,12 @@ function M.vault_root_from_bufname(bufname)
     limit = 1,
   })
 
-  local _, obsidian_dir = next(obsidian_dirs)
+  local obsidian_dir = obsidian_dirs[1]
   if not obsidian_dir then
     return nil
   end
 
-  local vault_root = vim.fs.dirname(obsidian_dir)
-  if not vault_root then
-    return nil
-  end
-
-  local has_workspace = vim.fn.filereadable(vault_root .. '/.obsidian/workspace.json') == 1
-    or vim.fn.filereadable(vault_root .. '/.obsidian/workspace-mobile.json') == 1
-
-  return has_workspace and vault_root or nil
+  return vim.fs.dirname(obsidian_dir)
 end
 
 ---@param bufnr? integer
