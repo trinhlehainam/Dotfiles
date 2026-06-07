@@ -24,6 +24,7 @@ return {
       callback = function(args)
         if obsidian.is_vault(args.buf) then
           require('lazy').load({ plugins = { 'obsidian.nvim' } })
+          return true
         end
       end,
     })
@@ -32,7 +33,7 @@ return {
   ---@module 'obsidian'
   ---@type obsidian.config
   opts = {
-    legacy_commands = false, -- removed in 4.0.0
+    legacy_commands = false, -- will be removed in 4.0.0
     ui = { enable = false }, -- avoid conflict with render-markdown.nvim
     frontmatter = {
       enabled = false,
