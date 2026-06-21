@@ -10,7 +10,7 @@ name: Claude PR Assistant
 #
 # Docs:
 # - https://docs.z.ai/devpack/tool/claude
-# - https://docs.z.ai/devpack/using5.1
+# - https://docs.z.ai/devpack/latest-model
 # - https://github.com/anthropics/claude-code-action
 # =============================================================================
 on:
@@ -53,6 +53,7 @@ jobs:
           # Point to z.ai's Anthropic-compatible endpoint
           ANTHROPIC_BASE_URL: https://api.z.ai/api/anthropic
           # Override Claude Code's default model mapping to Z.ai's latest coding-agent guide
-          ANTHROPIC_DEFAULT_HAIKU_MODEL: glm-4.5-air
-          ANTHROPIC_DEFAULT_SONNET_MODEL: glm-5.1
-          ANTHROPIC_DEFAULT_OPUS_MODEL: glm-5.1
+          CLAUDE_CODE_AUTO_COMPACT_WINDOW: "1000000"
+          ANTHROPIC_DEFAULT_HAIKU_MODEL: glm-4.7
+          ANTHROPIC_DEFAULT_SONNET_MODEL: "glm-5.2[1m]"
+          ANTHROPIC_DEFAULT_OPUS_MODEL: "glm-5.2[1m]"
