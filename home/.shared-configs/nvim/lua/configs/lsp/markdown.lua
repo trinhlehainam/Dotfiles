@@ -19,8 +19,10 @@ if ok then
 end
 
 local markdown_oxide = LspConfig:new('markdown_oxide', 'markdown-oxide')
-local markdown_oxide_on_attach = assert(vim.lsp.config['markdown_oxide']).on_attach
 
+-- NOTE: Keep this aligned with obsidian-ls capabilities that overlap with markdown-oxide:
+-- https://github.com/obsidian-nvim/obsidian.nvim/blob/main/lua/obsidian/lsp/handlers/initialize.lua
+-- https://github.com/obsidian-nvim/obsidian.nvim/wiki/LSP-Progress
 local obsidian_lsp_capabilities = {
   'codeActionProvider',
   'completionProvider',
@@ -49,16 +51,13 @@ markdown_oxide.config = {
         == vim.fs.normalize(config.root_dir or '')
   end,
   on_attach = function(client, bufnr)
-    if obsidian.is_vault(bufnr) then
-      -- TODO: Remove this fallback when obsidian-ls covers the remaining markdown-oxide features.
-      for _, capability in ipairs(obsidian_lsp_capabilities) do
-        client.server_capabilities[capability] = nil
-      end
+    if not obsidian.is_vault(bufnr) then
       return
     end
 
-    if markdown_oxide_on_attach then
-      markdown_oxide_on_attach(client, bufnr)
+    -- TODO: Remove this fallback when obsidian-ls covers the remaining markdown-oxide features.
+    for _, capability in ipairs(obsidian_lsp_capabilities) do
+      client.server_capabilities[capability] = nil
     end
   end,
 }
