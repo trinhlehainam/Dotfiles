@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { promises as fs } from "node:fs";
+import { existsSync, promises as fs, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
@@ -16,8 +16,10 @@ import {
   parseNulPaths,
   parseStatus,
   removeActiveSession,
+  revertActiveSession,
   resolveNormalSourceCheckout,
   resolveSessionBase,
+  runLiveApply,
   snapshotRuntime,
   stageWorktreeSource,
   stagedRuntime,
@@ -368,6 +370,587 @@ function commandResult(overrides: Partial<CommandResult> = {}): CommandResult {
     stdout: Buffer.alloc(0),
     ...overrides,
   };
+}
+
+describe("snapshot revert lifecycle", () => {
+  test("rejects a missing active session before invoking chezmoi", async () => {
+    const fixture = await makeRevertFixture(false);
+    await removeActiveSession(fixture.session);
+    let invocations = 0;
+
+    await expect(
+      revertActiveSession({
+        automatic: true,
+        confirm: async () => true,
+        runner: () => {
+          invocations += 1;
+          return commandResult();
+        },
+        session: fixture.session,
+      }),
+    ).rejects.toMatchObject({ code: "ENOENT" });
+
+    expect(invocations).toBe(0);
+  });
+
+  test("rejects an active session without the ready gate", async () => {
+    const fixture = await makeRevertFixture(false);
+    let invocations = 0;
+
+    await expect(
+      revertActiveSession({
+        automatic: true,
+        confirm: async () => true,
+        runner: () => {
+          invocations += 1;
+          return commandResult();
+        },
+        session: fixture.session,
+      }),
+    ).rejects.toMatchObject({ code: "ENOENT" });
+
+    expect(invocations).toBe(0);
+    expect((await fs.stat(fixture.session.activeDir)).isDirectory()).toBeTrue();
+  });
+
+  test("retains a ready session when manual revert is refused", async () => {
+    const fixture = await makeRevertFixture();
+    const commands: string[][] = [];
+    let confirmedLines: string[] | undefined;
+    const runner: CommandRunner = (_command, args) => {
+      const commandArgs = chezmoiCommandArgs(args);
+      commands.push(commandArgs);
+      return commandResult({
+        stdout: commandArgs[0] === "status"
+          ? Buffer.from(` M ${fixture.target}\n`)
+          : Buffer.alloc(0),
+      });
+    };
+
+    const reverting = revertActiveSession({
+      automatic: false,
+      confirm: async (lines) => {
+        confirmedLines = lines;
+        return false;
+      },
+      runner,
+      session: fixture.session,
+    });
+
+    await expect(reverting).rejects.toThrow("revert cancelled");
+    await expect(reverting).rejects.toThrow(fixture.session.activeDir);
+    await expect(reverting).rejects.toThrow("pnpm run worktree:revert");
+    expect(confirmedLines).toEqual([`M ${fixture.target}`]);
+    expect(commands).toEqual([["status", "--path-style", "absolute"]]);
+    expect((await fs.stat(fixture.session.activeDir)).isDirectory()).toBeTrue();
+  });
+
+  test("retains a ready session when snapshot apply fails", async () => {
+    const fixture = await makeRevertFixture();
+    const commands: string[][] = [];
+    const runner: CommandRunner = (_command, args) => {
+      const commandArgs = chezmoiCommandArgs(args);
+      commands.push(commandArgs);
+      if (commandArgs[0] === "status") return commandResult();
+      return commandResult({ status: 1, stderr: Buffer.from("snapshot apply failed\n") });
+    };
+
+    const reverting = revertActiveSession({
+      automatic: true,
+      confirm: async () => true,
+      runner,
+      session: fixture.session,
+    });
+
+    await expect(reverting).rejects.toThrow("snapshot apply failed");
+    await expect(reverting).rejects.toThrow(fixture.session.activeDir);
+    await expect(reverting).rejects.toThrow("pnpm run worktree:revert");
+    expect(commands).toEqual([
+      ["status", "--path-style", "absolute"],
+      ["--force", "apply"],
+    ]);
+    expect((await fs.stat(fixture.session.activeDir)).isDirectory()).toBeTrue();
+  });
+
+  test("retains a ready session when snapshot verification fails", async () => {
+    const fixture = await makeRevertFixture();
+    const commands: string[][] = [];
+    const runner: CommandRunner = (_command, args) => {
+      const commandArgs = chezmoiCommandArgs(args);
+      commands.push(commandArgs);
+      if (commandArgs[0] === "verify") {
+        return commandResult({ status: 1, stderr: Buffer.from("snapshot verify failed\n") });
+      }
+      return commandResult();
+    };
+
+    const reverting = revertActiveSession({
+      automatic: true,
+      confirm: async () => true,
+      runner,
+      session: fixture.session,
+    });
+
+    await expect(reverting).rejects.toThrow("snapshot verify failed");
+    await expect(reverting).rejects.toThrow(fixture.session.activeDir);
+    await expect(reverting).rejects.toThrow("pnpm run worktree:revert");
+    expect(commands).toEqual([
+      ["status", "--path-style", "absolute"],
+      ["--force", "apply"],
+      ["verify"],
+    ]);
+    expect((await fs.stat(fixture.session.activeDir)).isDirectory()).toBeTrue();
+  });
+
+  test("deletes a ready session only after snapshot apply and verify succeed", async () => {
+    const fixture = await makeRevertFixture();
+    const commands: string[][] = [];
+    const runner: CommandRunner = (_command, args) => {
+      const commandArgs = chezmoiCommandArgs(args);
+      commands.push(commandArgs);
+      return commandResult();
+    };
+
+    await revertActiveSession({
+      automatic: true,
+      confirm: async () => false,
+      runner,
+      session: fixture.session,
+    });
+
+    expect(commands).toEqual([
+      ["status", "--path-style", "absolute"],
+      ["--force", "apply"],
+      ["verify"],
+    ]);
+    expect(commands.flat()).not.toContain("--init");
+    expect(commands.flat()).not.toContain("--keep-going");
+    await expect(fs.stat(fixture.session.activeDir)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  test("a second revert converges after cleanup was interrupted", async () => {
+    const fixture = await makeRevertFixture();
+    const commands: string[][] = [];
+    const originalRm = fs.rm.bind(fs);
+    let cleanupAttempts = 0;
+    fs.rm = (async (target, options) => {
+      cleanupAttempts += 1;
+      if (cleanupAttempts === 1) throw new Error("cleanup interrupted");
+      await originalRm(target, options);
+    }) as typeof fs.rm;
+
+    const runner: CommandRunner = (_command, args) => {
+      commands.push(chezmoiCommandArgs(args));
+      return commandResult();
+    };
+
+    try {
+      const firstRevert = revertActiveSession({
+        automatic: true,
+        confirm: async () => true,
+        runner,
+        session: fixture.session,
+      });
+      await expect(firstRevert).rejects.toThrow("cleanup interrupted");
+      await expect(firstRevert).rejects.toThrow(fixture.session.activeDir);
+      await expect(firstRevert).rejects.toThrow("pnpm run worktree:revert");
+      expect((await fs.stat(fixture.session.activeDir)).isDirectory()).toBeTrue();
+
+      await revertActiveSession({
+        automatic: true,
+        confirm: async () => true,
+        runner,
+        session: fixture.session,
+      });
+    } finally {
+      fs.rm = originalRm;
+    }
+
+    expect(cleanupAttempts).toBe(2);
+    expect(commands).toEqual([
+      ["status", "--path-style", "absolute"],
+      ["--force", "apply"],
+      ["verify"],
+      ["status", "--path-style", "absolute"],
+      ["--force", "apply"],
+      ["verify"],
+    ]);
+    await expect(fs.stat(fixture.session.activeDir)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+});
+
+async function makeRevertFixture(ready = true) {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "snapshot-revert-test-"));
+  const home = path.join(root, "home");
+  await fs.mkdir(home);
+  const session = await createActiveSession(path.join(root, "state"), "/repo", home);
+  if (ready) await markSessionReady(session);
+  return { session, target: path.join(home, ".target") };
+}
+
+describe("live apply orchestration", () => {
+  test("automatically reverts a failed apply after a fake-home mutation", async () => {
+    const fixture = await makeLiveApplyFixture();
+    let prompt = "";
+    const live = createLiveRunner(fixture, {
+      applyResult: commandResult({
+        status: 1,
+        stderr: Buffer.from("staged apply failed\n"),
+      }),
+      onSnapshotApply: () => writeFileSync(fixture.target, "before\n"),
+      onStagedApply: () => writeFileSync(fixture.target, "after\n"),
+    });
+
+    await expect(
+      runLiveApply({
+        destinationDir: fixture.home,
+        question: async (value) => {
+          live.events.push("confirm");
+          prompt = value;
+          return "y";
+        },
+        runner: live.runner,
+        sessionBase: fixture.sessionBase,
+        worktreeRoot: fixture.worktree,
+        yes: false,
+      }),
+    ).rejects.toThrow("staged apply failed");
+
+    expect(readFileSync(fixture.target, "utf8")).toBe("before\n");
+    expect(prompt).toContain(`M ${fixture.target}`);
+    expect(prompt).not.toContain("before");
+    expect(prompt).not.toContain("after");
+    expect(live.events).toEqual([
+      "enumerate:dirs",
+      "enumerate:files",
+      "enumerate:symlinks",
+      "enumerate:remove",
+      "resolve-normal",
+      "capture",
+      "capture-verify",
+      "status",
+      "confirm",
+      "apply",
+      "revert-status",
+      "revert-apply",
+      "revert-verify",
+    ]);
+    await expect(fs.stat(fixture.activeDir)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  test("removes an incomplete session when capture fails before ready", async () => {
+    const fixture = await makeLiveApplyFixture();
+    let asked = false;
+    const live = createLiveRunner(fixture, {
+      captureResult: commandResult({
+        status: 1,
+        stderr: Buffer.from("capture failed\n"),
+      }),
+    });
+
+    await expect(
+      runLiveApply({
+        destinationDir: fixture.home,
+        question: async () => {
+          asked = true;
+          return "y";
+        },
+        runner: live.runner,
+        sessionBase: fixture.sessionBase,
+        worktreeRoot: fixture.worktree,
+        yes: false,
+      }),
+    ).rejects.toThrow("capture failed");
+
+    expect(asked).toBeFalse();
+    expect(readFileSync(fixture.target, "utf8")).toBe("before\n");
+    expect(live.events).toEqual([
+      "enumerate:dirs",
+      "enumerate:files",
+      "enumerate:symlinks",
+      "enumerate:remove",
+      "resolve-normal",
+      "capture",
+    ]);
+    expect(live.events).not.toContain("revert-status");
+    await expect(fs.stat(fixture.activeDir)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  test("retains the ready session when automatic revert also fails", async () => {
+    const fixture = await makeLiveApplyFixture();
+    const live = createLiveRunner(fixture, {
+      applyResult: commandResult({ status: 1, stderr: Buffer.from("staged apply failed\n") }),
+      onStagedApply: () => writeFileSync(fixture.target, "after\n"),
+      snapshotApplyResult: commandResult({
+        status: 1,
+        stderr: Buffer.from("snapshot recovery failed\n"),
+      }),
+    });
+
+    const applying = runLiveApply({
+      destinationDir: fixture.home,
+      question: async () => "y",
+      runner: live.runner,
+      sessionBase: fixture.sessionBase,
+      worktreeRoot: fixture.worktree,
+      yes: true,
+    });
+
+    await expect(applying).rejects.toThrow("apply and automatic revert failed");
+    await expect(applying).rejects.toThrow(fixture.activeDir);
+    await expect(applying).rejects.toThrow("pnpm run worktree:revert");
+    expect(readFileSync(fixture.target, "utf8")).toBe("after\n");
+    expect(live.events.at(-1)).toBe("revert-apply");
+    expect(await fs.readFile(path.join(fixture.activeDir, "ready"), "utf8")).toBe("ready\n");
+    await fs.rm(fixture.activeDir, { force: true, recursive: true });
+  });
+
+  test("removes a ready session when path confirmation is cancelled", async () => {
+    const fixture = await makeLiveApplyFixture();
+    const live = createLiveRunner(fixture);
+
+    await runLiveApply({
+      destinationDir: fixture.home,
+      question: async () => {
+        live.events.push("confirm");
+        return "n";
+      },
+      runner: live.runner,
+      sessionBase: fixture.sessionBase,
+      worktreeRoot: fixture.worktree,
+      yes: false,
+    });
+
+    expect(live.events.at(-2)).toBe("status");
+    expect(live.events.at(-1)).toBe("confirm");
+    expect(live.events).not.toContain("apply");
+    expect(live.events).not.toContain("revert-status");
+    expect(readFileSync(fixture.target, "utf8")).toBe("before\n");
+    await expect(fs.stat(fixture.activeDir)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  test("removes a ready session when coverage validation fails", async () => {
+    const fixture = await makeLiveApplyFixture();
+    const unmanaged = path.join(fixture.home, ".unmanaged");
+    let asked = false;
+    const live = createLiveRunner(fixture, { plannedTarget: unmanaged });
+
+    await expect(
+      runLiveApply({
+        destinationDir: fixture.home,
+        question: async () => {
+          asked = true;
+          return "y";
+        },
+        runner: live.runner,
+        sessionBase: fixture.sessionBase,
+        worktreeRoot: fixture.worktree,
+        yes: false,
+      }),
+    ).rejects.toThrow(`status path has no snapshot coverage: ${unmanaged}`);
+
+    expect(asked).toBeFalse();
+    expect(live.events.at(-1)).toBe("status");
+    expect(live.events).not.toContain("apply");
+    await expect(fs.stat(fixture.activeDir)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  test("removes an empty-plan session without prompting or unscoped apply", async () => {
+    const fixture = await makeLiveApplyFixture();
+    let asked = false;
+    const live = createLiveRunner(fixture, {
+      managedTarget: null,
+      plannedTarget: null,
+    });
+
+    await runLiveApply({
+      destinationDir: fixture.home,
+      question: async () => {
+        asked = true;
+        return "y";
+      },
+      runner: live.runner,
+      sessionBase: fixture.sessionBase,
+      worktreeRoot: fixture.worktree,
+      yes: false,
+    });
+
+    expect(asked).toBeFalse();
+    expect(live.events).not.toContain("apply");
+    expect(live.events).not.toContain("revert-status");
+    expect(readFileSync(fixture.target, "utf8")).toBe("before\n");
+    await expect(fs.stat(fixture.activeDir)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  test("retains the ready session after a successful explicit-path apply", async () => {
+    const fixture = await makeLiveApplyFixture();
+    const live = createLiveRunner(fixture, {
+      onStagedApply: () => writeFileSync(fixture.target, "after\n"),
+    });
+
+    await runLiveApply({
+      destinationDir: fixture.home,
+      question: async () => "n",
+      runner: live.runner,
+      sessionBase: fixture.sessionBase,
+      worktreeRoot: fixture.worktree,
+      yes: true,
+    });
+
+    expect(readFileSync(fixture.target, "utf8")).toBe("after\n");
+    expect(live.events.at(-1)).toBe("apply");
+    expect(await fs.readFile(path.join(fixture.activeDir, "ready"), "utf8")).toBe("ready\n");
+    await fs.rm(fixture.activeDir, { force: true, recursive: true });
+  });
+});
+
+type LiveApplyFixture = {
+  activeDir: string;
+  home: string;
+  normalSource: string;
+  sessionBase: string;
+  target: string;
+  worktree: string;
+};
+
+async function makeLiveApplyFixture(): Promise<LiveApplyFixture> {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "live-apply-test-"));
+  const home = path.join(root, "fake-home");
+  const normalSource = path.join(root, "normal-source");
+  const sessionBase = path.join(root, "state");
+  const worktree = path.join(root, "worktree");
+  const source = path.join(worktree, "home");
+  const target = path.join(home, ".target");
+  await Promise.all([
+    fs.mkdir(home),
+    fs.mkdir(normalSource),
+    fs.mkdir(path.join(source, ".shared-configs", "nvim"), { recursive: true }),
+    fs.mkdir(path.join(source, ".shared-configs", "yazi"), { recursive: true }),
+  ]);
+  await Promise.all([
+    fs.writeFile(target, "before\n"),
+    fs.writeFile(path.join(source, "dot_target"), "after\n"),
+    fs.writeFile(path.join(source, ".shared-configs", "nvim", "init.lua"), "fixture\n"),
+  ]);
+  return {
+    activeDir: path.join(sessionBase, "active"),
+    home,
+    normalSource,
+    sessionBase,
+    target,
+    worktree,
+  };
+}
+
+function createLiveRunner(
+  fixture: LiveApplyFixture,
+  options: {
+    applyResult?: CommandResult;
+    captureResult?: CommandResult;
+    managedTarget?: string | null;
+    onSnapshotApply?: () => void;
+    onStagedApply?: () => void;
+    plannedTarget?: string | null;
+    snapshotApplyResult?: CommandResult;
+  } = {},
+): { events: string[]; runner: CommandRunner } {
+  const events: string[] = [];
+  const managedTarget = options.managedTarget === undefined ? fixture.target : options.managedTarget;
+  const plannedTarget = options.plannedTarget === undefined ? fixture.target : options.plannedTarget;
+  const stagedSource = path.join(fixture.activeDir, "staged-source");
+  const snapshotSource = path.join(fixture.activeDir, "snapshot-source");
+
+  const runner: CommandRunner = (command, args) => {
+    if (command === "git") {
+      events.push("resolve-normal");
+      expect(existsSync(fixture.activeDir)).toBeTrue();
+      return commandResult({
+        stdout: Buffer.from(`${path.join(fixture.normalSource, ".git")}\n`),
+      });
+    }
+
+    expect(command).toBe("chezmoi");
+    const sourceDir = args[args.indexOf("--source") + 1];
+    const commandArgs = chezmoiCommandArgs(args);
+    const verb = commandArgs[0];
+
+    if (verb === "managed") {
+      const include = commandArgs[commandArgs.indexOf("--include") + 1];
+      events.push(`enumerate:${include}`);
+      if (include === "dirs") {
+        const wrapper = path.join("dot_config", "nvim", "init.lua.tmpl");
+        expect(readFileSync(path.join(fixture.worktree, "home", wrapper), "utf8")).toContain(
+          ".shared-configs/nvim/init.lua",
+        );
+        expect(readFileSync(path.join(stagedSource, wrapper), "utf8")).toContain(
+          ".shared-configs/nvim/init.lua",
+        );
+        expect(existsSync(path.join(fixture.activeDir, "ready"))).toBeFalse();
+      }
+      return commandResult({
+        stdout: Buffer.from(include === "files" && managedTarget !== null ? `${managedTarget}\0` : ""),
+      });
+    }
+
+    if (sourceDir === snapshotSource && verb === "add") {
+      events.push("capture");
+      expect(readFileSync(fixture.target, "utf8")).toBe("before\n");
+      return options.captureResult ?? commandResult();
+    }
+
+    if (sourceDir === snapshotSource && verb === "verify") {
+      const reverting = existsSync(path.join(fixture.activeDir, "ready"));
+      events.push(reverting ? "revert-verify" : "capture-verify");
+      expect(readFileSync(fixture.target, "utf8")).toBe("before\n");
+      return commandResult();
+    }
+
+    if (sourceDir === stagedSource && verb === "status") {
+      events.push("status");
+      expect(existsSync(path.join(fixture.activeDir, "ready"))).toBeTrue();
+      expect(commandArgs).toEqual([
+        "status",
+        "--path-style",
+        "absolute",
+        "--exclude",
+        "scripts,externals,encrypted",
+      ]);
+      return commandResult({
+        stdout: Buffer.from(plannedTarget === null ? "" : ` M ${plannedTarget}\n`),
+      });
+    }
+
+    if (sourceDir === stagedSource && verb === "--force") {
+      events.push("apply");
+      expect(commandArgs).toEqual([
+        "--force",
+        "apply",
+        "--exclude",
+        "scripts,externals,encrypted",
+        fixture.target,
+      ]);
+      expect(commandArgs).not.toContain("--init");
+      expect(commandArgs).not.toContain("--keep-going");
+      options.onStagedApply?.();
+      return options.applyResult ?? commandResult();
+    }
+
+    if (sourceDir === snapshotSource && verb === "status") {
+      events.push("revert-status");
+      return commandResult({ stdout: Buffer.from(` M ${fixture.target}\n`) });
+    }
+
+    if (sourceDir === snapshotSource && verb === "--force") {
+      events.push("revert-apply");
+      expect(commandArgs).toEqual(["--force", "apply"]);
+      options.onSnapshotApply?.();
+      return options.snapshotApplyResult ?? commandResult();
+    }
+
+    throw new Error(`unexpected live command: ${sourceDir} :: ${commandArgs.join(" ")}`);
+  };
+
+  return { events, runner };
 }
 
 describe("managed candidate inventory", () => {

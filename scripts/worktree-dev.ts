@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { mkdtempSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { createInterface } from "node:readline/promises";
 import { parseArgs } from "node:util";
 
 import { resolveSourceStateRoot } from "./chezmoi-paths.ts";
@@ -12,15 +13,24 @@ import {
   runChezmoi,
   type CommandResult,
 } from "./worktree-runtime.ts";
+import {
+  openActiveSession,
+  resolveSessionBase,
+  revertActiveSession,
+  runLiveApply,
+  type Question,
+} from "./worktree-session.ts";
 
-const commands = ["context", "diff", "dry-run", "apply-temp"] as const;
-const usage = `usage: bun run scripts/worktree-dev.ts [--help|-h] <${commands.join("|")}>`;
+const commands = ["context", "diff", "dry-run", "apply-temp", "apply", "revert"] as const;
+const usage = `usage: bun run scripts/worktree-dev.ts [--help|-h] [--yes] <${commands.join("|")}>`;
 
 export type NonLiveCommand = "context" | "diff" | "dry-run" | "apply-temp";
-export type WorktreeCommand = NonLiveCommand;
+export type LiveCommand = "apply" | "revert";
+export type WorktreeCommand = NonLiveCommand | LiveCommand;
 export type ParsedCliArgs = {
   command?: WorktreeCommand;
   help: boolean;
+  yes: boolean;
 };
 
 export function buildNonLiveCommandArgs(command: NonLiveCommand): string[] {
@@ -125,6 +135,54 @@ const defaultWorktreeCommandDependencies: WorktreeCommandDependencies = {
   removeRuntime: removeEphemeralRuntime,
 };
 
+type LiveCliOptions = {
+  destinationDir: string;
+  question: Question;
+  sessionBase: string;
+  worktreeRoot: string;
+  yes: boolean;
+};
+
+type LiveCliDependencies = {
+  apply: typeof runLiveApply;
+  openSession: typeof openActiveSession;
+  revert: typeof revertActiveSession;
+};
+
+const defaultLiveCliDependencies: LiveCliDependencies = {
+  apply: runLiveApply,
+  openSession: openActiveSession,
+  revert: revertActiveSession,
+};
+
+export async function runLiveCliCommand(
+  command: LiveCommand,
+  options: LiveCliOptions,
+  dependencies: LiveCliDependencies = defaultLiveCliDependencies,
+): Promise<void> {
+  if (command === "apply") {
+    await dependencies.apply(options);
+    return;
+  }
+
+  const session = await dependencies.openSession(
+    options.sessionBase,
+    options.worktreeRoot,
+    options.destinationDir,
+  );
+  await dependencies.revert({
+    automatic: false,
+    confirm: async (lines) => {
+      if (options.yes) return true;
+      const answer = await options.question(
+        `${lines.join("\n")}\nRevert these changes? [y/N] `,
+      );
+      return answer.trim().toLowerCase() === "y";
+    },
+    session,
+  });
+}
+
 export async function runWorktreeCommand(
   command: NonLiveCommand,
   worktreeRoot: string,
@@ -159,7 +217,7 @@ function parseCommand(value: string | undefined): WorktreeCommand | undefined {
 }
 
 export function parseCliArgs(args: string[]): ParsedCliArgs {
-  let values: { help?: boolean };
+  let values: { help?: boolean; yes?: boolean };
   let positionals: string[];
 
   try {
@@ -167,6 +225,7 @@ export function parseCliArgs(args: string[]): ParsedCliArgs {
       args,
       options: {
         help: { type: "boolean", short: "h", default: false },
+        yes: { type: "boolean", default: false },
       },
       allowPositionals: true,
     }));
@@ -179,10 +238,26 @@ export function parseCliArgs(args: string[]): ParsedCliArgs {
     throw usageError("expected exactly one command");
   }
 
+  const command = parseCommand(positionals[0]);
+  const yes = values.yes === true;
+  if (yes && command !== "apply" && command !== "revert") {
+    throw usageError("--yes is only valid with apply or revert");
+  }
+
   return {
-    command: parseCommand(positionals[0]),
+    command,
     help: values.help === true,
+    yes,
   };
+}
+
+async function askQuestion(prompt: string): Promise<string> {
+  const readline = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    return await readline.question(prompt);
+  } finally {
+    readline.close();
+  }
 }
 
 async function main(): Promise<void> {
@@ -218,6 +293,21 @@ async function main(): Promise<void> {
     }
 
     process.stderr.write(`temporary destination: ${destinationDir}\n`);
+  }
+
+  if (parsed.command === "apply" || parsed.command === "revert") {
+    try {
+      await runLiveCliCommand(parsed.command, {
+        destinationDir,
+        question: askQuestion,
+        sessionBase: resolveSessionBase(process.platform, destinationDir, process.env),
+        worktreeRoot: worktree,
+        yes: parsed.yes,
+      });
+    } catch (error) {
+      fail(error instanceof Error ? error.message : String(error));
+    }
+    return;
   }
 
   const result = await runWorktreeCommand(parsed.command, worktree, destinationDir);

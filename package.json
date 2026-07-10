@@ -12,7 +12,9 @@
     "worktree:context": "bun run scripts/worktree-dev.ts context",
     "worktree:diff": "bun run scripts/worktree-dev.ts diff",
     "worktree:dry-run": "bun run scripts/worktree-dev.ts dry-run",
-    "worktree:apply-temp": "bun run scripts/worktree-dev.ts apply-temp"
+    "worktree:apply-temp": "bun run scripts/worktree-dev.ts apply-temp",
+    "worktree:apply": "bun run scripts/worktree-dev.ts apply",
+    "worktree:revert": "bun run scripts/worktree-dev.ts revert"
   },
   "devDependencies": {
     "@opencode-ai/plugin": "^1.4.3",

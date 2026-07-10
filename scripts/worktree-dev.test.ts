@@ -1,13 +1,16 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 
 import {
   buildNonLiveCommandArgs,
   handleSpawnResult,
   ParseCliError,
   parseCliArgs,
+  runLiveCliCommand,
   runWorktreeCommand,
 } from "./worktree-dev.ts";
 import type { ChezmoiRuntime, CommandResult } from "./worktree-runtime.ts";
+import type { SessionPaths } from "./worktree-session.ts";
 
 test.each([
   ["context", ["execute-template", "{{ .chezmoi.workingTree }}|{{ .chezmoi.sourceDir }}"]],
@@ -60,17 +63,44 @@ test("reconciles before running chezmoi and always removes the runtime", async (
 });
 
 describe("parseCliArgs", () => {
-  test("parses command positional", () => {
-    expect(parseCliArgs(["context"])).toEqual({
-      command: "context",
+  test.each(["context", "diff", "dry-run", "apply-temp", "apply", "revert"] as const)(
+    "parses the %s command positional",
+    (command) => {
+      expect(parseCliArgs([command])).toEqual({
+        command,
+        help: false,
+        yes: false,
+      });
+    },
+  );
+
+  test("parses --yes for apply", () => {
+    expect(parseCliArgs(["apply", "--yes"])).toEqual({
+      command: "apply",
       help: false,
+      yes: true,
     });
+  });
+
+  test("parses --yes for revert", () => {
+    expect(parseCliArgs(["revert", "--yes"])).toEqual({
+      command: "revert",
+      help: false,
+      yes: true,
+    });
+  });
+
+  test("rejects --yes for a non-live command", () => {
+    expect(() => parseCliArgs(["diff", "--yes"])).toThrow(
+      "--yes is only valid with apply or revert",
+    );
   });
 
   test("parses help flag", () => {
     expect(parseCliArgs(["--help"])).toEqual({
       command: undefined,
       help: true,
+      yes: false,
     });
   });
 
@@ -78,6 +108,7 @@ describe("parseCliArgs", () => {
     expect(parseCliArgs(["-h", "diff"])).toEqual({
       command: "diff",
       help: true,
+      yes: false,
     });
   });
 
@@ -115,5 +146,142 @@ describe("parseCliArgs", () => {
     );
 
     expect(calls).toEqual(["signal:SIGTERM"]);
+  });
+});
+
+describe("live CLI dispatch", () => {
+  test("dispatches apply with the resolved live options", async () => {
+    const question = async () => "y";
+    let appliedOptions: unknown;
+
+    await runLiveCliCommand(
+      "apply",
+      {
+        destinationDir: "/fake-home",
+        question,
+        sessionBase: "/fake-state",
+        worktreeRoot: "/repo",
+        yes: true,
+      },
+      {
+        apply: async (options) => {
+          appliedOptions = options;
+        },
+        openSession: async () => {
+          throw new Error("unexpected open session");
+        },
+        revert: async () => {
+          throw new Error("unexpected revert");
+        },
+      },
+    );
+
+    expect(appliedOptions).toEqual({
+      destinationDir: "/fake-home",
+      question,
+      sessionBase: "/fake-state",
+      worktreeRoot: "/repo",
+      yes: true,
+    });
+  });
+
+  test("opens and automatically confirms the active session for revert --yes", async () => {
+    const session = fakeSession();
+    const calls: string[] = [];
+
+    await runLiveCliCommand(
+      "revert",
+      {
+        destinationDir: "/fake-home",
+        question: async () => {
+          throw new Error("unexpected question");
+        },
+        sessionBase: "/fake-state",
+        worktreeRoot: "/repo",
+        yes: true,
+      },
+      {
+        apply: async () => {
+          throw new Error("unexpected apply");
+        },
+        openSession: async (...args) => {
+          calls.push(`open:${args.join(":")}`);
+          return session;
+        },
+        revert: async (options) => {
+          calls.push(`automatic:${options.automatic}`);
+          calls.push(`confirmed:${await options.confirm(["M /fake-home/.target"])}`);
+          expect(options.session).toBe(session);
+        },
+      },
+    );
+
+    expect(calls).toEqual([
+      "open:/fake-state:/repo:/fake-home",
+      "automatic:false",
+      "confirmed:true",
+    ]);
+  });
+
+  test("prompts for manual revert using only status actions and paths", async () => {
+    const session = fakeSession();
+    const privateContents = "private contents";
+    let prompt = "";
+
+    await runLiveCliCommand(
+      "revert",
+      {
+        destinationDir: "/fake-home",
+        question: async (value) => {
+          prompt = value;
+          return " y ";
+        },
+        sessionBase: "/fake-state",
+        worktreeRoot: "/repo",
+        yes: false,
+      },
+      {
+        apply: async () => {
+          throw new Error("unexpected apply");
+        },
+        openSession: async () => session,
+        revert: async (options) => {
+          expect(await options.confirm(["M /fake-home/.target", "D /fake-home/.old"])).toBeTrue();
+        },
+      },
+    );
+
+    expect(prompt).toContain("M /fake-home/.target");
+    expect(prompt).toContain("D /fake-home/.old");
+    expect(prompt).not.toContain(privateContents);
+  });
+});
+
+function fakeSession(): SessionPaths {
+  return {
+    activeDir: "/fake-state/active",
+    cacheDir: "/fake-state/active/cache",
+    configFile: "/fake-state/active/config.toml",
+    destinationDir: "/fake-home",
+    persistentStateFile: "/fake-state/active/state.boltdb",
+    readyFile: "/fake-state/active/ready",
+    snapshotSourceDir: "/fake-state/active/snapshot-source",
+    stagedSourceDir: "/fake-state/active/staged-source",
+    worktreeRoot: "/repo",
+  };
+}
+
+test("defines live package scripts without changing non-live script names", () => {
+  const packageJson = JSON.parse(
+    readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+  ) as { scripts: Record<string, string> };
+
+  expect(packageJson.scripts).toMatchObject({
+    "worktree:apply": "bun run scripts/worktree-dev.ts apply",
+    "worktree:apply-temp": "bun run scripts/worktree-dev.ts apply-temp",
+    "worktree:context": "bun run scripts/worktree-dev.ts context",
+    "worktree:diff": "bun run scripts/worktree-dev.ts diff",
+    "worktree:dry-run": "bun run scripts/worktree-dev.ts dry-run",
+    "worktree:revert": "bun run scripts/worktree-dev.ts revert",
   });
 });

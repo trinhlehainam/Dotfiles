@@ -1,6 +1,8 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
+import { resolveSourceStateRoot } from "./chezmoi-paths.ts";
+import { reconcileAllTools } from "./reconcile-configs.ts";
 import {
   requireSuccess,
   runChezmoi,
@@ -487,4 +489,125 @@ export async function markSessionReady(session: SessionPaths): Promise<void> {
 
 export async function removeActiveSession(session: SessionPaths): Promise<void> {
   await fs.rm(session.activeDir, { force: true, recursive: true });
+}
+
+export async function revertActiveSession(options: {
+  automatic: boolean;
+  confirm: (lines: string[]) => Promise<boolean>;
+  session: SessionPaths;
+  runner?: CommandRunner;
+}): Promise<void> {
+  await fs.stat(options.session.readyFile);
+
+  try {
+    const runtime = snapshotRuntime(options.session);
+    const status = requireSuccess(
+      runChezmoi(runtime, ["status", "--path-style", "absolute"], options.runner),
+      "read snapshot status",
+    );
+    const divergent = parseStatus(status.stdout.toString("utf8"));
+    const lines = divergent.map(({ action, absolutePath }) => `${action} ${absolutePath}`);
+
+    if (!options.automatic && !(await options.confirm(lines))) {
+      throw new Error("revert cancelled");
+    }
+
+    requireSuccess(
+      runChezmoi(runtime, ["--force", "apply"], options.runner),
+      "apply snapshot",
+    );
+    requireSuccess(runChezmoi(runtime, ["verify"], options.runner), "verify restored snapshot");
+    await removeActiveSession(options.session);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `${message}; session: ${options.session.activeDir}; run pnpm run worktree:revert`,
+      { cause: error },
+    );
+  }
+}
+
+export async function runLiveApply(options: {
+  destinationDir: string;
+  question: Question;
+  runner?: CommandRunner;
+  sessionBase: string;
+  worktreeRoot: string;
+  yes: boolean;
+}): Promise<void> {
+  const sourceDir = resolveSourceStateRoot(options.worktreeRoot);
+  const session = await createActiveSession(
+    options.sessionBase,
+    options.worktreeRoot,
+    options.destinationDir,
+  );
+  let applyStarted = false;
+
+  try {
+    await reconcileAllTools({
+      hostHome: options.destinationDir,
+      repoRoot: options.worktreeRoot,
+      sourceStateRoot: sourceDir,
+    });
+    await stageWorktreeSource(sourceDir, session);
+    await validateStagedSource(session.stagedSourceDir);
+    const candidates = await enumerateCandidates(stagedRuntime(session), options.runner);
+    const normalSourceDir = resolveNormalSourceCheckout(options.worktreeRoot, options.runner);
+    await inspectCandidates(candidates, {
+      destinationDir: options.destinationDir,
+      normalSourceDir,
+      sessionDir: session.activeDir,
+      worktreeRoot: options.worktreeRoot,
+    });
+    await captureSnapshot(session, candidates, options.runner);
+    await markSessionReady(session);
+
+    const status = requireSuccess(
+      runChezmoi(
+        stagedRuntime(session),
+        [
+          "status",
+          "--path-style",
+          "absolute",
+          "--exclude",
+          "scripts,externals,encrypted",
+        ],
+        options.runner,
+      ),
+      "read staged status",
+    );
+    const planned = parseStatus(status.stdout.toString("utf8"));
+    validateCoverage(planned, candidates);
+
+    if (planned.length === 0) {
+      await removeActiveSession(session);
+      return;
+    }
+    if (!(await confirmPaths(planned, options.yes, options.question))) {
+      await removeActiveSession(session);
+      return;
+    }
+
+    applyStarted = true;
+    const applied = await applyPlannedChanges(stagedRuntime(session), planned, options.runner);
+    if (applied.error !== undefined || applied.signal !== null || applied.status !== 0) {
+      try {
+        await revertActiveSession({
+          automatic: true,
+          confirm: async () => true,
+          runner: options.runner,
+          session,
+        });
+      } catch (recoveryError) {
+        throw new Error(
+          `apply and automatic revert failed; run pnpm run worktree:revert; session: ${session.activeDir}`,
+          { cause: recoveryError },
+        );
+      }
+      requireSuccess(applied, "apply worktree");
+    }
+  } catch (error) {
+    if (!applyStarted) await removeActiveSession(session);
+    throw error;
+  }
 }
