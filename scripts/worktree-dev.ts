@@ -5,15 +5,36 @@ import path from "node:path";
 import { parseArgs } from "node:util";
 
 import { resolveSourceStateRoot } from "./chezmoi-paths.ts";
+import { reconcileAllTools } from "./reconcile-configs.ts";
+import {
+  createEphemeralRuntime,
+  removeEphemeralRuntime,
+  runChezmoi,
+  type CommandResult,
+} from "./worktree-runtime.ts";
 
 const commands = ["context", "diff", "dry-run", "apply-temp"] as const;
 const usage = `usage: bun run scripts/worktree-dev.ts [--help|-h] <${commands.join("|")}>`;
 
-export type WorktreeCommand = (typeof commands)[number];
+export type NonLiveCommand = "context" | "diff" | "dry-run" | "apply-temp";
+export type WorktreeCommand = NonLiveCommand;
 export type ParsedCliArgs = {
   command?: WorktreeCommand;
   help: boolean;
 };
+
+export function buildNonLiveCommandArgs(command: NonLiveCommand): string[] {
+  switch (command) {
+    case "context":
+      return ["execute-template", "{{ .chezmoi.workingTree }}|{{ .chezmoi.sourceDir }}"];
+    case "diff":
+      return ["diff"];
+    case "dry-run":
+      return ["apply", "--dry-run", "--verbose"];
+    case "apply-temp":
+      return ["apply", "--verbose"];
+  }
+}
 
 export class ParseCliError extends Error {
   constructor(message: string) {
@@ -90,38 +111,47 @@ function resolveWorktreeRoot(): string {
   return worktree;
 }
 
-function commonArgs(worktree: string): string[] {
-  return ["--init", "-S", resolveSourceStateRoot(worktree), "-W", worktree];
-}
-
-const commandArgs: Record<WorktreeCommand, (worktree: string) => string[]> = {
-  context: (worktree) => [
-    "execute-template",
-    ...commonArgs(worktree),
-    "{{ .chezmoi.workingTree }}|{{ .chezmoi.sourceDir }}",
-  ],
-  diff: (worktree) => ["diff", ...commonArgs(worktree)],
-  "dry-run": (worktree) => ["apply", ...commonArgs(worktree), "-n", "-v"],
-  "apply-temp": (worktree) => {
-    let destDir: string;
-
-    try {
-      destDir = mkdtempSync(path.join(os.tmpdir(), "chezmoi-worktree-"));
-    } catch (error) {
-      fail(error instanceof Error ? error.message : String(error));
-    }
-
-    process.stderr.write(`temporary destination: ${destDir}\n`);
-    return ["apply", ...commonArgs(worktree), "-v", "-D", destDir];
-  },
+type WorktreeCommandDependencies = {
+  reconcile: typeof reconcileAllTools;
+  createRuntime: typeof createEphemeralRuntime;
+  run: typeof runChezmoi;
+  removeRuntime: typeof removeEphemeralRuntime;
 };
+
+const defaultWorktreeCommandDependencies: WorktreeCommandDependencies = {
+  reconcile: reconcileAllTools,
+  createRuntime: createEphemeralRuntime,
+  run: runChezmoi,
+  removeRuntime: removeEphemeralRuntime,
+};
+
+export async function runWorktreeCommand(
+  command: NonLiveCommand,
+  worktreeRoot: string,
+  destinationDir: string,
+  dependencies: WorktreeCommandDependencies = defaultWorktreeCommandDependencies,
+): Promise<CommandResult> {
+  const sourceDir = resolveSourceStateRoot(worktreeRoot);
+  await dependencies.reconcile({ repoRoot: worktreeRoot, sourceStateRoot: sourceDir });
+  const runtime = await dependencies.createRuntime({
+    destinationDir,
+    sourceDir,
+    worktreeRoot,
+  });
+
+  try {
+    return dependencies.run(runtime, buildNonLiveCommandArgs(command));
+  } finally {
+    await dependencies.removeRuntime(runtime);
+  }
+}
 
 function parseCommand(value: string | undefined): WorktreeCommand | undefined {
   if (value === undefined) {
     return undefined;
   }
 
-  if (Object.hasOwn(commandArgs, value)) {
+  if (commands.includes(value as WorktreeCommand)) {
     return value as WorktreeCommand;
   }
 
@@ -155,7 +185,7 @@ export function parseCliArgs(args: string[]): ParsedCliArgs {
   };
 }
 
-function main(): void {
+async function main(): Promise<void> {
   let parsed: ParsedCliArgs;
 
   try {
@@ -178,13 +208,24 @@ function main(): void {
   }
 
   const worktree = resolveWorktreeRoot();
-  const result = spawnSync("chezmoi", commandArgs[parsed.command](worktree), {
-    cwd: process.cwd(),
-    stdio: "inherit",
-  });
+  let destinationDir = os.homedir();
+
+  if (parsed.command === "apply-temp") {
+    try {
+      destinationDir = mkdtempSync(path.join(os.tmpdir(), "chezmoi-worktree-"));
+    } catch (error) {
+      fail(error instanceof Error ? error.message : String(error));
+    }
+
+    process.stderr.write(`temporary destination: ${destinationDir}\n`);
+  }
+
+  const result = await runWorktreeCommand(parsed.command, worktree, destinationDir);
+  process.stdout.write(result.stdout);
+  process.stderr.write(result.stderr);
   handleSpawnResult(result);
 }
 
 if (import.meta.main) {
-  main();
+  await main();
 }
