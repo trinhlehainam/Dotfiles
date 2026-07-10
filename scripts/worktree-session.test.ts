@@ -79,6 +79,23 @@ describe("status output parsing", () => {
     "rejects malformed or executable status %s",
     (output) => expect(() => parseStatus(output)).toThrow(),
   );
+
+  test.each([
+    [" A /home/u/target\n", "A"],
+    ["AD /home/u/target\n", "D"],
+    ["DM /home/u/target\n", "M"],
+    ["MA /home/u/target\n", "A"],
+  ] as const)("accepts a known first column and parses action %s", (output, action) => {
+    expect(parseStatus(output)).toEqual([{ action, absolutePath: "/home/u/target" }]);
+  });
+
+  test.each(["XM /home/u/target\n", "?A /home/u/target\n"])(
+    "rejects unknown first-column status %s",
+    (output) =>
+      expect(() => parseStatus(output)).toThrow(
+        `unsupported status first column: ${output.trimEnd()}`,
+      ),
+  );
 });
 
 describe("status coverage", () => {

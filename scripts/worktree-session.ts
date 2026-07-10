@@ -63,6 +63,15 @@ export function parseStatus(output: string): PlannedChange[] {
       if (line.length < 4 || line[2] !== " ") {
         throw new Error(`malformed status line: ${line}`);
       }
+      const sourceAction = line[0];
+      if (
+        sourceAction !== " " &&
+        sourceAction !== "A" &&
+        sourceAction !== "D" &&
+        sourceAction !== "M"
+      ) {
+        throw new Error(`unsupported status first column: ${line}`);
+      }
       const action = line[1];
       if (action === "R") throw new Error(`unsupported script status: ${line}`);
       if (action !== "A" && action !== "D" && action !== "M") {
