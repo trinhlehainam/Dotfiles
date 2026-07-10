@@ -638,6 +638,37 @@ describe("live apply orchestration", () => {
     await expect(fs.stat(fixture.activeDir)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
+  test("automatically reverts when the staged apply runner throws after mutation", async () => {
+    const fixture = await makeLiveApplyFixture();
+    const live = createLiveRunner(fixture, {
+      onSnapshotApply: () => writeFileSync(fixture.target, "before\n"),
+      onStagedApply: () => {
+        writeFileSync(fixture.target, "after\n");
+        throw new Error("staged apply threw");
+      },
+    });
+
+    await expect(
+      runLiveApply({
+        destinationDir: fixture.home,
+        question: async () => "y",
+        runner: live.runner,
+        sessionBase: fixture.sessionBase,
+        worktreeRoot: fixture.worktree,
+        yes: true,
+      }),
+    ).rejects.toThrow("staged apply threw");
+
+    expect(readFileSync(fixture.target, "utf8")).toBe("before\n");
+    expect(live.events.slice(-4)).toEqual([
+      "apply",
+      "revert-status",
+      "revert-apply",
+      "revert-verify",
+    ]);
+    await expect(fs.stat(fixture.activeDir)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
   test("removes an incomplete session when capture fails before ready", async () => {
     const fixture = await makeLiveApplyFixture();
     let asked = false;

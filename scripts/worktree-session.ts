@@ -589,8 +589,10 @@ export async function runLiveApply(options: {
     }
 
     applyStarted = true;
-    const applied = await applyPlannedChanges(stagedRuntime(session), planned, options.runner);
-    if (applied.error !== undefined || applied.signal !== null || applied.status !== 0) {
+    try {
+      const applied = await applyPlannedChanges(stagedRuntime(session), planned, options.runner);
+      requireSuccess(applied, "apply worktree");
+    } catch (applyError) {
       try {
         await revertActiveSession({
           automatic: true,
@@ -604,7 +606,7 @@ export async function runLiveApply(options: {
           { cause: recoveryError },
         );
       }
-      requireSuccess(applied, "apply worktree");
+      throw applyError;
     }
   } catch (error) {
     if (!applyStarted) await removeActiveSession(session);
