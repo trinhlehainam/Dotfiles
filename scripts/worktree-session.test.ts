@@ -4,18 +4,59 @@ import os from "node:os";
 import path from "node:path";
 
 import {
+  captureSnapshot,
   createActiveSession,
+  enumerateCandidates,
+  inspectCandidates,
+  isPathInside,
   markSessionReady,
   openActiveSession,
+  parseNulPaths,
   removeActiveSession,
   resolveNormalSourceCheckout,
   resolveSessionBase,
   snapshotRuntime,
   stageWorktreeSource,
   stagedRuntime,
+  validateSafeRemovalPath,
   validateStagedSource,
+  type CandidateTarget,
 } from "./worktree-session.ts";
-import type { CommandResult, CommandRunner } from "./worktree-runtime.ts";
+import {
+  requireSuccess,
+  runChezmoi,
+  type ChezmoiRuntime,
+  type CommandResult,
+  type CommandRunner,
+} from "./worktree-runtime.ts";
+
+describe("managed output parsing", () => {
+  test("parses NUL paths without splitting spaces", () => {
+    expect(parseNulPaths(Buffer.from("/home/u/a b\0/home/u/c\0"))).toEqual([
+      "/home/u/a b",
+      "/home/u/c",
+    ]);
+  });
+
+  test("accepts empty managed output", () => {
+    expect(parseNulPaths(Buffer.alloc(0))).toEqual([]);
+  });
+
+  test("rejects non-terminated managed output", () => {
+    expect(() => parseNulPaths(Buffer.from("/home/u/a"))).toThrow(
+      "managed output is not NUL-terminated",
+    );
+  });
+});
+
+test.each(["a*", "a?", "[a]", "{a}", "!keep", "#comment", " a", "a ", "a\r", "a\n"])(
+  "rejects unsafe removal path %s",
+  (value) => expect(() => validateSafeRemovalPath(value)).toThrow("unsafe removal path"),
+);
+
+test("accepts a literal relative removal path", () => {
+  expect(() => validateSafeRemovalPath(".config/a b")).not.toThrow();
+});
 
 test("resolves per-platform state roots", () => {
   expect(resolveSessionBase("linux", "/home/u", { XDG_STATE_HOME: "/state" })).toBe(
@@ -133,6 +174,555 @@ function commandResult(overrides: Partial<CommandResult> = {}): CommandResult {
     stdout: Buffer.alloc(0),
     ...overrides,
   };
+}
+
+describe("managed candidate inventory", () => {
+  test("classifies each managed kind using exact NUL-output calls", async () => {
+    const outputs: Record<string, string> = {
+      dirs: "/home/u/.config\0",
+      files: "/home/u/.config/nvim/init.lua\0",
+      remove: "/home/u/old\0",
+      symlinks: "/home/u/.link\0",
+    };
+    const invocations: Array<{ args: string[]; command: string }> = [];
+    const runner: CommandRunner = (command, args) => {
+      invocations.push({ args, command });
+      const includeIndex = args.indexOf("--include");
+      const include = args[includeIndex + 1] ?? "";
+      return commandResult({ stdout: Buffer.from(outputs[include] ?? "") });
+    };
+
+    const candidates = await enumerateCandidates(candidateRuntime(), runner);
+
+    expect([...candidates.values()]).toEqual([
+      { absolutePath: "/home/u/.config", managedKind: "directory" },
+      { absolutePath: "/home/u/.config/nvim/init.lua", managedKind: "file" },
+      { absolutePath: "/home/u/.link", managedKind: "symlink" },
+      { absolutePath: "/home/u/old", managedKind: "remove" },
+    ]);
+    expect(
+      invocations.map(({ args, command }) => ({ command, args: args.slice(-6) })),
+    ).toEqual([
+      {
+        command: "chezmoi",
+        args: [
+          "managed",
+          "--include",
+          "dirs",
+          "--path-style",
+          "absolute",
+          "--nul-path-separator",
+        ],
+      },
+      {
+        command: "chezmoi",
+        args: [
+          "managed",
+          "--include",
+          "files",
+          "--path-style",
+          "absolute",
+          "--nul-path-separator",
+        ],
+      },
+      {
+        command: "chezmoi",
+        args: [
+          "managed",
+          "--include",
+          "symlinks",
+          "--path-style",
+          "absolute",
+          "--nul-path-separator",
+        ],
+      },
+      {
+        command: "chezmoi",
+        args: [
+          "managed",
+          "--include",
+          "remove",
+          "--path-style",
+          "absolute",
+          "--nul-path-separator",
+        ],
+      },
+    ]);
+  });
+
+  test("rejects a target reported under conflicting managed kinds", async () => {
+    const runner: CommandRunner = (_command, args) => {
+      const includeIndex = args.indexOf("--include");
+      const include = args[includeIndex + 1];
+      return commandResult({
+        stdout: Buffer.from(include === "dirs" || include === "files" ? "/home/u/.same\0" : ""),
+      });
+    };
+
+    await expect(enumerateCandidates(candidateRuntime(), runner)).rejects.toThrow(
+      "conflicting managed target types: /home/u/.same",
+    );
+  });
+
+  test("requires each managed inventory command to succeed", async () => {
+    const runner: CommandRunner = (_command, args) => {
+      const includeIndex = args.indexOf("--include");
+      if (args[includeIndex + 1] === "files") {
+        return commandResult({ status: 1, stderr: Buffer.from("managed failed\n") });
+      }
+      return commandResult();
+    };
+
+    await expect(enumerateCandidates(candidateRuntime(), runner)).rejects.toThrow(
+      "managed failed",
+    );
+  });
+});
+
+function candidateRuntime(): ChezmoiRuntime {
+  return {
+    cacheDir: "/runtime/cache",
+    configFile: "/runtime/config.toml",
+    destinationDir: "/home/u",
+    persistentStateFile: "/runtime/state.boltdb",
+    sourceDir: "/runtime/source",
+    worktreeRoot: "/repo",
+  };
+}
+
+describe("candidate destination preflight", () => {
+  test("checks containment without accepting sibling prefixes", () => {
+    expect(isPathInside("/home/u", "/home/u/.config/file")).toBeTrue();
+    expect(isPathInside("/home/u", "/home/u")).toBeTrue();
+    expect(isPathInside("/home/u", "/home/user/.config/file")).toBeFalse();
+    expect(isPathInside("/home/u", "/tmp/file")).toBeFalse();
+  });
+
+  test("classifies regular, symlink, directory, and absent baselines", async () => {
+    const fixture = await makePreflightFixture();
+    const regular = path.join(fixture.home, ".regular");
+    const symlink = path.join(fixture.home, ".link");
+    const directory = path.join(fixture.home, ".config");
+    const absentFile = path.join(fixture.home, ".created");
+    const absentDirectory = path.join(fixture.home, ".newdir");
+    await fs.writeFile(regular, "before\n", { mode: 0o600 });
+    await fs.symlink("before-target", symlink);
+    await fs.mkdir(directory);
+    const candidates = candidateMap([
+      [regular, "file"],
+      [symlink, "symlink"],
+      [directory, "directory"],
+      [absentFile, "file"],
+      [absentDirectory, "directory"],
+    ]);
+
+    await inspectCandidates(candidates, fixture.options);
+
+    expect([...candidates.values()]).toEqual([
+      {
+        absolutePath: regular,
+        baselineKind: "file",
+        managedKind: "file",
+        relativePath: ".regular",
+      },
+      {
+        absolutePath: symlink,
+        baselineKind: "symlink",
+        managedKind: "symlink",
+        relativePath: ".link",
+      },
+      {
+        absolutePath: directory,
+        baselineKind: "directory",
+        managedKind: "directory",
+        relativePath: ".config",
+      },
+      {
+        absolutePath: absentFile,
+        baselineKind: "absent",
+        managedKind: "file",
+        relativePath: ".created",
+      },
+      {
+        absolutePath: absentDirectory,
+        baselineKind: "absent",
+        managedKind: "directory",
+        relativePath: ".newdir",
+      },
+    ]);
+  });
+
+  test("writes nested relative paths with forward slashes", async () => {
+    const fixture = await makePreflightFixture();
+    const target = path.join(fixture.home, ".config", "tool", "settings.json");
+    const candidates = candidateMap([[target, "file"]]);
+
+    await inspectCandidates(candidates, fixture.options);
+
+    expect(candidates.get(target)?.relativePath).toBe(".config/tool/settings.json");
+    expect(candidates.get(target)?.baselineKind).toBe("absent");
+  });
+
+  test("rejects a target outside the destination", async () => {
+    const fixture = await makePreflightFixture();
+    const target = path.join(fixture.root, "outside");
+
+    await expect(
+      inspectCandidates(candidateMap([[target, "file"]]), fixture.options),
+    ).rejects.toThrow(`managed target is outside destination: ${target}`);
+  });
+
+  test.each(["carriage\rreturn", "line\nfeed"])(
+    "rejects a managed path containing CR/LF: %s",
+    async (component) => {
+      const fixture = await makePreflightFixture();
+      const target = path.join(fixture.home, component);
+
+      await expect(
+        inspectCandidates(candidateMap([[target, "file"]]), fixture.options),
+      ).rejects.toThrow("managed target contains CR or LF");
+    },
+  );
+
+  test.each([
+    ["session directory", "session"],
+    ["worktree root", "worktree"],
+    ["normal source directory", "normal"],
+  ] as const)("rejects a target inside the %s", async (label, protectedRoot) => {
+    const fixture = await makePreflightFixture();
+    const target = path.join(fixture[protectedRoot], "managed-file");
+
+    await expect(
+      inspectCandidates(candidateMap([[target, "file"]]), fixture.options),
+    ).rejects.toThrow(`managed target is inside ${label}: ${target}`);
+  });
+
+  test("rejects a symlinked destination ancestor without following it", async () => {
+    const fixture = await makePreflightFixture();
+    const realDirectory = path.join(fixture.home, "real-config");
+    const linkedDirectory = path.join(fixture.home, ".config");
+    await fs.mkdir(realDirectory);
+    await fs.symlink("real-config", linkedDirectory, "dir");
+    const target = path.join(linkedDirectory, "settings.json");
+
+    await expect(
+      inspectCandidates(candidateMap([[target, "file"]]), fixture.options),
+    ).rejects.toThrow(`managed target has symlinked ancestor: ${linkedDirectory}`);
+  });
+
+  test.each(["file", "symlink", "remove"] as const)(
+    "rejects an existing directory for a %s target",
+    async (managedKind) => {
+      const fixture = await makePreflightFixture();
+      const target = path.join(fixture.home, ".existing-dir");
+      await fs.mkdir(target);
+
+      await expect(
+        inspectCandidates(candidateMap([[target, managedKind]]), fixture.options),
+      ).rejects.toThrow(`managed non-directory target is an existing directory: ${target}`);
+    },
+  );
+
+  test("rejects a special destination node", async () => {
+    if (process.platform === "win32") return;
+    const fixture = await makePreflightFixture();
+    const target = path.join(fixture.home, ".pipe");
+    const processResult = Bun.spawn(["mkfifo", target], { stderr: "pipe" });
+    expect(await processResult.exited).toBe(0);
+
+    await expect(
+      inspectCandidates(candidateMap([[target, "file"]]), fixture.options),
+    ).rejects.toThrow(`unsupported destination node: ${target}`);
+  });
+});
+
+type PreflightFixture = {
+  home: string;
+  normal: string;
+  options: Parameters<typeof inspectCandidates>[1];
+  root: string;
+  session: string;
+  worktree: string;
+};
+
+async function makePreflightFixture(): Promise<PreflightFixture> {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "candidate-preflight-test-"));
+  const home = path.join(root, "home");
+  const normal = path.join(home, "normal-source");
+  const session = path.join(home, ".session");
+  const worktree = path.join(home, "worktree");
+  await fs.mkdir(home);
+  await Promise.all([
+    fs.mkdir(normal),
+    fs.mkdir(session),
+    fs.mkdir(worktree),
+  ]);
+  return {
+    home,
+    normal,
+    options: {
+      destinationDir: home,
+      normalSourceDir: normal,
+      sessionDir: session,
+      worktreeRoot: worktree,
+    },
+    root,
+    session,
+    worktree,
+  };
+}
+
+function candidateMap(
+  entries: Array<[absolutePath: string, managedKind: CandidateTarget["managedKind"]]>,
+): Map<string, CandidateTarget> {
+  return new Map(
+    entries.map(([absolutePath, managedKind]) => [
+      path.normalize(absolutePath),
+      { absolutePath: path.normalize(absolutePath), managedKind },
+    ]),
+  );
+}
+
+describe("snapshot capture", () => {
+  test("captures existing targets, records sorted absences, and verifies last", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "snapshot-capture-test-"));
+    const home = path.join(root, "home");
+    await fs.mkdir(home);
+    const session = await createActiveSession(path.join(root, "state"), "/repo", home);
+    const existingFile = path.join(home, ".existing");
+    const existingLink = path.join(home, ".link");
+    const absentZ = path.join(home, ".z-created");
+    const absentA = path.join(home, ".a-created");
+    const absentLink = path.join(home, ".created-link");
+    const absentRemove = path.join(home, ".removed-already");
+    const existingDirectory = path.join(home, ".config");
+    const absentDirectory = path.join(home, ".newdir");
+    const candidates = inspectedCandidateMap([
+      [existingFile, "file", "file", ".existing"],
+      [existingLink, "symlink", "symlink", ".link"],
+      [absentZ, "file", "absent", ".z-created"],
+      [absentA, "file", "absent", ".a-created"],
+      [absentLink, "symlink", "absent", ".created-link"],
+      [absentRemove, "remove", "absent", ".removed-already"],
+      [existingDirectory, "directory", "directory", ".config"],
+      [absentDirectory, "directory", "absent", ".newdir"],
+    ]);
+    const invocations: Array<{ args: string[]; command: string }> = [];
+    const runner: CommandRunner = (command, args) => {
+      invocations.push({ args, command });
+      return commandResult();
+    };
+
+    await captureSnapshot(session, candidates, runner);
+
+    expect(
+      invocations.map(({ args, command }) => ({ command, args: chezmoiCommandArgs(args) })),
+    ).toEqual([
+      { command: "chezmoi", args: ["add", existingFile] },
+      { command: "chezmoi", args: ["add", existingLink] },
+      { command: "chezmoi", args: ["verify"] },
+    ]);
+    expect(invocations.every(({ args }) => !args.includes("--init"))).toBeTrue();
+    expect(invocations.every(({ args }) => !args.includes("--keep-going"))).toBeTrue();
+    const manifest = path.join(session.snapshotSourceDir, ".chezmoiremove");
+    expect(await fs.readFile(manifest, "utf8")).toBe(
+      ".a-created\n.created-link\n.removed-already\n.z-created\n",
+    );
+    expect((await fs.stat(manifest)).mode & 0o777).toBe(0o600);
+    await expect(fs.stat(`${manifest}.tmp`)).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(fs.stat(session.readyFile)).rejects.toMatchObject({ code: "ENOENT" });
+    for (const target of [
+      existingFile,
+      existingLink,
+      absentZ,
+      absentA,
+      absentLink,
+      absentRemove,
+    ]) {
+      expect(candidates.get(target)?.snapshotCovered).toBeTrue();
+    }
+    expect(candidates.get(existingDirectory)?.snapshotCovered).toBeUndefined();
+    expect(candidates.get(absentDirectory)?.snapshotCovered).toBeUndefined();
+  });
+
+  test("does not mark an existing target covered when add fails", async () => {
+    const fixture = await makeCaptureFixture();
+    const target = path.join(fixture.session.destinationDir, ".existing");
+    const candidates = inspectedCandidateMap([[target, "file", "file", ".existing"]]);
+    const runner: CommandRunner = () =>
+      commandResult({ status: 1, stderr: Buffer.from("snapshot add failed\n") });
+
+    await expect(captureSnapshot(fixture.session, candidates, runner)).rejects.toThrow(
+      "snapshot add failed",
+    );
+
+    expect(candidates.get(target)?.snapshotCovered).toBeUndefined();
+  });
+
+  test("does not mark an absent target covered when the manifest write fails", async () => {
+    const fixture = await makeCaptureFixture();
+    const target = path.join(fixture.session.destinationDir, ".created");
+    const candidates = inspectedCandidateMap([[target, "file", "absent", ".created"]]);
+    await fs.rm(fixture.session.snapshotSourceDir, { recursive: true });
+    let invocations = 0;
+
+    await expect(
+      captureSnapshot(fixture.session, candidates, () => {
+        invocations += 1;
+        return commandResult();
+      }),
+    ).rejects.toMatchObject({ code: "ENOENT" });
+
+    expect(invocations).toBe(0);
+    expect(candidates.get(target)?.snapshotCovered).toBeUndefined();
+  });
+
+  test("rejects an unsafe absence before writing or verifying", async () => {
+    const fixture = await makeCaptureFixture();
+    const target = path.join(fixture.session.destinationDir, ".created");
+    const candidates = inspectedCandidateMap([[target, "file", "absent", "bad*"]]);
+    let invocations = 0;
+
+    await expect(
+      captureSnapshot(fixture.session, candidates, () => {
+        invocations += 1;
+        return commandResult();
+      }),
+    ).rejects.toThrow("unsafe removal path: bad*");
+
+    expect(invocations).toBe(0);
+    expect(candidates.get(target)?.snapshotCovered).toBeUndefined();
+  });
+
+  test("throws on verification failure without marking the session ready", async () => {
+    const fixture = await makeCaptureFixture();
+    const runner: CommandRunner = () =>
+      commandResult({ status: 1, stderr: Buffer.from("snapshot mismatch\n") });
+
+    await expect(captureSnapshot(fixture.session, new Map(), runner)).rejects.toThrow(
+      "snapshot mismatch",
+    );
+    await expect(fs.stat(fixture.session.readyFile)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+});
+
+const realChezmoiTest = Bun.which("chezmoi") === null ? test.skip : test;
+
+realChezmoiTest("round-trips a fake home through a real chezmoi snapshot", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "snapshot-round-trip-test-"));
+  const home = path.join(root, "home");
+  const normalSource = path.join(root, "normal-source");
+  const worktree = path.join(root, "worktree");
+  await Promise.all([fs.mkdir(home), fs.mkdir(normalSource), fs.mkdir(worktree)]);
+  const session = await createActiveSession(path.join(root, "state"), worktree, home);
+  const modified = path.join(home, ".modified");
+  const empty = path.join(home, ".empty");
+  const privateFile = path.join(home, ".private");
+  const link = path.join(home, ".link");
+  const removed = path.join(home, ".removed");
+  const spaced = path.join(home, ".with space");
+  const created = path.join(home, ".created");
+  const createdLink = path.join(home, ".created-link");
+  const alreadyAbsent = path.join(home, ".already-absent");
+  const existingDirectory = path.join(home, ".config");
+  const absentDirectory = path.join(home, ".newdir");
+  await Promise.all([
+    fs.writeFile(modified, "before\n"),
+    fs.writeFile(empty, ""),
+    fs.writeFile(privateFile, "private-before\n", { mode: 0o600 }),
+    fs.symlink("before-target", link),
+    fs.writeFile(removed, "removed-before\n"),
+    fs.writeFile(spaced, "space-before\n"),
+    fs.mkdir(existingDirectory),
+  ]);
+  await fs.chmod(privateFile, 0o600);
+  const candidates = candidateMap([
+    [modified, "file"],
+    [empty, "file"],
+    [privateFile, "file"],
+    [link, "symlink"],
+    [removed, "remove"],
+    [spaced, "file"],
+    [created, "file"],
+    [createdLink, "symlink"],
+    [alreadyAbsent, "remove"],
+    [existingDirectory, "directory"],
+    [absentDirectory, "directory"],
+  ]);
+  await inspectCandidates(candidates, {
+    destinationDir: home,
+    normalSourceDir: normalSource,
+    sessionDir: session.activeDir,
+    worktreeRoot: worktree,
+  });
+
+  await captureSnapshot(session, candidates);
+
+  await fs.writeFile(modified, "after\n");
+  await fs.writeFile(empty, "after\n");
+  await fs.writeFile(privateFile, "private-after\n", { mode: 0o644 });
+  await fs.chmod(privateFile, 0o644);
+  await fs.rm(link);
+  await fs.symlink("after-target", link);
+  await fs.rm(removed);
+  await fs.writeFile(spaced, "space-after\n");
+  await fs.writeFile(created, "created-after\n");
+  await fs.symlink("created-target", createdLink);
+  await fs.writeFile(alreadyAbsent, "created-after\n");
+
+  requireSuccess(
+    runChezmoi(snapshotRuntime(session), ["--force", "apply"]),
+    "restore fake home",
+  );
+
+  expect(await fs.readFile(modified, "utf8")).toBe("before\n");
+  expect(await fs.readFile(empty, "utf8")).toBe("");
+  expect(await fs.readFile(privateFile, "utf8")).toBe("private-before\n");
+  expect((await fs.stat(privateFile)).mode & 0o777).toBe(0o600);
+  expect(await fs.readlink(link)).toBe("before-target");
+  expect(await fs.readFile(removed, "utf8")).toBe("removed-before\n");
+  expect(await fs.readFile(spaced, "utf8")).toBe("space-before\n");
+  await expect(fs.lstat(created)).rejects.toMatchObject({ code: "ENOENT" });
+  await expect(fs.lstat(createdLink)).rejects.toMatchObject({ code: "ENOENT" });
+  await expect(fs.lstat(alreadyAbsent)).rejects.toMatchObject({ code: "ENOENT" });
+  await expect(fs.stat(session.readyFile)).rejects.toMatchObject({ code: "ENOENT" });
+  expect(candidates.get(existingDirectory)?.snapshotCovered).toBeUndefined();
+  expect(candidates.get(absentDirectory)?.snapshotCovered).toBeUndefined();
+}, 30_000);
+
+type CaptureFixture = {
+  session: Awaited<ReturnType<typeof createActiveSession>>;
+};
+
+async function makeCaptureFixture(): Promise<CaptureFixture> {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "snapshot-capture-test-"));
+  const home = path.join(root, "home");
+  await fs.mkdir(home);
+  return {
+    session: await createActiveSession(path.join(root, "state"), "/repo", home),
+  };
+}
+
+function inspectedCandidateMap(
+  entries: Array<
+    [
+      absolutePath: string,
+      managedKind: CandidateTarget["managedKind"],
+      baselineKind: NonNullable<CandidateTarget["baselineKind"]>,
+      relativePath: string,
+    ]
+  >,
+): Map<string, CandidateTarget> {
+  return new Map(
+    entries.map(([absolutePath, managedKind, baselineKind, relativePath]) => [
+      path.normalize(absolutePath),
+      { absolutePath: path.normalize(absolutePath), baselineKind, managedKind, relativePath },
+    ]),
+  );
+}
+
+function chezmoiCommandArgs(args: string[]): string[] {
+  return args.slice(12);
 }
 
 describe("resolveNormalSourceCheckout", () => {

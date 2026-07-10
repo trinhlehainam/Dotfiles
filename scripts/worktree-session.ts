@@ -3,10 +3,21 @@ import path from "node:path";
 
 import {
   requireSuccess,
+  runChezmoi,
   runCommand,
   type ChezmoiRuntime,
   type CommandRunner,
 } from "./worktree-runtime.ts";
+
+export type ManagedKind = "directory" | "file" | "remove" | "symlink";
+
+export type CandidateTarget = {
+  absolutePath: string;
+  baselineKind?: "absent" | "directory" | "file" | "symlink";
+  managedKind: ManagedKind;
+  relativePath?: string;
+  snapshotCovered?: boolean;
+};
 
 export type SessionPaths = {
   activeDir: string;
@@ -19,6 +30,189 @@ export type SessionPaths = {
   stagedSourceDir: string;
   worktreeRoot: string;
 };
+
+export function parseNulPaths(output: Buffer): string[] {
+  if (output.length === 0) return [];
+  if (output.at(-1) !== 0) throw new Error("managed output is not NUL-terminated");
+  return output.subarray(0, -1).toString("utf8").split("\0");
+}
+
+export function validateSafeRemovalPath(relativePath: string): void {
+  if (
+    relativePath.trim() !== relativePath ||
+    /^[!#]/.test(relativePath) ||
+    /[\r\n*?\[\]{}]/.test(relativePath)
+  ) {
+    throw new Error(`unsafe removal path: ${relativePath}`);
+  }
+}
+
+const MANAGED_INCLUDE: Record<ManagedKind, string> = {
+  directory: "dirs",
+  file: "files",
+  symlink: "symlinks",
+  remove: "remove",
+};
+
+export async function enumerateCandidates(
+  runtime: ChezmoiRuntime,
+  runner?: CommandRunner,
+): Promise<Map<string, CandidateTarget>> {
+  const candidates = new Map<string, CandidateTarget>();
+  for (const [managedKind, include] of Object.entries(MANAGED_INCLUDE) as Array<
+    [ManagedKind, string]
+  >) {
+    const result = requireSuccess(
+      runChezmoi(
+        runtime,
+        ["managed", "--include", include, "--path-style", "absolute", "--nul-path-separator"],
+        runner,
+      ),
+      `enumerate ${managedKind} targets`,
+    );
+    for (const absolutePath of parseNulPaths(result.stdout)) {
+      const normalized = path.normalize(absolutePath);
+      const previous = candidates.get(normalized);
+      if (previous !== undefined && previous.managedKind !== managedKind) {
+        throw new Error(`conflicting managed target types: ${normalized}`);
+      }
+      candidates.set(normalized, { absolutePath: normalized, managedKind });
+    }
+  }
+  return candidates;
+}
+
+export function isPathInside(root: string, candidate: string): boolean {
+  const relativePath = path.relative(root, candidate);
+  return (
+    relativePath === "" ||
+    (relativePath !== ".." &&
+      !relativePath.startsWith(`..${path.sep}`) &&
+      !path.isAbsolute(relativePath))
+  );
+}
+
+export async function inspectCandidates(
+  candidates: Map<string, CandidateTarget>,
+  options: {
+    destinationDir: string;
+    normalSourceDir: string;
+    sessionDir: string;
+    worktreeRoot: string;
+  },
+): Promise<void> {
+  const destinationDir = path.normalize(options.destinationDir);
+  const protectedRoots = [
+    [options.sessionDir, "session directory"],
+    [options.worktreeRoot, "worktree root"],
+    [options.normalSourceDir, "normal source directory"],
+  ] as const;
+
+  for (const candidate of candidates.values()) {
+    if (/[\r\n]/.test(candidate.absolutePath)) {
+      throw new Error(`managed target contains CR or LF: ${candidate.absolutePath}`);
+    }
+
+    const absolutePath = path.normalize(candidate.absolutePath);
+    if (!isPathInside(destinationDir, absolutePath)) {
+      throw new Error(`managed target is outside destination: ${absolutePath}`);
+    }
+    for (const [protectedRoot, label] of protectedRoots) {
+      if (isPathInside(path.normalize(protectedRoot), absolutePath)) {
+        throw new Error(`managed target is inside ${label}: ${absolutePath}`);
+      }
+    }
+
+    await rejectSymlinkedAncestors(destinationDir, absolutePath);
+    const relativePath = path.relative(destinationDir, absolutePath).split(path.sep).join("/");
+    let targetStat;
+    try {
+      targetStat = await fs.lstat(absolutePath);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      candidate.baselineKind = "absent";
+      candidate.relativePath = relativePath;
+      continue;
+    }
+
+    if (targetStat.isFile()) {
+      candidate.baselineKind = "file";
+    } else if (targetStat.isSymbolicLink()) {
+      candidate.baselineKind = "symlink";
+    } else if (targetStat.isDirectory()) {
+      if (candidate.managedKind !== "directory") {
+        throw new Error(
+          `managed non-directory target is an existing directory: ${absolutePath}`,
+        );
+      }
+      candidate.baselineKind = "directory";
+    } else {
+      throw new Error(`unsupported destination node: ${absolutePath}`);
+    }
+    candidate.relativePath = relativePath;
+  }
+}
+
+async function rejectSymlinkedAncestors(
+  destinationDir: string,
+  absolutePath: string,
+): Promise<void> {
+  const relativeParent = path.relative(destinationDir, path.dirname(absolutePath));
+  const components = relativeParent === "" ? [] : relativeParent.split(path.sep);
+  let ancestor = destinationDir;
+
+  for (let index = 0; index <= components.length; index += 1) {
+    let ancestorStat;
+    try {
+      ancestorStat = await fs.lstat(ancestor);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+      throw error;
+    }
+    if (ancestorStat.isSymbolicLink()) {
+      throw new Error(`managed target has symlinked ancestor: ${ancestor}`);
+    }
+    if (!ancestorStat.isDirectory()) {
+      throw new Error(`unsupported destination ancestor: ${ancestor}`);
+    }
+    ancestor = path.join(ancestor, components[index] ?? "");
+  }
+}
+
+export async function captureSnapshot(
+  session: SessionPaths,
+  candidates: Map<string, CandidateTarget>,
+  runner?: CommandRunner,
+): Promise<void> {
+  const runtime = snapshotRuntime(session);
+  const absentCandidates: CandidateTarget[] = [];
+
+  for (const candidate of candidates.values()) {
+    if (candidate.baselineKind === "file" || candidate.baselineKind === "symlink") {
+      requireSuccess(
+        runChezmoi(runtime, ["add", candidate.absolutePath], runner),
+        `capture ${candidate.absolutePath}`,
+      );
+      candidate.snapshotCovered = true;
+      continue;
+    }
+    if (candidate.baselineKind === "absent" && candidate.managedKind !== "directory") {
+      validateSafeRemovalPath(candidate.relativePath!);
+      absentCandidates.push(candidate);
+    }
+  }
+
+  if (absentCandidates.length > 0) {
+    const target = path.join(session.snapshotSourceDir, ".chezmoiremove");
+    const temporary = `${target}.tmp`;
+    const absentPaths = absentCandidates.map((candidate) => candidate.relativePath!).sort();
+    await fs.writeFile(temporary, `${absentPaths.join("\n")}\n`, { mode: 0o600 });
+    await fs.rename(temporary, target);
+    for (const candidate of absentCandidates) candidate.snapshotCovered = true;
+  }
+
+  requireSuccess(runChezmoi(runtime, ["verify"], runner), "verify captured snapshot");
+}
 
 export function resolveSessionBase(
   platform: NodeJS.Platform,
