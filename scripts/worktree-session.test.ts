@@ -47,6 +47,19 @@ describe("managed output parsing", () => {
       "managed output is not NUL-terminated",
     );
   });
+
+  test.each([Buffer.from("\0"), Buffer.from("/abs/a\0\0")])(
+    "rejects an empty NUL record",
+    (output) => {
+      expect(() => parseNulPaths(output)).toThrow("managed output contains an empty path");
+    },
+  );
+
+  test("rejects invalid UTF-8", () => {
+    expect(() => parseNulPaths(Buffer.from([0xff, 0x00]))).toThrow(
+      "managed output is not valid UTF-8",
+    );
+  });
 });
 
 test.each(["a*", "a?", "[a]", "{a}", "!keep", "#comment", " a", "a ", "a\r", "a\n"])(
@@ -275,6 +288,19 @@ describe("managed candidate inventory", () => {
 
     await expect(enumerateCandidates(candidateRuntime(), runner)).rejects.toThrow(
       "managed failed",
+    );
+  });
+
+  test("rejects a non-absolute managed path before normalization", async () => {
+    const runner: CommandRunner = (_command, args) => {
+      const includeIndex = args.indexOf("--include");
+      return commandResult({
+        stdout: Buffer.from(args[includeIndex + 1] === "dirs" ? "relative/path\0" : ""),
+      });
+    };
+
+    await expect(enumerateCandidates(candidateRuntime(), runner)).rejects.toThrow(
+      "managed output path is not absolute: relative/path",
     );
   });
 });

@@ -31,10 +31,22 @@ export type SessionPaths = {
   worktreeRoot: string;
 };
 
+const managedOutputDecoder = new TextDecoder("utf-8", { fatal: true });
+
 export function parseNulPaths(output: Buffer): string[] {
   if (output.length === 0) return [];
   if (output.at(-1) !== 0) throw new Error("managed output is not NUL-terminated");
-  return output.subarray(0, -1).toString("utf8").split("\0");
+  let decoded: string;
+  try {
+    decoded = managedOutputDecoder.decode(output.subarray(0, -1));
+  } catch {
+    throw new Error("managed output is not valid UTF-8");
+  }
+  const paths = decoded.split("\0");
+  if (paths.some((managedPath) => managedPath.length === 0)) {
+    throw new Error("managed output contains an empty path");
+  }
+  return paths;
 }
 
 export function validateSafeRemovalPath(relativePath: string): void {
@@ -71,6 +83,9 @@ export async function enumerateCandidates(
       `enumerate ${managedKind} targets`,
     );
     for (const absolutePath of parseNulPaths(result.stdout)) {
+      if (!path.isAbsolute(absolutePath)) {
+        throw new Error(`managed output path is not absolute: ${absolutePath}`);
+      }
       const normalized = path.normalize(absolutePath);
       const previous = candidates.get(normalized);
       if (previous !== undefined && previous.managedKind !== managedKind) {
