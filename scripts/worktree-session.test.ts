@@ -4,7 +4,9 @@ import os from "node:os";
 import path from "node:path";
 
 import {
+  applyPlannedChanges,
   captureSnapshot,
+  confirmPaths,
   createActiveSession,
   enumerateCandidates,
   inspectCandidates,
@@ -12,12 +14,14 @@ import {
   markSessionReady,
   openActiveSession,
   parseNulPaths,
+  parseStatus,
   removeActiveSession,
   resolveNormalSourceCheckout,
   resolveSessionBase,
   snapshotRuntime,
   stageWorktreeSource,
   stagedRuntime,
+  validateCoverage,
   validateSafeRemovalPath,
   validateStagedSource,
   type CandidateTarget,
@@ -59,6 +63,166 @@ describe("managed output parsing", () => {
     expect(() => parseNulPaths(Buffer.from([0xff, 0x00]))).toThrow(
       "managed output is not valid UTF-8",
     );
+  });
+});
+
+describe("status output parsing", () => {
+  test("parses fixed status columns and preserves spaces", () => {
+    expect(parseStatus(" M /home/u/a b\n D /home/u/old\n A /home/u/new\n")).toEqual([
+      { action: "M", absolutePath: "/home/u/a b" },
+      { action: "D", absolutePath: "/home/u/old" },
+      { action: "A", absolutePath: "/home/u/new" },
+    ]);
+  });
+
+  test.each(["M /missing-column\n", " R /script\n", " X /unknown\n"])(
+    "rejects malformed or executable status %s",
+    (output) => expect(() => parseStatus(output)).toThrow(),
+  );
+});
+
+describe("status coverage", () => {
+  test.each([
+    ["M", "file"],
+    ["D", "file"],
+    ["A", "absent"],
+  ] as const)("accepts a snapshot-covered %s target with a %s baseline", (action, baselineKind) => {
+    const target = "/home/u/target";
+    const candidates = inspectedCandidateMap([[target, "file", baselineKind, "target"]]);
+    candidates.get(target)!.snapshotCovered = true;
+
+    expect(() => validateCoverage([{ action, absolutePath: target }], candidates)).not.toThrow();
+  });
+
+  test("accepts only creation of an absent directory without snapshot coverage", () => {
+    const target = "/home/u/newdir";
+    const candidates = inspectedCandidateMap([[target, "directory", "absent", "newdir"]]);
+
+    expect(() =>
+      validateCoverage([{ action: "A", absolutePath: target }], candidates),
+    ).not.toThrow();
+  });
+
+  test("rejects a status path missing from the candidate inventory", () => {
+    const target = "/home/u/unmanaged";
+
+    expect(() => validateCoverage([{ action: "M", absolutePath: target }], new Map())).toThrow(
+      `status path has no snapshot coverage: ${target}`,
+    );
+  });
+
+  test("rejects a non-directory candidate without snapshot coverage", () => {
+    const target = "/home/u/uncovered";
+    const candidates = inspectedCandidateMap([[target, "file", "file", "uncovered"]]);
+
+    expect(() => validateCoverage([{ action: "M", absolutePath: target }], candidates)).toThrow(
+      `status path has no snapshot coverage: ${target}`,
+    );
+  });
+
+  test.each(["M", "D"] as const)(
+    "rejects %s for an existing directory",
+    (action) => {
+      const target = "/home/u/existing-dir";
+      const candidates = inspectedCandidateMap([
+        [target, "directory", "directory", "existing-dir"],
+      ]);
+
+      expect(() => validateCoverage([{ action, absolutePath: target }], candidates)).toThrow(
+        `unsupported existing directory change: ${target}`,
+      );
+    },
+  );
+});
+
+describe("apply confirmation", () => {
+  test("bypasses the question when yes is set", async () => {
+    let asked = false;
+
+    expect(
+      await confirmPaths([{ action: "M", absolutePath: "/home/u/file" }], true, async () => {
+        asked = true;
+        return "n";
+      }),
+    ).toBeTrue();
+    expect(asked).toBeFalse();
+  });
+
+  test("accepts y and prompts with actions and paths but not contents", async () => {
+    const contents = "private file contents";
+    let prompt = "";
+
+    expect(
+      await confirmPaths(
+        [
+          { action: "M", absolutePath: "/home/u/a b" },
+          { action: "D", absolutePath: "/home/u/old" },
+        ],
+        false,
+        async (value) => {
+          prompt = value;
+          return " y ";
+        },
+      ),
+    ).toBeTrue();
+    expect(prompt).toContain("M /home/u/a b");
+    expect(prompt).toContain("D /home/u/old");
+    expect(prompt).not.toContain(contents);
+  });
+
+  test.each(["", "n"])("rejects the answer %j", async (answer) => {
+    expect(
+      await confirmPaths(
+        [{ action: "A", absolutePath: "/home/u/new" }],
+        false,
+        async () => answer,
+      ),
+    ).toBeFalse();
+  });
+});
+
+describe("explicit-target apply", () => {
+  test("forces only the planned target paths while excluding unsafe categories", async () => {
+    const expected = commandResult({ stdout: Buffer.from("applied") });
+    let invocation: { args: string[]; command: string } | undefined;
+    const runner: CommandRunner = (command, args) => {
+      invocation = { args, command };
+      return expected;
+    };
+
+    const result = await applyPlannedChanges(
+      candidateRuntime(),
+      [
+        { action: "M", absolutePath: "/home/u/a b" },
+        { action: "D", absolutePath: "/home/u/old" },
+      ],
+      runner,
+    );
+
+    expect(result).toBe(expected);
+    expect(invocation?.command).toBe("chezmoi");
+    expect(chezmoiCommandArgs(invocation!.args)).toEqual([
+      "--force",
+      "apply",
+      "--exclude",
+      "scripts,externals,encrypted",
+      "/home/u/a b",
+      "/home/u/old",
+    ]);
+    expect(invocation!.args).not.toContain("--keep-going");
+    expect(invocation!.args).not.toContain("--init");
+  });
+
+  test("returns success without invoking chezmoi when no targets are planned", async () => {
+    let invocations = 0;
+
+    const result = await applyPlannedChanges(candidateRuntime(), [], () => {
+      invocations += 1;
+      return commandResult({ status: 1 });
+    });
+
+    expect(result).toEqual(commandResult());
+    expect(invocations).toBe(0);
   });
 });
 
@@ -714,6 +878,52 @@ realChezmoiTest("round-trips a fake home through a real chezmoi snapshot", async
   await expect(fs.stat(session.readyFile)).rejects.toMatchObject({ code: "ENOENT" });
   expect(candidates.get(existingDirectory)?.snapshotCovered).toBeUndefined();
   expect(candidates.get(absentDirectory)?.snapshotCovered).toBeUndefined();
+}, 30_000);
+
+realChezmoiTest("applies a nested file through its absent parent in a fake home", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "nested-parent-apply-test-"));
+  const home = path.join(root, "home");
+  const normalSource = path.join(root, "normal-source");
+  const worktree = path.join(root, "worktree");
+  await Promise.all([fs.mkdir(home), fs.mkdir(normalSource), fs.mkdir(worktree)]);
+  const session = await createActiveSession(path.join(root, "state"), worktree, home);
+  const sourceDirectory = path.join(session.stagedSourceDir, "dot_newdir");
+  const parent = path.join(home, ".newdir");
+  const child = path.join(parent, "file");
+  await fs.mkdir(sourceDirectory, { recursive: true });
+  await fs.writeFile(path.join(sourceDirectory, "file"), "nested content\n");
+
+  const candidates = await enumerateCandidates(stagedRuntime(session));
+  await inspectCandidates(candidates, {
+    destinationDir: home,
+    normalSourceDir: normalSource,
+    sessionDir: session.activeDir,
+    worktreeRoot: worktree,
+  });
+  await captureSnapshot(session, candidates);
+
+  const status = requireSuccess(
+    runChezmoi(stagedRuntime(session), [
+      "status",
+      "--path-style",
+      "absolute",
+      "--exclude",
+      "scripts,externals,encrypted",
+    ]),
+    "inspect nested staged status",
+  );
+  const planned = parseStatus(status.stdout.toString("utf8"));
+
+  expect(planned).toHaveLength(2);
+  expect(planned).toContainEqual({ action: "A", absolutePath: parent });
+  expect(planned).toContainEqual({ action: "A", absolutePath: child });
+  expect(() => validateCoverage(planned, candidates)).not.toThrow();
+
+  requireSuccess(
+    await applyPlannedChanges(stagedRuntime(session), planned),
+    "apply nested staged paths",
+  );
+  expect(await fs.readFile(child, "utf8")).toBe("nested content\n");
 }, 30_000);
 
 type CaptureFixture = {

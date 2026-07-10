@@ -6,6 +6,7 @@ import {
   runChezmoi,
   runCommand,
   type ChezmoiRuntime,
+  type CommandResult,
   type CommandRunner,
 } from "./worktree-runtime.ts";
 
@@ -17,6 +18,11 @@ export type CandidateTarget = {
   managedKind: ManagedKind;
   relativePath?: string;
   snapshotCovered?: boolean;
+};
+
+export type PlannedChange = {
+  action: "A" | "D" | "M";
+  absolutePath: string;
 };
 
 export type SessionPaths = {
@@ -47,6 +53,81 @@ export function parseNulPaths(output: Buffer): string[] {
     throw new Error("managed output contains an empty path");
   }
   return paths;
+}
+
+export function parseStatus(output: string): PlannedChange[] {
+  return output
+    .split("\n")
+    .filter((line) => line.length > 0)
+    .map((line) => {
+      if (line.length < 4 || line[2] !== " ") {
+        throw new Error(`malformed status line: ${line}`);
+      }
+      const action = line[1];
+      if (action === "R") throw new Error(`unsupported script status: ${line}`);
+      if (action !== "A" && action !== "D" && action !== "M") {
+        throw new Error(`unsupported status action: ${line}`);
+      }
+      return { action, absolutePath: line.slice(3) };
+    });
+}
+
+export function validateCoverage(
+  planned: PlannedChange[],
+  candidates: Map<string, CandidateTarget>,
+): void {
+  for (const change of planned) {
+    const candidate = candidates.get(path.normalize(change.absolutePath));
+    if (candidate === undefined) {
+      throw new Error(`status path has no snapshot coverage: ${change.absolutePath}`);
+    }
+    if (candidate.managedKind === "directory") {
+      if (candidate.baselineKind === "absent" && change.action === "A") continue;
+      throw new Error(`unsupported existing directory change: ${change.absolutePath}`);
+    }
+    if (candidate.snapshotCovered !== true) {
+      throw new Error(`status path has no snapshot coverage: ${change.absolutePath}`);
+    }
+  }
+}
+
+export type Question = (prompt: string) => Promise<string>;
+
+export async function confirmPaths(
+  planned: PlannedChange[],
+  yes: boolean,
+  question: Question,
+): Promise<boolean> {
+  if (yes) return true;
+  const lines = planned.map(({ action, absolutePath }) => `${action} ${absolutePath}`).join("\n");
+  const answer = await question(`${lines}\nApply these changes? [y/N] `);
+  return answer.trim().toLowerCase() === "y";
+}
+
+export async function applyPlannedChanges(
+  runtime: ChezmoiRuntime,
+  planned: PlannedChange[],
+  runner?: CommandRunner,
+): Promise<CommandResult> {
+  if (planned.length === 0) {
+    return {
+      signal: null,
+      status: 0,
+      stderr: Buffer.alloc(0),
+      stdout: Buffer.alloc(0),
+    };
+  }
+  return runChezmoi(
+    runtime,
+    [
+      "--force",
+      "apply",
+      "--exclude",
+      "scripts,externals,encrypted",
+      ...planned.map(({ absolutePath }) => absolutePath),
+    ],
+    runner,
+  );
 }
 
 export function validateSafeRemovalPath(relativePath: string): void {
