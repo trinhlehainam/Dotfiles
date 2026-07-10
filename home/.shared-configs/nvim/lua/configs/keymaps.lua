@@ -208,6 +208,18 @@ vim.keymap.set('v', '<C-y>', '"+y', opts.nore) -- Copy to system clipboard (visu
 vim.keymap.set('n', '<C-p>', '"+p', opts.nore) -- Paste from system clipboard (normal)
 vim.keymap.set('i', '<C-p>', '<Esc>"+pa', opts.nore) -- Paste from system clipboard (insert)
 
+vim.keymap.set('n', '<leader>yp', function()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local buffer_utils = require('utils.buffer')
+
+  if not buffer_utils.is_regular(bufnr) then
+    vim.notify('No file path available.', vim.log.levels.WARN)
+    return
+  end
+
+  require('utils.copy_path').select(buffer_utils.name(bufnr))
+end, { desc = '[Y]ank file [P]ath' })
+
 -- ============================================================================
 -- INSERT MODE ENHANCEMENTS
 -- ============================================================================
