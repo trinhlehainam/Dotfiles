@@ -1,7 +1,12 @@
 [[plugin.deps]]
+use = "yazi-rs/plugins:piper"
+rev = "b9598e6"
+hash = "f23ecc89ce0f9eeefdd4cea14e2a9ba7"
+
+[[plugin.deps]]
 use = "KKV9/compress"
-rev = "46a6b9f"
-hash = "771af2becc575a3f43d0542de823969d"
+rev = "e60e122"
+hash = "fbaf0adc8efc59555b748d36aab62d40"
 
 [flavor]
 deps = []

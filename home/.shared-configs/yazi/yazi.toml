@@ -4,3 +4,20 @@
 [mgr]
 # Exclude "drag" to avoid intercepting terminal text selection on WSL2
 mouse_events = [ "click", "scroll" ]
+
+# Decode Windows Shift-JIS (CP932), then preserve syntax highlighting.
+[[plugin.prepend_previewers]]
+url = "*.xml"
+run = 'piper -- iconv -f CP932 -t UTF-8 -- "$1" | bat --language=XML --plain --color=always --paging=never'
+
+[[plugin.prepend_previewers]]
+url = "*.sql"
+run = 'piper -- iconv -f CP932 -t UTF-8 -- "$1" | bat --language=SQL --plain --color=always --paging=never'
+
+[[plugin.prepend_previewers]]
+url = "*.xsl"
+run = 'piper -- iconv -f CP932 -t UTF-8 -- "$1" | bat --language=XML --plain --color=always --paging=never'
+
+[[plugin.prepend_previewers]]
+url = "*.sjis"
+run = 'piper -- iconv -f CP932 -t UTF-8 -- "$1" | bat --plain --color=always --paging=never'
