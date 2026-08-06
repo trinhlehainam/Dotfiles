@@ -5,16 +5,7 @@
 # Exclude "drag" to avoid intercepting terminal text selection on WSL2
 mouse_events = [ "click", "scroll" ]
 
-# Decode CP932; keep syntax highlighting for XML, XSL, and SQL.
+# Decode CP932 and use the filename to choose syntax.
 [[plugin.prepend_previewers]]
-url = "*.{xml,xsl}"
-run = 'piper -- iconv -f CP932 -t UTF-8 -- "$1" | bat --language=XML --plain --color=always --paging=never'
-
-[[plugin.prepend_previewers]]
-url = "*.sql"
-run = 'piper -- iconv -f CP932 -t UTF-8 -- "$1" | bat --language=SQL --plain --color=always --paging=never'
-
-# Decode generic .sjis text without language-specific highlighting.
-[[plugin.prepend_previewers]]
-url = "*.sjis"
-run = 'piper -- iconv -f CP932 -t UTF-8 -- "$1" | bat --plain --color=always --paging=never'
+url = "*.{xml,sql,xsl,sjis}"
+run = 'piper -- iconv -f CP932 -t UTF-8 -- "$1" | bat --file-name="$1" --map-syntax="*.xsl:XML" --plain --color=always --paging=never'
