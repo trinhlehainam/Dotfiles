@@ -4,3 +4,8 @@
 [mgr]
 # Exclude "drag" to avoid intercepting terminal text selection on WSL2
 mouse_events = [ "click", "scroll" ]
+
+# Decode CP932 and use the filename to choose syntax.
+[[plugin.prepend_previewers]]
+url = "*.{xml,sql,xsl,sjis}"
+run = 'piper -- iconv -f CP932 -t UTF-8 -- "$1" | bat --file-name="$1" --map-syntax="*.xsl:XML" --plain --color=always --paging=never'
