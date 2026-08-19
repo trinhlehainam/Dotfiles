@@ -34,11 +34,7 @@ local POLL_INTERVAL = 50
 local UNUSED_REFS_REFRESH_DELAY_MS = 100
 local UNUSED_REFS_CACHE_TIMEOUT_MS = 800
 
-local CMD = {
-  INDEX = 'IntelephenseIndexWorkspace',
-  CANCEL = 'IntelephenseCancelIndexing',
-  STATUS = 'IntelephenseStatus',
-}
+local INDEX_COMMAND = 'IntelephenseIndexWorkspace'
 
 ---@class dotfiles.IntelephenseUnusedRefsState
 ---@field timer? uv.uv_timer_t
@@ -46,16 +42,12 @@ local CMD = {
 
 -- State
 local commands_registered = false
-local indexing_in_progress = false
 ---@type table<integer, table<integer, true>>
 local active_clients = {}
 ---@type table<integer, dotfiles.IntelephenseUnusedRefsState>
 local unused_refs_states = {}
-local unused_refs_augroup = vim.api.nvim_create_augroup('dotfiles-intelephense-unused-refs', { clear = true })
-
-local function get_client()
-  return vim.lsp.get_clients({ name = 'intelephense' })[1]
-end
+local unused_refs_augroup =
+  vim.api.nvim_create_augroup('dotfiles-intelephense-unused-refs', { clear = true })
 
 -- Register user commands
 local function register_commands_once()
@@ -63,16 +55,12 @@ local function register_commands_once()
     return
   end
 
-  -- :IntelephenseIndexWorkspace - reindex (! = clear cache)
-  vim.api.nvim_create_user_command(CMD.INDEX, function(opts)
+  -- Intelephense 1.17.6+ reports indexing via LSP `$/progress`;
+  -- configured progress UIs render it after restart.
+  vim.api.nvim_create_user_command(INDEX_COMMAND, function(opts)
     local clear_cache = opts.bang
 
-    if not clear_cache and indexing_in_progress then
-      log.info('Indexing in progress.', 'Intelephense')
-      return
-    end
-
-    local client = get_client()
+    local client = vim.lsp.get_clients({ bufnr = 0, name = 'intelephense' })[1]
     if not client then
       log.warn('Intelephense is not running in this workspace.', 'Intelephense')
       return
@@ -93,87 +81,30 @@ local function register_commands_once()
       return
     end
 
-    -- Restart with resolved config, preserving handlers/on_attach
+    -- Keep resolved config while overriding one-shot reindex options.
     local base_config = vim.lsp.config['intelephense'] or {}
     vim.lsp.start(vim.tbl_deep_extend('force', base_config, {
       root_dir = root_dir,
       init_options = {
         storagePath = CACHE_PATH,
-        clearCache = clear_cache or nil,
+        clearCache = clear_cache,
       },
     }))
-
-    if clear_cache then
-      log.info('Full reindex requested (cache clear enabled).', 'Intelephense')
-    else
-      log.info('Incremental reindex requested.', 'Intelephense')
-    end
-  end, { bang = true, desc = 'Intelephense: Reindex (! clears cache)' })
-
-  -- :IntelephenseStatus - show status
-  vim.api.nvim_create_user_command(CMD.STATUS, function()
-    local client = get_client()
-    if not client then
-      log.warn('Intelephense is not running in this workspace.', 'Intelephense')
-      return
-    end
-
-    local status = indexing_in_progress and 'Indexing in progress' or 'Ready'
-    log.info('Status: ' .. status .. ' | Cache: ' .. CACHE_PATH, 'Intelephense')
-  end, { desc = 'Intelephense: Show status' })
+  end, { bang = true, desc = 'Intelephense: Reindex workspace (! clears cache)' })
 
   commands_registered = true
 end
 
 local function unregister_commands()
   vim.schedule(function()
+    if next(active_clients) ~= nil then
+      return
+    end
+
     -- Defer to avoid calling nvim_del_user_command in a fast event context
-    pcall(vim.api.nvim_del_user_command, CMD.INDEX)
-    pcall(vim.api.nvim_del_user_command, CMD.CANCEL)
-    pcall(vim.api.nvim_del_user_command, CMD.STATUS)
+    pcall(vim.api.nvim_del_user_command, INDEX_COMMAND)
+    commands_registered = false
   end)
-
-  commands_registered = false
-  indexing_in_progress = false
-end
-
--- Indexing started handler
-local function on_indexing_started()
-  if indexing_in_progress then
-    return
-  end
-
-  indexing_in_progress = true
-
-  -- Register cancel command (only available during indexing)
-  if vim.fn.exists(':' .. CMD.CANCEL) == 0 then
-    vim.api.nvim_create_user_command(CMD.CANCEL, function()
-      local client = get_client()
-      if not client then
-        log.warn('Intelephense is not running in this workspace.', 'Intelephense')
-        return
-      end
-
-      client:request('cancelIndexing', {}, function(err)
-        if err then
-          log.error('Failed to cancel indexing: ' .. tostring(err), 'Intelephense')
-        else
-          indexing_in_progress = false
-          pcall(vim.api.nvim_del_user_command, CMD.CANCEL)
-          log.info('Indexing canceled by user.', 'Intelephense')
-        end
-      end, 0)
-    end, { desc = 'Intelephense: Cancel indexing' })
-  end
-
-  log.info('Indexing started.', 'Intelephense')
-end
-
--- Indexing ended handler
-local function on_indexing_ended()
-  indexing_in_progress = false
-  pcall(vim.api.nvim_del_user_command, CMD.CANCEL)
-  log.info('Indexing finished.', 'Intelephense')
 end
 
 -- ============================================================================
@@ -492,7 +423,13 @@ end
 ---@param seq integer
 ---@param initial_cache_key string
 ---@param remaining_ms integer
-local function refresh_unused_reference_diagnostics_from_cache(bufnr, state, seq, initial_cache_key, remaining_ms)
+local function refresh_unused_reference_diagnostics_from_cache(
+  bufnr,
+  state,
+  seq,
+  initial_cache_key,
+  remaining_ms
+)
   if not is_unused_reference_refresh_current(bufnr, state, seq) then
     return
   end
@@ -542,7 +479,8 @@ local function schedule_unused_reference_refresh(bufnr, state)
   state.refresh_seq = (state.refresh_seq or 0) + 1
   local seq = state.refresh_seq
   local client = vim.lsp.get_clients({ bufnr = bufnr, name = 'intelephense' })[1]
-  local initial_cache_key = client and codelens_cache_key(get_cached_codelenses(bufnr, client.id)) or ''
+  local initial_cache_key = client and codelens_cache_key(get_cached_codelenses(bufnr, client.id))
+    or ''
   state.timer = vim.defer_fn(function()
     refresh_unused_reference_diagnostics_from_cache(
       bufnr,
@@ -643,12 +581,6 @@ intelephense.config = {
         parent = { enable = true },
       },
     },
-  },
-
-  -- Intelephense indexing notification handlers
-  handlers = {
-    ['indexingStarted'] = on_indexing_started,
-    ['indexingEnded'] = on_indexing_ended,
   },
 
   on_attach = function(client, bufnr)
