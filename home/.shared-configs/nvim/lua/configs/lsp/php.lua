@@ -60,7 +60,7 @@ local function register_commands_once()
   vim.api.nvim_create_user_command(INDEX_COMMAND, function(opts)
     local clear_cache = opts.bang
 
-    local client = vim.lsp.get_clients({ name = 'intelephense' })[1]
+    local client = vim.lsp.get_clients({ bufnr = 0, name = 'intelephense' })[1]
     if not client then
       log.warn('Intelephense is not running in this workspace.', 'Intelephense')
       return
@@ -87,7 +87,7 @@ local function register_commands_once()
       root_dir = root_dir,
       init_options = {
         storagePath = CACHE_PATH,
-        clearCache = clear_cache or nil,
+        clearCache = clear_cache,
       },
     }))
   end, { bang = true, desc = 'Intelephense: Reindex workspace (! clears cache)' })
@@ -97,11 +97,14 @@ end
 
 local function unregister_commands()
   vim.schedule(function()
+    if next(active_clients) ~= nil then
+      return
+    end
+
     -- Defer to avoid calling nvim_del_user_command in a fast event context
     pcall(vim.api.nvim_del_user_command, INDEX_COMMAND)
+    commands_registered = false
   end)
-
-  commands_registered = false
 end
 
 -- ============================================================================
