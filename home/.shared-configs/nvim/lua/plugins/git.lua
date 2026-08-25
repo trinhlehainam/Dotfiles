@@ -12,7 +12,10 @@ return {
     'NeogitOrg/neogit',
     dependencies = {
       'nvim-lua/plenary.nvim', -- required
-      'sindrets/diffview.nvim', -- optional - Diff integration
+      {
+        'dlyongemallo/diffview-plus.nvim',
+        version = '*',
+      },
     },
     config = function()
       local neogit = require('neogit')

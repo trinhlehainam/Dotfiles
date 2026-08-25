@@ -8,6 +8,7 @@ return {
     preset = 'obsidian',
     -- https://github.com/MeanderingProgrammer/render-markdown.nvim?tab=readme-ov-file#completions
     completions = { lsp = { enabled = true } },
+    -- https://github.com/MeanderingProgrammer/render-markdown.nvim/issues/616
     pipe_table = { enabled = false }, -- handled by markdown-table-wrap.nvim
     win_options = {
       wrap = { default = vim.o.wrap, rendered = true },
