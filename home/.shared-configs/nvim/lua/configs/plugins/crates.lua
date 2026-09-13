@@ -32,7 +32,7 @@ require('crates').setup({
       vim.keymap.set('v', '<leader>cu', crates.update_crates, { desc = '[C]rates [U]pdate' })
       vim.keymap.set(
         'n',
-        '<leader>ca',
+        '<leader>cua',
         crates.update_all_crates,
         { desc = '[C]rates Update [A]ll' }
       )

@@ -1,28 +1,63 @@
 return {
-  'kkrampis/codex.nvim',
+  'nwiizo/codex.nvim',
   lazy = true,
-  cmd = { 'Codex', 'CodexToggle' }, -- Optional: Load only on command execution
+  cmd = {
+    'Codex',
+    'CodexOpen',
+    'CodexClose',
+    'CodexFocus',
+    'CodexStop',
+    'CodexResume',
+    'CodexContinue',
+    'CodexFork',
+    'CodexReview',
+    'CodexImage',
+    'CodexPrompt',
+    'CodexAsk',
+    'CodexAskVisual',
+    'CodexFollowUp',
+    'CodexEdit',
+    'CodexDiff',
+    'CodexInterrupt',
+    'CodexSend',
+    'CodexSendVisual',
+    'CodexAddVisual',
+    'CodexAdd',
+    'CodexTreeAdd',
+    'CodexSendText',
+    'CodexStatus',
+    'CodexHealth',
+  },
   keys = {
     {
-      '<leader>cc', -- Change this to your preferred keybinding
+      '<leader>cc',
       function()
         require('codex').toggle()
       end,
-      desc = 'Toggle Codex popup or side-panel',
+      desc = 'Toggle Codex side-panel',
       mode = { 'n', 't' },
+    },
+    { '<leader>cx', '<cmd>CodexFocus<cr>', desc = 'Focus or hide Codex' },
+    { '<leader>cb', '<cmd>CodexAdd<cr>', desc = 'Add current buffer to Codex' },
+    { '<leader>ca', '<cmd>CodexAsk<cr>', desc = 'Ask Codex with file context' },
+    {
+      '<leader>cs',
+      ':<C-U>CodexSendVisual<CR>',
+      mode = 'v',
+      desc = 'Send selection to Codex',
     },
   },
   opts = {
-    keymaps = {
-      toggle = nil, -- Keybind to toggle Codex window (Disabled by default, watch out for conflicts)
-      quit = '<C-q>', -- Keybind to close the Codex window (default: Ctrl + q)
-    }, -- Disable internal default keymap (<leader>cc -> :CodexToggle)
-    border = 'rounded', -- Options: 'single', 'double', or 'rounded'
-    width = 0.4, -- Width of the floating window (0.0 to 1.0)
-    height = 0.8, -- Height of the floating window (0.0 to 1.0)
-    model = nil, -- Optional: pass a string to use a specific model (e.g., 'o3-mini')
-    autoinstall = false, -- Automatically install the Codex CLI if not found
-    panel = true, -- Open Codex in a side-panel (vertical split) instead of floating window
-    use_buffer = false, -- Capture Codex stdout into a normal buffer instead of a terminal buffer
+    backend = 'terminal',
+    terminal = {
+      layout = 'split',
+      split_side = 'right',
+      split_width_percentage = 0.4,
+      hide_keys = { '<C-q>' },
+    },
+    selection = {
+      -- Keep the shared <leader>a mappings available for Claude Code.
+      keymaps = { ask = false, edit = false },
+    },
   },
 }
