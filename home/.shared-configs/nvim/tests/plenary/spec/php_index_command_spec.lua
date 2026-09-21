@@ -1,6 +1,6 @@
 local php = require('configs.lsp.php')
 
-local config = php.lspconfigs[1].config
+local config = php.servers.intelephense
 local command_name = 'IntelephenseIndexWorkspace'
 
 local function get_upvalue(fn, expected_name)

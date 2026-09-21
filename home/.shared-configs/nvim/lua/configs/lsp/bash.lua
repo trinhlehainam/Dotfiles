@@ -1,8 +1,3 @@
-local LanguageSetting = require('configs.lsp.base')
-local LspConfig = require('configs.lsp.lspconfig')
-local M = LanguageSetting:new()
-
--- https://github.com/davidosomething/dotfiles/blob/dev/nvim/lua/dko/filetypes.lua
 vim.filetype.add({
   extension = {
     conf = 'conf',
@@ -16,21 +11,11 @@ vim.filetype.add({
   },
 })
 
-M.treesitter.filetypes = { 'bash' }
-
-M.formatterconfig.mason_packages = { 'shellharden' }
-M.formatterconfig.formatters_by_ft = {
-  bash = { 'shellharden' },
-  sh = { 'shellharden' },
+---@type dotfiles.lsp.Language
+return {
+  parsers = { 'bash' },
+  tools = { 'bash-language-server', 'shellharden', 'shellcheck' },
+  servers = { bashls = {} },
+  formatters = { bash = { 'shellharden' }, sh = { 'shellharden' } },
+  linters = { bash = { 'shellcheck' }, sh = { 'shellcheck' } },
 }
-
-M.linterconfig.mason_packages = { 'shellcheck' }
-M.linterconfig.linters_by_ft = {
-  bash = { 'shellcheck' },
-  sh = { 'shellcheck' },
-}
-
-local bashls = LspConfig:new('bashls', 'bash-language-server')
-M.lspconfigs = { bashls }
-
-return M

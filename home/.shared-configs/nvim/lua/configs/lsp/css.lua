@@ -1,8 +1,6 @@
-local LanguageSetting = require('configs.lsp.base')
-local LspConfig = require('configs.lsp.lspconfig')
-local M = LanguageSetting:new()
-
-M.treesitter.filetypes = { 'css' }
-M.lspconfigs = { LspConfig:new('cssls', 'css-lsp') }
-
-return M
+---@type dotfiles.lsp.Language
+return {
+  parsers = { 'css' },
+  tools = { 'css-lsp' },
+  servers = { cssls = {} },
+}

@@ -1,8 +1,6 @@
--- LSP buffer-local setup (keymaps, highlights, inlay hints)
 vim.api.nvim_create_autocmd('LspAttach', {
   group = vim.api.nvim_create_augroup('kickstart-lsp-attach', { clear = true }),
   callback = function(event)
-    -- Helper for buffer-local LSP keymaps
     local map = function(keys, func, desc, mode)
       mode = mode or 'n'
       vim.keymap.set(mode, keys, func, { buffer = event.buf, desc = 'LSP: ' .. desc })
@@ -20,7 +18,6 @@ vim.api.nvim_create_autocmd('LspAttach', {
       Snacks.picker.lsp_definitions()
     end, '[G]oto [D]efinition')
 
-    -- Declaration (not definition)
     map('grD', vim.lsp.buf.declaration, '[G]oto [D]eclaration')
 
     map('gO', function()
@@ -35,31 +32,18 @@ vim.api.nvim_create_autocmd('LspAttach', {
       Snacks.picker.lsp_type_definitions()
     end, '[G]oto [T]ype Definition')
 
-    ---@param client vim.lsp.Client
-    ---@param method vim.lsp.protocol.Method
-    ---@param bufnr? integer some lsp support methods only in specific files
-    ---@return boolean
-    local function client_supports_method(client, method, bufnr)
-      return client:supports_method(method, bufnr)
-    end
-
-    -- Document highlights on CursorHold
     local client = vim.lsp.get_client_by_id(event.data.client_id)
     if
       client
-      and client_supports_method(
-        client,
-        vim.lsp.protocol.Methods.textDocument_documentHighlight,
-        event.buf
-      )
+      and client:supports_method(vim.lsp.protocol.Methods.textDocument_documentHighlight, event.buf)
     then
-      -- Track this client as supporting highlights (vim.b returns copies, must reassign)
+      -- String keys preserve a set through vim.b's Vimscript conversion.
       local highlight_clients = vim.b[event.buf].lsp_highlight_clients or {}
-      highlight_clients[client.id] = true
+      local first_client = next(highlight_clients) == nil
+      highlight_clients[tostring(client.id)] = true
       vim.b[event.buf].lsp_highlight_clients = highlight_clients
 
-      -- Only create autocmds once per buffer (first highlight-capable client)
-      if vim.tbl_count(highlight_clients) == 1 then
+      if first_client then
         local highlight_augroup =
           vim.api.nvim_create_augroup('kickstart-lsp-highlight', { clear = false })
         vim.api.nvim_create_autocmd({ 'CursorHold', 'CursorHoldI' }, {
@@ -76,31 +60,31 @@ vim.api.nvim_create_autocmd('LspAttach', {
       end
     end
 
-    -- Inlay hints toggle (if supported)
     if
       client
-      and client_supports_method(client, vim.lsp.protocol.Methods.textDocument_inlayHint, event.buf)
+      and client:supports_method(vim.lsp.protocol.Methods.textDocument_inlayHint, event.buf)
     then
       map('<leader>th', function()
-        vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled({ bufnr = event.buf }))
+        local filter = { bufnr = event.buf }
+        vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled(filter), filter)
       end, '[T]oggle Inlay [H]ints')
     end
   end,
 })
 
--- Cleanup on LspDetach - only disable features when no remaining client supports them
+-- Keep highlights until the last supporting client detaches.
 vim.api.nvim_create_autocmd('LspDetach', {
   group = vim.api.nvim_create_augroup('kickstart-lsp-detach', { clear = true }),
   callback = function(event)
     local bufnr = event.buf
-    local client_id = event.data.client_id
+    local client_id = tostring(event.data.client_id)
 
-    -- Remove from highlight clients and cleanup if none remain (vim.b returns copies, must reassign)
+    -- vim.b returns copies; reassign the set after changing it.
     local highlight_clients = vim.b[bufnr].lsp_highlight_clients
     if highlight_clients and highlight_clients[client_id] then
       highlight_clients[client_id] = nil
       if next(highlight_clients) == nil then
-        vim.lsp.buf.clear_references()
+        vim.lsp.util.buf_clear_references(bufnr)
         pcall(vim.api.nvim_clear_autocmds, { group = 'kickstart-lsp-highlight', buffer = bufnr })
         vim.b[bufnr].lsp_highlight_clients = nil
       else
@@ -110,7 +94,7 @@ vim.api.nvim_create_autocmd('LspDetach', {
   end,
 })
 
--- Enable built-in CodeLens globally; explicit git contexts opt out per-buffer.
+-- Git views disable CodeLens per buffer.
 vim.lsp.codelens.enable(true)
 
 vim.diagnostic.config({
@@ -137,9 +121,6 @@ vim.diagnostic.config({
   },
 })
 
--- Diagnostic keymaps
-
--- Toggle diagnostic virtual_lines
 vim.keymap.set('n', 'gK', function()
   local new_config = not vim.diagnostic.config().virtual_lines
   vim.diagnostic.config({ virtual_lines = new_config })
@@ -163,63 +144,33 @@ vim.keymap.set(
   { desc = 'Open floating diagnostic message' }
 )
 
--- Enable the following language servers
---  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
---
---  Add any additional override configuration in the following tables. Available keys are:
---  - cmd (table): Override the default command used to start the server
---  - filetypes (table): Override the default list of associated filetypes for the server
---  - capabilities (table): Override fields in capabilities. Can be used to disable certain LSP features.
---  - settings (table): Override the default settings passed when initializing the server.
---        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
---- @type table<string, vim.lsp.Config>
+local codesettings = require('codesettings')
+
+---Use the client root so project overrides follow each workspace.
+---@param _ lsp.InitializeParams
+---@param config vim.lsp.ClientConfig
+local function load_project_settings(_, config)
+  codesettings.loader():root_dir(config.root_dir):with_local_settings(config.name, config)
+end
+
+vim.lsp.config('*', { before_init = load_project_settings })
+
 local servers = {}
+for name, config in vim.spairs(require('configs.lsp').servers) do
+  vim.lsp.config(name, config)
 
--- Safely load LSP configurations
-local log = require('utils.log')
-local lspconfigs = {}
-local ok, lsp_config = pcall(require, 'configs.lsp')
-if ok then
-  lspconfigs = lsp_config.lspconfigs or {}
-else
-  log.warn('Failed to load configs.lsp module for lspconfig')
-end
-
-local ok_codesettings, codesettings = pcall(require, 'codesettings')
-if ok_codesettings then
-  vim.lsp.config('*', {
-    before_init = function(_, config)
-      if not config.name then
-        return
-      end
-
-      codesettings
-        .loader()
-        :config_file_paths({ '.vscode/settings.json' })
-        :root_dir(config.root_dir)
-        :with_local_settings(config.name, config)
-    end,
-  })
-else
-  log.warn('Failed to load codesettings.nvim for project-local LSP settings', 'lspconfig')
-end
-
-for _, lspconfig in pairs(lspconfigs) do
-  local server_name = lspconfig.server
-  -- Only add valid server configurations
-  if type(server_name) == 'string' and server_name ~= '' then
-    servers[server_name] = lspconfig.config
+  -- Server hooks replace the wildcard hook; compose them so project settings run last.
+  local before_init = vim.lsp.config[name].before_init
+  if before_init ~= load_project_settings then
+    vim.lsp.config(name, {
+      before_init = function(params, resolved_config)
+        before_init(params, resolved_config)
+        load_project_settings(params, resolved_config)
+      end,
+    })
   end
+  table.insert(servers, name)
 end
 
--- Installed LSPs are configured and enabled automatically with mason-lspconfig
--- The loop below is for overriding the default configuration of LSPs with the ones in the servers table
-for server_name, config in pairs(servers) do
-  vim.lsp.enable(server_name)
-  vim.lsp.config(server_name, config)
-end
-
--- Language server for Postgres written in Rust
--- TODO: This framework is not production ready yet, check back later
--- lspconfig.postgres_lsp.setup{}
---
+-- Configure the entire registry before enabling clients for already-open buffers.
+vim.lsp.enable(servers)

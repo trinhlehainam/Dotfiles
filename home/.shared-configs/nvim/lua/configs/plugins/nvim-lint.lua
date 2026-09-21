@@ -1,77 +1,19 @@
--- ============================================================================
--- NVIM-LINT
--- ============================================================================
--- Auto-lint on save (BufWritePost).
---
--- Config:
--- - Comes from `configs.lsp` (each `configs.lsp.<lang>` contributes `linterconfig`).
--- - `lint_on_save` (default: true) can be set per module.
---
--- Merge rules (when multiple configs share a filetype):
--- - Linters are concatenated.
--- - `lint_on_save=false` disables auto-lint (false wins); we warn once on conflicts.
---
--- Commands: :Lint, :LintEnable, :LintDisable, :LintToggle
--- ============================================================================
-
-local ok_lint, lint = pcall(require, 'lint')
-if not ok_lint then
-  -- nvim-lint is not installed, keep this config as a no-op
-  return
-end
-
+local lint = require('lint')
 local log = require('utils.log')
 local common = require('utils.common')
 local project = require('configs.project')
-
--- Load linter configuration (do not hard-fail)
-local linters = {}
-local ok_lsp, lsp_config = pcall(require, 'configs.lsp')
-if ok_lsp then
-  linters = lsp_config.linters or {}
-else
-  log.warn('Failed to load configs.lsp for nvim-lint - using defaults', 'nvim-lint')
-end
-
--- Build config maps for nvim-lint
-local linters_by_ft = {}
-local lint_on_save_by_ft = {}
-local warned_lint_on_save_conflicts = {}
-
-for _, config in ipairs(linters) do
-  local by_ft = config.linters_by_ft
-  if by_ft then
-    for filetype, ft_linters in pairs(by_ft) do
-      local lint_on_save = config.lint_on_save ~= false
-      if linters_by_ft[filetype] == nil then
-        linters_by_ft[filetype] = vim.list_extend({}, ft_linters)
-        lint_on_save_by_ft[filetype] = lint_on_save
-      else
-        if
-          lint_on_save_by_ft[filetype] ~= lint_on_save
-          and not warned_lint_on_save_conflicts[filetype]
-        then
-          warned_lint_on_save_conflicts[filetype] = true
-          log.warn(
-            ('Conflicting lint_on_save for filetype "%s"; auto-lint will be disabled if any config sets lint_on_save=false'):format(
-              filetype
-            ),
-            'nvim-lint'
-          )
-        end
-        linters_by_ft[filetype] = vim.list_extend(linters_by_ft[filetype], ft_linters)
-        lint_on_save_by_ft[filetype] = lint_on_save_by_ft[filetype] and lint_on_save
-      end
-    end
-  end
-end
+local registry = require('configs.lsp')
+local linters_by_ft = registry.linters
+local lint_on_save_by_ft = registry.lint_on_save
 
 lint.linters_by_ft = linters_by_ft
 
--- State
 local enabled = true
 local group = vim.api.nvim_create_augroup('nvim-lint', { clear = true })
 
+---Use an exact filetype match, otherwise merge components (e.g. yaml.ansible).
+---@param filetype string
+---@return string[]
 local function resolve_base_linters(filetype)
   local exact = linters_by_ft[filetype]
   if exact then
@@ -86,6 +28,9 @@ local function resolve_base_linters(filetype)
   return merged
 end
 
+---An exact policy wins; otherwise any component's false disables automatic linting.
+---@param filetype string
+---@return boolean? policy Nil leaves the default policy unchanged.
 local function resolve_base_lint_on_save(filetype)
   if lint_on_save_by_ft[filetype] ~= nil then
     return lint_on_save_by_ft[filetype]
@@ -95,13 +40,20 @@ local function resolve_base_lint_on_save(filetype)
   for _, part in ipairs(vim.split(filetype, '.', { plain = true })) do
     local value = lint_on_save_by_ft[part]
     if value ~= nil then
-      lint_on_save = lint_on_save == nil and value or (lint_on_save and value)
+      if lint_on_save == nil then
+        lint_on_save = value
+      else
+        lint_on_save = lint_on_save and value
+      end
     end
   end
 
   return lint_on_save
 end
 
+---Project linters extend language defaults without duplicates.
+---@param bufnr integer
+---@return string[]
 local function linters_for_buf(bufnr)
   return common.merge_unique_strings(
     resolve_base_linters(vim.bo[bufnr].filetype),
@@ -109,6 +61,9 @@ local function linters_for_buf(bufnr)
   )
 end
 
+---Project policy overrides language policy; default to enabled.
+---@param bufnr integer
+---@return boolean
 local function lint_on_save_enabled(bufnr)
   local tooling_lint_on_save = project.get_tooling_lint_on_save(bufnr)
   if tooling_lint_on_save ~= nil then
@@ -123,6 +78,8 @@ local function lint_on_save_enabled(bufnr)
   return true
 end
 
+---Run in the written buffer because lint.try_lint uses the current buffer.
+---@param bufnr integer
 local function auto_lint(bufnr)
   if not enabled then
     return
@@ -157,7 +114,7 @@ vim.api.nvim_create_autocmd('BufWritePost', {
 ---@param fn string|fun(args: vim.api.keyset.create_user_command.command_args)
 ---@param opts vim.api.keyset.user_command
 local function create_user_command(name, fn, opts)
-  -- Create a user command; ignore E174 on reload; warn on other failures.
+  -- E174 means the command already exists after a reload.
   local ok, err = pcall(vim.api.nvim_create_user_command, name, fn, opts)
   if not ok and not tostring(err):match('E174') then
     log.warn(('Failed to create command :%s: %s'):format(name, tostring(err)), 'nvim-lint')
@@ -174,6 +131,7 @@ create_user_command('Lint', function()
   lint.try_lint(ft_linters)
 end, { desc = 'Run linters for current buffer' })
 
+---@param value boolean
 local function set_enabled(value)
   enabled = value
   log.info('Auto linting ' .. (enabled and 'enabled' or 'disabled'), 'nvim-lint')

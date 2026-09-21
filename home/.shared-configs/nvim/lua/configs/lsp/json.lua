@@ -1,31 +1,25 @@
-local LanguageSetting = require('configs.lsp.base')
-local LspConfig = require('configs.lsp.lspconfig')
-local M = LanguageSetting:new()
-
-M.treesitter.filetypes = { 'json' }
-
-M.formatterconfig.mason_packages = { 'jq' }
-M.formatterconfig.formatters_by_ft = {
-  json = { 'jq' },
-}
-
-local json_lsp = LspConfig:new('jsonls', 'json-lsp')
-json_lsp.config = {
-  json = {
-    schemas = require('schemastore').json.schemas({
-      extra = {
-        {
-          description = 'Komorebi JSON schema',
-          fileMatch = { 'komorebi.json' },
-          name = 'komorebi.json',
-          url = 'https://raw.githubusercontent.com/LGUG2Z/komorebi/master/schema.json',
+---@type dotfiles.lsp.Language
+return {
+  parsers = { 'json' },
+  tools = { 'json-lsp', 'jq' },
+  servers = {
+    jsonls = {
+      settings = {
+        json = {
+          schemas = require('schemastore').json.schemas({
+            extra = {
+              {
+                description = 'Komorebi JSON schema',
+                fileMatch = { 'komorebi.json' },
+                name = 'komorebi.json',
+                url = 'https://raw.githubusercontent.com/LGUG2Z/komorebi/master/schema.json',
+              },
+            },
+          }),
+          validate = { enable = true },
         },
       },
-    }),
-    validate = { enable = true },
+    },
   },
+  formatters = { json = { 'jq' } },
 }
-
-M.lspconfigs = { json_lsp }
-
-return M

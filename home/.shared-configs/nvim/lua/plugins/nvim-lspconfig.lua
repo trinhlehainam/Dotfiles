@@ -3,6 +3,8 @@ return { -- Main LSP Configuration
   dependencies = {
     'folke/snacks.nvim',
     'mrjones2014/codesettings.nvim',
+    -- Roslyn's native config must be on runtimepath before the registry resolves it.
+    'seblyng/roslyn.nvim',
     -- Automatically install LSPs and related tools to stdpath for Neovim
     -- Mason must be loaded before its dependents so we need to set it up here.
     -- NOTE: `opts = {}` is the same as calling `require('mason').setup({})`

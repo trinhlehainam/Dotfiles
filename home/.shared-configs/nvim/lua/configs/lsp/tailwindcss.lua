@@ -1,10 +1,5 @@
-local LanguageSetting = require('configs.lsp.base')
-local LspConfig = require('configs.lsp.lspconfig')
-local M = LanguageSetting:new()
-
-M.formatterconfig.mason_packages = { 'rustywind' }
-
-local tailwindcss = LspConfig:new('tailwindcss', 'tailwindcss-language-server')
-M.lspconfigs = { tailwindcss }
-
-return M
+---@type dotfiles.lsp.Language
+return {
+  tools = { 'tailwindcss-language-server', 'rustywind' },
+  servers = { tailwindcss = {} },
+}
