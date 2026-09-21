@@ -13,7 +13,7 @@ local configuration = {
 
 ---@type dotfiles.lsp.Language
 return {
-  parsers = { 'javascript', 'tsx', 'typescript', 'html', 'css' },
+  parsers = { 'javascript', 'tsx', 'typescript', 'html', 'css', 'vue' },
   tools = { 'vue-language-server', 'vtsls', 'biome', 'prettierd', 'eslint_d', 'markuplint' },
   servers = {
     vue_ls = {},

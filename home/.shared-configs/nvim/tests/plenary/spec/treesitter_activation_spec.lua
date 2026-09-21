@@ -3,6 +3,7 @@ describe('Tree-sitter highlighting activation', function()
     'configs.plugins.nvim-treesitter',
     'configs.plugins.noice',
     'configs.lsp',
+    'configs.lsp.typescript',
     'nvim-treesitter',
   }
   local mappings = { sh = 'bash', typescriptreact = 'tsx', cs = 'c_sharp' }
@@ -49,7 +50,7 @@ describe('Tree-sitter highlighting activation', function()
       end
     end
 
-    available = { bash = true, tsx = true, c_sharp = true, yaml = true, rust = true }
+    available = { bash = true, tsx = true, c_sharp = true, yaml = true, rust = true, vue = true }
     vim.treesitter.language.add = function(language)
       if available[language] then
         return true
@@ -70,7 +71,8 @@ describe('Tree-sitter highlighting activation', function()
       end,
     }
     package.loaded['configs.plugins.noice'] = { parsers = {} }
-    local parsers = { 'bash', 'tsx', 'c_sharp', 'yaml' }
+    local parsers =
+      vim.list_extend({ 'bash', 'c_sharp', 'yaml' }, require('configs.lsp.typescript').parsers)
     package.loaded['configs.lsp'] = {
       parsers = parsers,
     }
@@ -106,6 +108,7 @@ describe('Tree-sitter highlighting activation', function()
     { filetype = 'typescriptreact', parser = 'tsx' },
     { filetype = 'cs', parser = 'c_sharp' },
     { filetype = 'yaml.ansible', parser = 'yaml' },
+    { filetype = 'vue', parser = 'vue' },
   }) do
     it('starts ' .. case.parser .. ' highlighting for ' .. case.filetype, function()
       assert.is_true(vim.list_contains(installed, case.parser))
