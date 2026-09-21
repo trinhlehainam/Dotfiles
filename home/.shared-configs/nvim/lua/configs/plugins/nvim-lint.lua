@@ -8,11 +8,10 @@ local lint_on_save_by_ft = registry.lint_on_save
 
 lint.linters_by_ft = linters_by_ft
 
--- State
 local enabled = true
 local group = vim.api.nvim_create_augroup('nvim-lint', { clear = true })
 
----Prefer an exact filetype mapping; otherwise combine its component linters.
+---Use an exact filetype match, otherwise merge components (e.g. yaml.ansible).
 ---@param filetype string
 ---@return string[]
 local function resolve_base_linters(filetype)
@@ -29,7 +28,7 @@ local function resolve_base_linters(filetype)
   return merged
 end
 
----Resolve filetype policy, preserving false from any inherited component.
+---An exact policy wins; otherwise any component's false disables automatic linting.
 ---@param filetype string
 ---@return boolean? policy Nil leaves the default policy unchanged.
 local function resolve_base_lint_on_save(filetype)
@@ -52,7 +51,7 @@ local function resolve_base_lint_on_save(filetype)
   return lint_on_save
 end
 
----Combine language defaults with project linters without duplicate runs.
+---Project linters extend language defaults without duplicates.
 ---@param bufnr integer
 ---@return string[]
 local function linters_for_buf(bufnr)
@@ -62,7 +61,7 @@ local function linters_for_buf(bufnr)
   )
 end
 
----Apply project policy before language policy, defaulting to automatic linting.
+---Project policy overrides language policy; default to enabled.
 ---@param bufnr integer
 ---@return boolean
 local function lint_on_save_enabled(bufnr)
@@ -79,7 +78,7 @@ local function lint_on_save_enabled(bufnr)
   return true
 end
 
----Lint the written buffer only when global and buffer policies permit it.
+---Run in the written buffer because lint.try_lint uses the current buffer.
 ---@param bufnr integer
 local function auto_lint(bufnr)
   if not enabled then
@@ -115,7 +114,7 @@ vim.api.nvim_create_autocmd('BufWritePost', {
 ---@param fn string|fun(args: vim.api.keyset.create_user_command.command_args)
 ---@param opts vim.api.keyset.user_command
 local function create_user_command(name, fn, opts)
-  -- Create a user command; ignore E174 on reload; warn on other failures.
+  -- E174 means the command already exists after a reload.
   local ok, err = pcall(vim.api.nvim_create_user_command, name, fn, opts)
   if not ok and not tostring(err):match('E174') then
     log.warn(('Failed to create command :%s: %s'):format(name, tostring(err)), 'nvim-lint')

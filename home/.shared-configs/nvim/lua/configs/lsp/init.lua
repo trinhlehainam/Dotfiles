@@ -43,7 +43,7 @@ for _, name in ipairs(languages) do
   M.tools = merge_unique(M.tools, language.tools)
   M.dap = merge_unique(M.dap, language.dap)
 
-  -- Servers and formatter chains have one owner; conflicting declarations should fail visibly.
+  -- Each server and formatter chain must have one owner.
   for server, config in pairs(language.servers or {}) do
     assert(M.servers[server] == nil, 'Duplicate LSP server: ' .. server)
     M.servers[server] = config
@@ -61,7 +61,7 @@ for _, name in ipairs(languages) do
   end
 end
 
----Load declared adapters after Neotest's dependencies; propagate initialization errors.
+---Call after Neotest dependencies load; adapter errors must remain visible.
 ---@return neotest.Adapter[]
 function M.get_neotest_adapters()
   local adapters = {}

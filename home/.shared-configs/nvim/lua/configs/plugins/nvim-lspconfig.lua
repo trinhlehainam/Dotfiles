@@ -1,8 +1,6 @@
--- LSP buffer-local setup (keymaps, highlights, inlay hints)
 vim.api.nvim_create_autocmd('LspAttach', {
   group = vim.api.nvim_create_augroup('kickstart-lsp-attach', { clear = true }),
   callback = function(event)
-    -- Helper for buffer-local LSP keymaps
     local map = function(keys, func, desc, mode)
       mode = mode or 'n'
       vim.keymap.set(mode, keys, func, { buffer = event.buf, desc = 'LSP: ' .. desc })
@@ -20,7 +18,6 @@ vim.api.nvim_create_autocmd('LspAttach', {
       Snacks.picker.lsp_definitions()
     end, '[G]oto [D]efinition')
 
-    -- Declaration (not definition)
     map('grD', vim.lsp.buf.declaration, '[G]oto [D]eclaration')
 
     map('gO', function()
@@ -35,7 +32,6 @@ vim.api.nvim_create_autocmd('LspAttach', {
       Snacks.picker.lsp_type_definitions()
     end, '[G]oto [T]ype Definition')
 
-    -- Document highlights on CursorHold
     local client = vim.lsp.get_client_by_id(event.data.client_id)
     if
       client
@@ -47,7 +43,6 @@ vim.api.nvim_create_autocmd('LspAttach', {
       highlight_clients[tostring(client.id)] = true
       vim.b[event.buf].lsp_highlight_clients = highlight_clients
 
-      -- Only create autocmds once per buffer (first highlight-capable client)
       if first_client then
         local highlight_augroup =
           vim.api.nvim_create_augroup('kickstart-lsp-highlight', { clear = false })
@@ -65,7 +60,6 @@ vim.api.nvim_create_autocmd('LspAttach', {
       end
     end
 
-    -- Inlay hints toggle (if supported)
     if
       client
       and client:supports_method(vim.lsp.protocol.Methods.textDocument_inlayHint, event.buf)
@@ -78,14 +72,14 @@ vim.api.nvim_create_autocmd('LspAttach', {
   end,
 })
 
--- Cleanup on LspDetach - only disable features when no remaining client supports them
+-- Keep highlights until the last supporting client detaches.
 vim.api.nvim_create_autocmd('LspDetach', {
   group = vim.api.nvim_create_augroup('kickstart-lsp-detach', { clear = true }),
   callback = function(event)
     local bufnr = event.buf
     local client_id = tostring(event.data.client_id)
 
-    -- Remove from highlight clients and cleanup if none remain (vim.b returns copies, must reassign)
+    -- vim.b returns copies; reassign the set after changing it.
     local highlight_clients = vim.b[bufnr].lsp_highlight_clients
     if highlight_clients and highlight_clients[client_id] then
       highlight_clients[client_id] = nil
@@ -100,7 +94,7 @@ vim.api.nvim_create_autocmd('LspDetach', {
   end,
 })
 
--- Enable built-in CodeLens globally; explicit git contexts opt out per-buffer.
+-- Git views disable CodeLens per buffer.
 vim.lsp.codelens.enable(true)
 
 vim.diagnostic.config({
@@ -127,9 +121,6 @@ vim.diagnostic.config({
   },
 })
 
--- Diagnostic keymaps
-
--- Toggle diagnostic virtual_lines
 vim.keymap.set('n', 'gK', function()
   local new_config = not vim.diagnostic.config().virtual_lines
   vim.diagnostic.config({ virtual_lines = new_config })
@@ -155,7 +146,7 @@ vim.keymap.set(
 
 local codesettings = require('codesettings')
 
----Apply project overrides to the resolved client config using its workspace root.
+---Use the client root so project overrides follow each workspace.
 ---@param _ lsp.InitializeParams
 ---@param config vim.lsp.ClientConfig
 local function load_project_settings(_, config)
@@ -168,8 +159,7 @@ local servers = {}
 for name, config in vim.spairs(require('configs.lsp').servers) do
   vim.lsp.config(name, config)
 
-  -- Server hooks override the wildcard hook. Compose them so native initialization
-  -- still runs and project settings have the final say.
+  -- Server hooks replace the wildcard hook; compose them so project settings run last.
   local before_init = vim.lsp.config[name].before_init
   if before_init ~= load_project_settings then
     vim.lsp.config(name, {

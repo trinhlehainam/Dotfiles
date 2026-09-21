@@ -17,18 +17,10 @@ nvim --headless --noplugin -u tests/plenary/minimal_init.lua \
   -c "lua require('plenary.busted').run('tests/plenary/spec/project_detection_spec.lua')"
 ```
 
-This runs the spec in the Neovim instance that loaded the test init.
-
-The full command behind `make test` is:
-
-```bash
-nvim --headless --noplugin -u tests/plenary/minimal_init.lua \
-  -c "PlenaryBustedDirectory tests/plenary/spec/ { minimal_init = 'tests/plenary/minimal_init.lua', sequential = true }"
-```
-
 ## Required plugins
 
-The test runner loads local plugin checkouts from Lazy's data directory by default. Set the corresponding environment variable if a plugin is installed elsewhere:
+The runner uses local plugin checkouts. Override their paths with environment
+variables if needed:
 
 | Plugin | Environment variable | Default path |
 | --- | --- | --- |
@@ -36,15 +28,12 @@ The test runner loads local plugin checkouts from Lazy's data directory by defau
 | codesettings | `CODESETTINGS_DIR` | `stdpath('data') . '/lazy/codesettings.nvim'` |
 | Conform | `CONFORM_DIR` | `stdpath('data') . '/lazy/conform.nvim'` |
 
-The project settings specs use the real codesettings JSONC decoder and Conform formatter definitions.
-
 ## Test layout
 
-- `tests/plenary/minimal_init.lua`: loads the repository and required plugins for the runner and each child Neovim instance.
-- `tests/plenary/spec/`: integration tests; the runner discovers files ending in `_spec.lua`.
-- `tests/plenary/helpers/`: shared test helpers.
+- [minimal_init.lua](plenary/minimal_init.lua) loads the config and plugins in each test process.
+- [spec/](plenary/spec/) contains tests named `*_spec.lua`.
+- [helpers/](plenary/helpers/) contains shared test helpers.
 
-The LSP specs cover callback composition, project-root settings, enable order, buffer
-highlight cleanup, inlay-hint scope, parser aliases, and registry merge/ownership rules.
-They use real Neovim APIs; language-server processes and parser downloads are isolated.
-PHP specs also protect reindex commands and asynchronous CodeLens diagnostics.
+Tests use real Neovim APIs, codesettings JSONC parsing, and Conform definitions.
+LSP and Tree-sitter specs stub server startup and parser installation, so they
+do not require running language servers or downloading parsers.

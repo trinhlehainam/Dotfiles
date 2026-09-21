@@ -1,6 +1,5 @@
 -- Intelephense lifecycle: reindex commands and unused-reference diagnostics.
--- Diagnostics reuse CodeLens caches, then request fresh lenses if the cache does not change.
--- Per-buffer sequence numbers discard responses that arrive after edits or detachment.
+-- Reuse cached CodeLens results first; sequence numbers reject stale replies.
 local log = require('utils.log')
 local lsp_codelens = require('utils.lsp_codelens')
 local Methods = vim.lsp.protocol.Methods
@@ -17,7 +16,6 @@ local INDEX_COMMAND = 'IntelephenseIndexWorkspace'
 ---@field timer? uv.uv_timer_t
 ---@field refresh_seq? integer
 
--- State
 local commands_registered = false
 ---@type table<integer, table<integer, true>>
 local active_clients = {}
@@ -26,14 +24,12 @@ local unused_refs_states = {}
 local unused_refs_augroup =
   vim.api.nvim_create_augroup('dotfiles-intelephense-unused-refs', { clear = true })
 
----Register workspace reindexing once; a bang clears the cache after graceful shutdown.
+---Restart to reindex; a bang also clears the cache after shutdown.
 local function register_commands_once()
   if commands_registered then
     return
   end
 
-  -- Intelephense 1.17.6+ reports indexing via LSP `$/progress`;
-  -- configured progress UIs render it after restart.
   vim.api.nvim_create_user_command(INDEX_COMMAND, function(opts)
     local clear_cache = opts.bang
 
@@ -44,9 +40,7 @@ local function register_commands_once()
     end
 
     local root_dir = client.config.root_dir
-    -- Prefer a graceful shutdown here: forcing termination while the server is
-    -- writing cache/index files risks corruption. The explicit false keeps this
-    -- behavior independent of any future client exit_timeout setting.
+    -- Force-stopping while the server writes its cache can corrupt it.
     client:stop(false)
 
     local stopped = vim.wait(STOP_TIMEOUT, function()
@@ -58,7 +52,7 @@ local function register_commands_once()
       return
     end
 
-    -- Keep resolved config while overriding one-shot reindex options.
+    -- Reindex options apply only to this restart.
     local base_config = vim.lsp.config['intelephense'] or {}
     vim.lsp.start(vim.tbl_deep_extend('force', base_config, {
       root_dir = root_dir,
@@ -72,25 +66,21 @@ local function register_commands_once()
   commands_registered = true
 end
 
----Defer command removal so a replacement client can retain it during restart.
+---Defer removal so a replacement client can keep the shared command.
 local function unregister_commands()
   vim.schedule(function()
     if next(active_clients) ~= nil then
       return
     end
 
-    -- Defer to avoid calling nvim_del_user_command in a fast event context
     pcall(vim.api.nvim_del_user_command, INDEX_COMMAND)
     commands_registered = false
   end)
 end
 
--- ============================================================================
--- Unused Function Diagnostics (via Intelephense CodeLens)
--- ============================================================================
 local unused_refs_ns = vim.api.nvim_create_namespace('intelephense_unused_refs')
 
----Read the symbol at a zero-based byte position, including an optional PHP dollar prefix.
+---Read a PHP symbol at a zero-based byte position.
 ---@param bufnr integer
 ---@param line integer
 ---@param col integer
@@ -100,7 +90,6 @@ local function get_symbol_at(bufnr, line, col)
   if not lines[1] then
     return nil
   end
-  -- Extract word at column (handles $var, function names, class names)
   local text = lines[1]:sub(col + 1)
   return text:match('^%$?[%w_]+')
 end
@@ -125,7 +114,7 @@ end
 ---@param lenses lsp.CodeLens[]?
 local function set_unused_reference_diagnostics(bufnr, client, lenses)
   local client_id = client.id
-  -- Lines with existing intelephense diagnostics
+  -- Avoid adding unused-symbol hints on lines the server already diagnoses.
   local existing =
     vim.diagnostic.get(bufnr, { namespace = vim.lsp.diagnostic.get_namespace(client_id) })
   local diag_lines = vim.iter(existing):fold({}, function(acc, d)
@@ -157,7 +146,7 @@ local function set_unused_reference_diagnostics(bufnr, client, lenses)
   vim.diagnostic.set(unused_refs_ns, bufnr, diagnostics)
 end
 
----Clear only this feature's diagnostics, leaving server diagnostics intact.
+---Clear these hints without removing server diagnostics.
 ---@param bufnr integer
 local function clear_unused_reference_diagnostics(bufnr)
   if vim.api.nvim_buf_is_valid(bufnr) then
@@ -434,8 +423,7 @@ local function refresh_unused_reference_diagnostics_from_cache(
 
   if remaining_ms <= 0 then
     state.timer = nil
-    -- Cache keys can legitimately stay identical across refreshes, so use one
-    -- direct request here instead of treating "unchanged cache" as "stale data".
+    -- An unchanged cache may still be fresh; confirm with a direct request.
     request_unused_reference_diagnostics(bufnr, client, state, seq)
     return
   end
@@ -475,7 +463,7 @@ local function schedule_unused_reference_refresh(bufnr, state)
   end, UNUSED_REFS_REFRESH_DELAY_MS)
 end
 
----Install one edit/detach lifecycle per buffer to refresh hints and release tracking state.
+---Track edits and detach events once per buffer to refresh and clean up hints.
 ---@param bufnr integer
 local function attach_unused_reference_updates_once(bufnr)
   if unused_refs_states[bufnr] then
@@ -537,7 +525,7 @@ local function attach_unused_reference_updates_once(bufnr)
   end
 end
 
----Prune invalid buffers before deciding whether shared diagnostics can remain active.
+---Drop stale buffer entries while checking client ownership.
 ---@param bufnr integer
 ---@return boolean
 has_active_client_in_buffer = function(bufnr)
@@ -571,7 +559,7 @@ return {
     register_commands_once()
   end,
 
-  -- LSP on_exit may run in a fast event; schedule all editor-state cleanup.
+  -- on_exit can run in a fast event; editor cleanup must be scheduled.
   on_exit = vim.schedule_wrap(function(_, _, client_id)
     local bufnrs = prune_active_client_buffers(client_id) or {}
     active_clients[client_id] = nil
