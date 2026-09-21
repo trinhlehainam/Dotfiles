@@ -155,6 +155,9 @@ vim.keymap.set(
 
 local codesettings = require('codesettings')
 
+---Apply project overrides to the resolved client config using its workspace root.
+---@param _ lsp.InitializeParams
+---@param config vim.lsp.ClientConfig
 local function load_project_settings(_, config)
   codesettings.loader():root_dir(config.root_dir):with_local_settings(config.name, config)
 end

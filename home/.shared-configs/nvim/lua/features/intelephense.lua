@@ -26,7 +26,7 @@ local unused_refs_states = {}
 local unused_refs_augroup =
   vim.api.nvim_create_augroup('dotfiles-intelephense-unused-refs', { clear = true })
 
--- Register user commands
+---Register workspace reindexing once; a bang clears the cache after graceful shutdown.
 local function register_commands_once()
   if commands_registered then
     return
@@ -72,6 +72,7 @@ local function register_commands_once()
   commands_registered = true
 end
 
+---Defer command removal so a replacement client can retain it during restart.
 local function unregister_commands()
   vim.schedule(function()
     if next(active_clients) ~= nil then
@@ -89,7 +90,11 @@ end
 -- ============================================================================
 local unused_refs_ns = vim.api.nvim_create_namespace('intelephense_unused_refs')
 
--- Extract symbol name from buffer at position
+---Read the symbol at a zero-based byte position, including an optional PHP dollar prefix.
+---@param bufnr integer
+---@param line integer
+---@param col integer
+---@return string?
 local function get_symbol_at(bufnr, line, col)
   local lines = vim.api.nvim_buf_get_lines(bufnr, line, line + 1, false)
   if not lines[1] then
@@ -152,6 +157,8 @@ local function set_unused_reference_diagnostics(bufnr, client, lenses)
   vim.diagnostic.set(unused_refs_ns, bufnr, diagnostics)
 end
 
+---Clear only this feature's diagnostics, leaving server diagnostics intact.
+---@param bufnr integer
 local function clear_unused_reference_diagnostics(bufnr)
   if vim.api.nvim_buf_is_valid(bufnr) then
     vim.diagnostic.set(unused_refs_ns, bufnr, {})
@@ -468,6 +475,8 @@ local function schedule_unused_reference_refresh(bufnr, state)
   end, UNUSED_REFS_REFRESH_DELAY_MS)
 end
 
+---Install one edit/detach lifecycle per buffer to refresh hints and release tracking state.
+---@param bufnr integer
 local function attach_unused_reference_updates_once(bufnr)
   if unused_refs_states[bufnr] then
     return
@@ -528,6 +537,9 @@ local function attach_unused_reference_updates_once(bufnr)
   end
 end
 
+---Prune invalid buffers before deciding whether shared diagnostics can remain active.
+---@param bufnr integer
+---@return boolean
 has_active_client_in_buffer = function(bufnr)
   if not vim.api.nvim_buf_is_valid(bufnr) then
     untrack_buffer_from_all_active_clients(bufnr)

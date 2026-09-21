@@ -61,7 +61,8 @@ for _, name in ipairs(languages) do
   end
 end
 
--- Adapter modules can load only after neotest's dependencies are available.
+---Load declared adapters after Neotest's dependencies; propagate initialization errors.
+---@return neotest.Adapter[]
 function M.get_neotest_adapters()
   local adapters = {}
   for _, factory in ipairs(neotest_factories) do

@@ -12,6 +12,9 @@ lint.linters_by_ft = linters_by_ft
 local enabled = true
 local group = vim.api.nvim_create_augroup('nvim-lint', { clear = true })
 
+---Prefer an exact filetype mapping; otherwise combine its component linters.
+---@param filetype string
+---@return string[]
 local function resolve_base_linters(filetype)
   local exact = linters_by_ft[filetype]
   if exact then
@@ -26,6 +29,9 @@ local function resolve_base_linters(filetype)
   return merged
 end
 
+---Resolve filetype policy, preserving false from any inherited component.
+---@param filetype string
+---@return boolean? policy Nil leaves the default policy unchanged.
 local function resolve_base_lint_on_save(filetype)
   if lint_on_save_by_ft[filetype] ~= nil then
     return lint_on_save_by_ft[filetype]
@@ -46,6 +52,9 @@ local function resolve_base_lint_on_save(filetype)
   return lint_on_save
 end
 
+---Combine language defaults with project linters without duplicate runs.
+---@param bufnr integer
+---@return string[]
 local function linters_for_buf(bufnr)
   return common.merge_unique_strings(
     resolve_base_linters(vim.bo[bufnr].filetype),
@@ -53,6 +62,9 @@ local function linters_for_buf(bufnr)
   )
 end
 
+---Apply project policy before language policy, defaulting to automatic linting.
+---@param bufnr integer
+---@return boolean
 local function lint_on_save_enabled(bufnr)
   local tooling_lint_on_save = project.get_tooling_lint_on_save(bufnr)
   if tooling_lint_on_save ~= nil then
@@ -67,6 +79,8 @@ local function lint_on_save_enabled(bufnr)
   return true
 end
 
+---Lint the written buffer only when global and buffer policies permit it.
+---@param bufnr integer
 local function auto_lint(bufnr)
   if not enabled then
     return
@@ -118,6 +132,7 @@ create_user_command('Lint', function()
   lint.try_lint(ft_linters)
 end, { desc = 'Run linters for current buffer' })
 
+---@param value boolean
 local function set_enabled(value)
   enabled = value
   log.info('Auto linting ' .. (enabled and 'enabled' or 'disabled'), 'nvim-lint')
