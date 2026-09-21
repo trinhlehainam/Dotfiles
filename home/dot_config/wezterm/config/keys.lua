@@ -121,11 +121,12 @@ return {
       },
 
       { key = 'C', mods = 'CTRL|SHIFT', action = act.CopyTo(copy_destination) },
+      { key = 'V', mods = 'CTRL|SHIFT', action = act.PasteFrom('Clipboard') },
       {
-        key = 'V',
+        key = 'I',
         mods = 'CTRL|SHIFT',
-        action = wezterm.action_callback(function(w, p)
-          paste_image.smart_paste(w, p)
+        action = wezterm.action_callback(function(_, p)
+          paste_image.paste(p)
         end),
       },
 
