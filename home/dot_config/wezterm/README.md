@@ -2,6 +2,13 @@
 
 A small, modular WezTerm config written in Lua.
 
+## Clipboard shortcuts
+
+- `Ctrl+Shift+V`: paste text directly, without launching PowerShell or WSL commands.
+- `Ctrl+Shift+I`: in Windows WezTerm with a WSL pane, save the clipboard image as a PNG
+  under `/tmp/wezterm-smart-paste/` and insert its `@path`. If no image can be saved,
+  nothing is inserted.
+
 ## References / inspiration
 
 This configuration borrows ideas and small implementation details from:

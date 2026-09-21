@@ -20,12 +20,6 @@ for _, enum_value in pairs(SAVE_STATUS) do
   SAVE_STATUS_BY_VALUE[enum_value] = enum_value
 end
 
----@param window Window
----@param pane Pane
-local function fallback_paste(window, pane)
-  window:perform_action(wezterm.action.PasteFrom('Clipboard'), pane)
-end
-
 ---@param value string
 ---@return string
 local function escape_powershell_single_quote(value)
@@ -97,9 +91,11 @@ local function join_windows_path(windows_dir, filename)
   return windows_dir .. sep .. filename
 end
 
+---Save a Windows clipboard image to WSL and insert its @path.
+---Leave the pane unchanged if no image can be saved.
 ---@param pane Pane
 ---@return boolean
-local function try_smart_paste(pane)
+function M.paste(pane)
   if not platform.is_win then
     return false
   end
@@ -129,16 +125,6 @@ local function try_smart_paste(pane)
 
   pane:send_text('@' .. full_linux_path)
   return true
-end
-
----@param window Window
----@param pane Pane
-function M.smart_paste(window, pane)
-  if try_smart_paste(pane) then
-    return
-  end
-
-  fallback_paste(window, pane)
 end
 
 return M
