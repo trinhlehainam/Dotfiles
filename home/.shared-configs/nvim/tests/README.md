@@ -1,5 +1,7 @@
 # Neovim tests
 
+Requires Neovim 0.12+.
+
 ## Run
 
 Run all tests from `home/.shared-configs/nvim/`:
@@ -41,3 +43,8 @@ The project settings specs use the real codesettings JSONC decoder and Conform f
 - `tests/plenary/minimal_init.lua`: loads the repository and required plugins for the runner and each child Neovim instance.
 - `tests/plenary/spec/`: integration tests; the runner discovers files ending in `_spec.lua`.
 - `tests/plenary/helpers/`: shared test helpers.
+
+The LSP specs cover callback composition, project-root settings, enable order, buffer
+highlight cleanup, inlay-hint scope, parser aliases, and registry merge/ownership rules.
+They use real Neovim APIs; language-server processes and parser downloads are isolated.
+PHP specs also protect reindex commands and asynchronous CodeLens diagnostics.

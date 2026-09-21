@@ -1,26 +1,8 @@
-local LanguageSetting = require('configs.lsp.base')
-local LspConfig = require('configs.lsp.lspconfig')
-local M = LanguageSetting:new()
-
-local common = require('utils.common')
-local log = require('utils.log')
-
 if vim.fn.executable('ansible') == 0 then
-  -- NOTE: ansiblels require ansible to be installed
-  -- INFO: https://github.com/neovim/nvim-lspconfig/blob/master/lua/lspconfig/configs/ansiblels.lua#L12
-  -- NOTE: install ansible following instructions
-  -- INFO: https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html#installing-and-upgrading-ansible-with-pip
-  log.info('ansible is not installed')
-  log.info(
-    'install ansible following instructions: https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html'
-  )
-  return M
+  require('utils.log').info('Ansible support requires an ansible installation')
+  return {}
 end
 
-M.treesitter.filetypes = { 'yaml' }
-
--- INFO: https://github.com/ansible/vscode-ansible?tab=readme-ov-file#without-file-inspection
--- INFO: https://docs.ansible.com/ansible/latest/tips_tricks/sample_setup.html#sample-directory-layout
 vim.filetype.add({
   pattern = {
     ['.*/playbooks/.*%.ya?ml'] = 'yaml.ansible', -- yaml files under /playbooks/ directory
@@ -30,13 +12,16 @@ vim.filetype.add({
   },
 })
 
--- INFO: https://github.com/neovim/nvim-lspconfig/blob/master/doc/configs.md#ansiblels
-local ansiblels = LspConfig:new('ansiblels', 'ansible-language-server')
+---@type dotfiles.lsp.Language
+local M = {
+  parsers = { 'yaml' },
+  tools = { 'ansible-language-server' },
+  servers = { ansiblels = {} },
+}
 
--- NOTE: ansible-lint is not supported on Windows
--- INFO: https://ansible.readthedocs.io/projects/lint/installing/
-if common.IS_WINDOWS then
-  ansiblels.config = {
+-- ansible-lint is not supported on Windows.
+if require('utils.common').IS_WINDOWS then
+  M.servers.ansiblels = {
     settings = {
       validation = {
         lint = {
@@ -46,10 +31,7 @@ if common.IS_WINDOWS then
     },
   }
 else
-  -- INFO: https://github.com/ansible/ansible-lint
-  M.linterconfig.mason_packages = { 'ansible-lint' }
+  table.insert(M.tools, 'ansible-lint')
 end
-
-M.lspconfigs = { ansiblels }
 
 return M

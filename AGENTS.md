@@ -21,10 +21,12 @@ stylua <path>
 ## Neovim: Add Language Support
 
 - Add module: `home/.shared-configs/nvim/lua/configs/lsp/<lang>.lua`
-- Return `require('configs.lsp.base'):new()` with:
-  - `M.treesitter.filetypes = { ... }`
-  - `M.lspconfigs = { ... }` (use `require('configs.lsp.lspconfig'):new(server, mason_pkg)`)
-  - Optional: `M.formatterconfig`, `M.linterconfig`, `M.dapconfigs`, `M.neotest_adapter_setup`
+- Return a plain table annotated `---@type dotfiles.lsp.Language`:
+  - `parsers`: Tree-sitter parser names; `tools`: Mason package names
+  - `servers`: server name → native `vim.lsp.Config`
+  - Optional: `formatters`, `linters`, `lint_on_save`, `dap`, `neotest`
+- Register the module in the ordered list in `lua/configs/lsp/init.lua`.
+- Use `dap` only for mason-nvim-dap-managed adapters; see [language tooling](home/.shared-configs/nvim/doc/language-tooling.md) for plugin ownership.
 
 ## Lua Conventions
 

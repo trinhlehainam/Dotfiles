@@ -1,8 +1,5 @@
-local treesitter = require('nvim-treesitter')
-
-local ensure_installed = {
-  -- #region Required
-  -- A list of parser names, or "all" (the five listed parsers should always be installed)
+local merge_unique = require('utils.common').merge_unique_strings
+local parsers = merge_unique({
   'c',
   'lua',
   'vim',
@@ -10,32 +7,25 @@ local ensure_installed = {
   'query',
   'markdown',
   'markdown_inline',
-  -- #endregion Required
-
   'dockerfile',
   'sql',
-}
+}, require('configs.lsp').parsers)
+parsers = merge_unique(parsers, require('configs.plugins.noice').parsers)
 
-local has_noiceconfig, noiceconfig = pcall(require, 'configs.plugins.noice')
-if has_noiceconfig and vim.islist(noiceconfig.parsers) then
-  ensure_installed = vim.list_extend(ensure_installed, require('configs.plugins.noice').parsers)
+require('nvim-treesitter').install(parsers)
+
+local enabled = {}
+for _, parser in ipairs(parsers) do
+  enabled[parser] = true
 end
-
-local treesitters = require('configs.lsp').treesitters
-
-for _, config in ipairs(treesitters) do
-  local filetypes = config.filetypes
-  if filetypes ~= nil and vim.islist(filetypes) then
-    vim.list_extend(ensure_installed, filetypes)
-  end
-end
-
--- Check :h nvim-treesitter-commands for a list of all available commands.
-treesitter.install(ensure_installed)
 
 vim.api.nvim_create_autocmd('FileType', {
-  pattern = ensure_installed,
-  callback = function()
-    vim.treesitter.start()
+  group = vim.api.nvim_create_augroup('dotfiles-treesitter', { clear = true }),
+  callback = function(event)
+    -- Buffer filetypes can be aliases (sh → bash) or composite (yaml.ansible).
+    local parser = vim.treesitter.language.get_lang(vim.bo[event.buf].filetype)
+    if parser and enabled[parser] and vim.treesitter.language.add(parser) then
+      vim.treesitter.start(event.buf, parser)
+    end
   end,
 })

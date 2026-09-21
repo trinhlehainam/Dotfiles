@@ -1,23 +1,6 @@
-local log = require('utils.log')
 local common = require('utils.common')
 local project = require('configs.project')
-
--- Safely load formatters configuration
-local ok, lsp_config = pcall(require, 'configs.lsp')
-if not ok then
-  log.warn('Failed to load configs.lsp module for conform.nvim')
-  return
-end
-
-local formatters = lsp_config.formatters or {}
-
-local formatters_by_ft = {}
-
-for _, formatter in ipairs(formatters) do
-  if type(formatter.formatters_by_ft) == 'table' then
-    formatters_by_ft = vim.tbl_extend('keep', formatters_by_ft, formatter.formatters_by_ft)
-  end
-end
+local formatters_by_ft = vim.deepcopy(require('configs.lsp').formatters)
 
 local base_star_formatters = vim.deepcopy(formatters_by_ft['*'] or {})
 formatters_by_ft['*'] = function(bufnr)
@@ -37,13 +20,11 @@ require('conform').setup({
       return nil
     end
 
-    -- Disable "format_on_save lsp_fallback" for languages that don't
-    -- have a well standardized coding style. You can add additional
-    -- languages here or re-enable it for the disabled ones.
+    -- C/C++ formatting stays opt-in through an explicit formatter.
     local disable_filetypes = { c = true, cpp = true }
     return {
       timeout_ms = 500,
-      lsp_fallback = not disable_filetypes[vim.bo[bufnr].filetype],
+      lsp_format = disable_filetypes[vim.bo[bufnr].filetype] and 'never' or 'fallback',
     }
   end,
   formatters_by_ft = formatters_by_ft,

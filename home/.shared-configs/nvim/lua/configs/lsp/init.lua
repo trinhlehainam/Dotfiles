@@ -1,48 +1,73 @@
---- @type dotfiles.lsp.Lsp
-local M = {
-  treesitters = {},
-  lspconfigs = {},
-  dapconfigs = {},
-  formatters = {},
-  linters = {},
-  get_neotest_adapters = function()
-    return {}
-  end,
+local merge_unique = require('utils.common').merge_unique_strings
+
+local languages = {
+  'ansible',
+  'awk',
+  'bash',
+  'csharp',
+  'css',
+  'docker-compose',
+  'go',
+  'html',
+  'jinja',
+  'json',
+  'lua',
+  'markdown',
+  'nginx',
+  'nushell',
+  'php',
+  'powershell',
+  'python',
+  'rust',
+  'tailwindcss',
+  'typescript',
+  'yaml',
 }
 
-local ignore_mods = { 'types', 'base', 'init', 'lspconfig' }
+---@type dotfiles.lsp.Registry
+local M = {
+  parsers = {},
+  tools = {},
+  servers = {},
+  formatters = {},
+  linters = {},
+  lint_on_save = {},
+  dap = {},
+}
+local neotest_factories = {}
 
---- @type table<string, dotfiles.lsp.LanguageSetting>
-local language_settings = require('utils.common').load_mods('configs.lsp', ignore_mods)
+for _, name in ipairs(languages) do
+  ---@type dotfiles.lsp.Language
+  local language = require('configs.lsp.' .. name)
+  M.parsers = merge_unique(M.parsers, language.parsers)
+  M.tools = merge_unique(M.tools, language.tools)
+  M.dap = merge_unique(M.dap, language.dap)
 
----@type dotfiles.lsp.NeotestAdapterSetup[]
-local neotest_adapter_setups = {}
-
-for _, settings in pairs(language_settings) do
-  table.insert(M.treesitters, settings.treesitter)
-  -- Collect all dapconfigs into a flat array
-  if settings.dapconfigs and #settings.dapconfigs > 0 then
-    vim.list_extend(M.dapconfigs, settings.dapconfigs)
+  -- Servers and formatter chains have one owner; conflicting declarations should fail visibly.
+  for server, config in pairs(language.servers or {}) do
+    assert(M.servers[server] == nil, 'Duplicate LSP server: ' .. server)
+    M.servers[server] = config
   end
-  vim.list_extend(M.lspconfigs, settings.lspconfigs)
-  table.insert(M.formatters, settings.formatterconfig)
-  table.insert(M.linters, settings.linterconfig)
-  if settings.neotest_adapter_setup then
-    table.insert(neotest_adapter_setups, settings.neotest_adapter_setup)
+  for filetype, formatters in pairs(language.formatters or {}) do
+    assert(M.formatters[filetype] == nil, 'Duplicate formatter filetype: ' .. filetype)
+    M.formatters[filetype] = formatters
+  end
+  for filetype, linters in pairs(language.linters or {}) do
+    M.linters[filetype] = merge_unique(M.linters[filetype], linters)
+    M.lint_on_save[filetype] = M.lint_on_save[filetype] ~= false and language.lint_on_save ~= false
+  end
+  if language.neotest then
+    table.insert(neotest_factories, language.neotest)
   end
 end
 
-M.get_neotest_adapters = function()
-  ---@type neotest.Adapter[]
-  local neotest_adapters = {}
-
-  for _, setup in ipairs(neotest_adapter_setups) do
-    local adapter = setup()
-    if adapter then
-      table.insert(neotest_adapters, adapter)
-    end
+-- Adapter modules can load only after neotest's dependencies are available.
+function M.get_neotest_adapters()
+  local adapters = {}
+  for _, factory in ipairs(neotest_factories) do
+    table.insert(adapters, factory())
   end
-  return neotest_adapters
+  return adapters
 end
 
 return M
