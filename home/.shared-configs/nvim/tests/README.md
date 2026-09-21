@@ -1,53 +1,43 @@
-## Test Layout
-
-- `tests/plenary/minimal_init.lua`: shared Plenary init used by the parent runner and child test instances
-- `tests/plenary/spec/`: busted-style integration specs
-- `tests/plenary/helpers/`: shared harness helpers for specs
+# Neovim tests
 
 ## Run
 
-Short command:
+Run all tests from `home/.shared-configs/nvim/`:
 
 ```bash
 make test
 ```
 
-Canonical raw command:
+To run one spec:
+
+```bash
+nvim --headless --noplugin -u tests/plenary/minimal_init.lua \
+  -c "lua require('plenary.busted').run('tests/plenary/spec/project_detection_spec.lua')"
+```
+
+This runs the spec in the Neovim instance that loaded the test init.
+
+The full command behind `make test` is:
 
 ```bash
 nvim --headless --noplugin -u tests/plenary/minimal_init.lua \
   -c "PlenaryBustedDirectory tests/plenary/spec/ { minimal_init = 'tests/plenary/minimal_init.lua', sequential = true }"
 ```
 
-This uses one shared init:
-- it loads Plenary and the repo on `runtimepath`
-- `PlenaryBustedDirectory` discovers `*_spec.lua` files under `tests/plenary/spec/`
-- each child Neovim instance reuses the same `tests/plenary/minimal_init.lua`
+## Required plugins
 
-## Plenary Path
+The test runner loads local plugin checkouts from Lazy's data directory by default. Set the corresponding environment variable if a plugin is installed elsewhere:
 
-The test init resolves Plenary in this order:
+| Plugin | Environment variable | Default path |
+| --- | --- | --- |
+| Plenary | `PLENARY_DIR` | `stdpath('data') . '/lazy/plenary.nvim'` |
+| codesettings | `CODESETTINGS_DIR` | `stdpath('data') . '/lazy/codesettings.nvim'` |
+| Conform | `CONFORM_DIR` | `stdpath('data') . '/lazy/conform.nvim'` |
 
-1. `$PLENARY_DIR`
-2. `stdpath('data') . '/lazy/plenary.nvim'`
+The project settings specs use the real codesettings JSONC decoder and Conform formatter definitions.
 
-If your Plenary checkout is not under Lazy's default path, set `PLENARY_DIR`
-before running the command.
+## Test layout
 
-The test init resolves `codesettings.nvim` in this order:
-
-1. `$CODESETTINGS_DIR`
-2. `stdpath('data') . '/lazy/codesettings.nvim'`
-
-The project settings specs now exercise the real `codesettings` JSONC decoder,
-so headless test runs require that plugin on `runtimepath`.
-
-The formatter inheritance specs also load the real `conform.nvim` plugin from
-`$CONFORM_DIR` or `stdpath('data') . '/lazy/conform.nvim'`.
-
-Run one spec by passing its filename to `PlenaryBustedDirectory`, for example:
-
-```bash
-nvim --headless --noplugin -u tests/plenary/minimal_init.lua \
-  -c "PlenaryBustedDirectory tests/plenary/spec/project_detection_spec.lua { minimal_init = 'tests/plenary/minimal_init.lua', sequential = true }"
-```
+- `tests/plenary/minimal_init.lua`: loads the repository and required plugins for the runner and each child Neovim instance.
+- `tests/plenary/spec/`: integration tests; the runner discovers files ending in `_spec.lua`.
+- `tests/plenary/helpers/`: shared test helpers.
