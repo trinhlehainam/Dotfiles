@@ -41,3 +41,13 @@ The test init resolves `codesettings.nvim` in this order:
 
 The project settings specs now exercise the real `codesettings` JSONC decoder,
 so headless test runs require that plugin on `runtimepath`.
+
+The formatter inheritance specs also load the real `conform.nvim` plugin from
+`$CONFORM_DIR` or `stdpath('data') . '/lazy/conform.nvim'`.
+
+Run one spec by passing its filename to `PlenaryBustedDirectory`, for example:
+
+```bash
+nvim --headless --noplugin -u tests/plenary/minimal_init.lua \
+  -c "PlenaryBustedDirectory tests/plenary/spec/project_detection_spec.lua { minimal_init = 'tests/plenary/minimal_init.lua', sequential = true }"
+```

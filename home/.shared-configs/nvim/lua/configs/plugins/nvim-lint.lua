@@ -103,7 +103,6 @@ local function resolve_base_lint_on_save(filetype)
 end
 
 local function linters_for_buf(bufnr)
-  project.ensure_lint_overrides(bufnr)
   return common.merge_unique_strings(
     resolve_base_linters(vim.bo[bufnr].filetype),
     project.get_project_linters(bufnr)

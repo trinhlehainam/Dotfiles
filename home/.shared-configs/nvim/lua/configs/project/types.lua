@@ -1,13 +1,9 @@
 ---@class dotfiles.project.FilesAssociationPattern
 ---@field filetype string
 ---@field has_slash boolean
----@field path_pattern string
+---@field matcher vim.lpeg.Pattern
 ---@field raw string
-
----@class dotfiles.project.FilesAssociations
----@field extensions table<string, string>
----@field filenames table<string, string>
----@field patterns dotfiles.project.FilesAssociationPattern[]
+---@field priority integer
 
 ---@class dotfiles.project.FiletypeSettings
 ---@field insert_spaces? boolean

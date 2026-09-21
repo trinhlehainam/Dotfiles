@@ -335,7 +335,7 @@ local function build_conform_override(name)
       return base
     end
 
-    local project_override = { inherit = true }
+    local project_override = {}
     if override.args then
       project_override.args = vim.deepcopy(override.args)
     end
@@ -344,6 +344,15 @@ local function build_conform_override(name)
     end
 
     if base then
+      -- Conform returns custom definitions directly when there is no parent,
+      -- so their append_args must be applied here instead of during inheritance.
+      local inherits = base.inherit
+      if inherits == nil then
+        inherits = pcall(require, 'conform.formatters.' .. name)
+      end
+      if not inherits then
+        return require('conform.util').merge_formatter_configs(vim.deepcopy(base), project_override)
+      end
       return vim.tbl_deep_extend('force', vim.deepcopy(base), project_override)
     end
 
@@ -416,15 +425,14 @@ function M.invalidate()
   lint_base_overrides = {}
 end
 
----@param bufnr integer
-function M.ensure_conform_overrides(bufnr)
-  local ok, conform = pcall(require, 'conform')
-  if not ok then
+---@param tooling dotfiles.ProjectResolvedToolingSettings|nil
+local function ensure_conform_overrides(tooling)
+  if not tooling then
     return
   end
 
-  local tooling = get_tooling_settings(bufnr)
-  if not tooling then
+  local ok, conform = pcall(require, 'conform')
+  if not ok then
     return
   end
 
@@ -437,15 +445,14 @@ function M.ensure_conform_overrides(bufnr)
   end
 end
 
----@param bufnr integer
-function M.ensure_lint_overrides(bufnr)
-  local ok, lint = pcall(require, 'lint')
-  if not ok then
+---@param tooling dotfiles.ProjectResolvedToolingSettings|nil
+local function ensure_lint_overrides(tooling)
+  if not tooling then
     return
   end
 
-  local tooling = get_tooling_settings(bufnr)
-  if not tooling then
+  local ok, lint = pcall(require, 'lint')
+  if not ok then
     return
   end
 
@@ -464,28 +471,36 @@ function M.ensure_lint_overrides(bufnr)
 end
 
 ---@param bufnr integer
+function M.ensure_conform_overrides(bufnr)
+  ensure_conform_overrides(get_tooling_settings(bufnr))
+end
+
+---@param bufnr integer
+function M.ensure_lint_overrides(bufnr)
+  ensure_lint_overrides(get_tooling_settings(bufnr))
+end
+
+---@param bufnr integer
 ---@return string[]
 function M.get_formatters(bufnr)
-  M.ensure_conform_overrides(bufnr)
-
   local tooling = get_tooling_settings(bufnr)
   if not tooling then
     return {}
   end
 
+  ensure_conform_overrides(tooling)
   return vim.deepcopy(tooling.formatters or {})
 end
 
 ---@param bufnr integer
 ---@return string[]
 function M.get_linters(bufnr)
-  M.ensure_lint_overrides(bufnr)
-
   local tooling = get_tooling_settings(bufnr)
   if not tooling then
     return {}
   end
 
+  ensure_lint_overrides(tooling)
   return vim.deepcopy(tooling.linters or {})
 end
 

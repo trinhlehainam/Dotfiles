@@ -82,11 +82,11 @@ describe('project settings regression', function()
 
     h.write_json(settings, {
       ['files.associations'] = {
-        ['*.templ'] = 'php',
+        ['*.projectunknown'] = 'php',
       },
     })
 
-    local file = h.join(root, 'sample.templ')
+    local file = h.join(root, 'sample.projectunknown')
     h.write_file(file, '<div>value</div>\n')
 
     local bufnr = h.edit(file)
@@ -200,6 +200,44 @@ describe('project settings regression', function()
     h.reload()
 
     assert.same(manual, h.read_indent(bufnr))
+  end)
+
+  for _, tab_size in ipairs({ 0, -1, 2.5, 10000, 'four' }) do
+    it('ignores invalid editor.tabSize ' .. tostring(tab_size), function()
+      vim.cmd('messages clear')
+      local root = h.mktemp_root(base, 'invalid-tab-size')
+      h.write_json(h.join(root, '.vscode', 'settings.json'), {
+        ['[php]'] = {
+          ['editor.insertSpaces'] = false,
+          ['editor.tabSize'] = tab_size,
+        },
+      })
+      local file = h.join(root, 'sample.php')
+      h.write_file(file, '<?php\n')
+
+      local bufnr = h.edit(file)
+      local expected = h.php_defaults()
+      expected.expandtab = false
+      h.wait_for_indent(bufnr, expected, 'invalid tab size should not prevent valid settings')
+      local warned = vim.wait(1000, function()
+        return vim.api.nvim_exec2('messages', { output = true }).output:find('tabSize') ~= nil
+      end)
+      assert.is_true(warned)
+    end)
+  end
+
+  it('applies component settings when a buffer changes to a compound filetype', function()
+    local root = h.mktemp_root(base, 'compound-filetype')
+    h.write_json(h.join(root, '.vscode', 'settings.json'), {
+      ['[html]'] = { ['editor.tabSize'] = 3 },
+    })
+    local file = h.join(root, 'sample.txt')
+    h.write_file(file, '')
+    local bufnr = h.edit(file)
+
+    vim.bo[bufnr].filetype = 'html.php'
+
+    assert.equals(3, vim.bo[bufnr].shiftwidth)
   end)
 
   it('parses JSONC line comments for project file associations', function()

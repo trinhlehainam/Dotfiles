@@ -12,12 +12,6 @@ local BUFFER_INDENT_MANAGED_KEY = 'project_settings_indent_managed'
 
 ---@type table<string, dotfiles.project.FiletypeSettingsMap>
 local filetype_settings_cache = {}
----@type table<string, table<string, boolean>>
-local filetype_patterns_by_root = {}
----@type integer|nil
-local filetype_autocmd_id
----@type integer|nil
-local options_group
 local suspend_filetype_apply = false
 
 ---@param key string
@@ -49,55 +43,6 @@ local function expand_filetype_keys(filetype)
   return keys
 end
 
----@param patterns table<string, boolean>
----@return string[]
-local function sorted_patterns(patterns)
-  local items = {}
-
-  for pattern in pairs(patterns) do
-    table.insert(items, pattern)
-  end
-
-  table.sort(items)
-  return items
-end
-
-local function refresh_filetype_autocmd()
-  if filetype_autocmd_id then
-    pcall(vim.api.nvim_del_autocmd, filetype_autocmd_id)
-    filetype_autocmd_id = nil
-  end
-
-  if not options_group then
-    return
-  end
-
-  local active_patterns = {}
-  for _, patterns in pairs(filetype_patterns_by_root) do
-    for pattern in pairs(patterns) do
-      active_patterns[pattern] = true
-    end
-  end
-
-  local pattern = sorted_patterns(active_patterns)
-  if #pattern == 0 then
-    return
-  end
-
-  filetype_autocmd_id = vim.api.nvim_create_autocmd('FileType', {
-    group = options_group,
-    pattern = pattern,
-    callback = function(args)
-      if suspend_filetype_apply then
-        return
-      end
-
-      -- These settings are buffer-local and depend on the detected filetype.
-      M.apply_filetype_settings(args.buf)
-    end,
-  })
-end
-
 ---@param filetype_settings dotfiles.project.FiletypeSettings|nil
 ---@return boolean
 local function is_indent_managed_by_settings(filetype_settings)
@@ -119,19 +64,6 @@ end
 ---@param managed boolean
 local function set_indent_managed(bufnr, managed)
   vim.b[bufnr][BUFFER_INDENT_MANAGED_KEY] = managed or nil
-end
-
----@param root string
----@param filetype_settings dotfiles.project.FiletypeSettingsMap
-local function sync_root_filetype_patterns(root, filetype_settings)
-  local patterns = {}
-
-  for filetype in pairs(filetype_settings) do
-    patterns[filetype] = true
-  end
-
-  filetype_patterns_by_root[root] = patterns
-  refresh_filetype_autocmd()
 end
 
 ---@param filetype_settings dotfiles.project.FiletypeSettingsMap
@@ -184,10 +116,13 @@ local function parse_filetype_settings_block(filetype, raw, filetype_settings)
       and type(value) == 'boolean'
     then
       settings.insert_spaces = value
-    elseif
-      (nested_key == 'tabSize' or nested_key == 'editor.tabSize') and type(value) == 'number'
-    then
-      settings.tab_size = value
+    elseif nested_key == 'tabSize' or nested_key == 'editor.tabSize' then
+      -- Neovim's tabstop accepts integers from 1 through 9999.
+      if type(value) == 'number' and value >= 1 and value <= 9999 and value % 1 == 0 then
+        settings.tab_size = value
+      else
+        warn_ignored(('%s.editor.tabSize'):format(filetype))
+      end
     elseif
       (nested_key == 'detectIndentation' or nested_key == 'editor.detectIndentation')
       and type(value) == 'boolean'
@@ -226,22 +161,7 @@ local function load_filetype_settings(root)
   end
 
   filetype_settings_cache[root] = filetype_settings
-  sync_root_filetype_patterns(root, filetype_settings)
   return filetype_settings
-end
-
----@param root string|nil
-local function ensure_filetype_settings_for_root(root)
-  if type(root) ~= 'string' or root == '' then
-    return
-  end
-
-  load_filetype_settings(root)
-end
-
----@param path string
-function M.ensure_filetype_settings_for_path(path)
-  ensure_filetype_settings_for_root(project_json.find_root_for_path(path))
 end
 
 ---@param root string
@@ -378,8 +298,6 @@ end
 
 function M.invalidate()
   filetype_settings_cache = {}
-  filetype_patterns_by_root = {}
-  refresh_filetype_autocmd()
 end
 
 ---@param bufnr integer
@@ -395,12 +313,12 @@ end
 
 ---@param group integer
 function M.setup(group)
-  options_group = group
-
-  vim.api.nvim_create_autocmd({ 'BufReadPre', 'BufNewFile' }, {
+  vim.api.nvim_create_autocmd('FileType', {
     group = group,
     callback = function(args)
-      M.ensure_filetype_settings_for_path(args.file)
+      if not suspend_filetype_apply then
+        M.apply_filetype_settings(args.buf)
+      end
     end,
   })
 
@@ -410,9 +328,6 @@ function M.setup(group)
       schedule_filetype_apply(args.buf)
     end,
   })
-
-  project_json.for_each_startup_root(ensure_filetype_settings_for_root)
-  refresh_filetype_autocmd()
 end
 
 return M
