@@ -21,15 +21,12 @@ end
 
 local base_star_formatters = vim.deepcopy(formatters_by_ft['*'] or {})
 formatters_by_ft['*'] = function(bufnr)
-  project.ensure_conform_overrides(bufnr)
   return common.merge_unique_strings(base_star_formatters, project.get_project_formatters(bufnr))
 end
 
 require('conform').setup({
   notify_on_error = false,
   format_on_save = function(bufnr)
-    project.ensure_conform_overrides(bufnr)
-
     local tooling_format_on_save = project.get_tooling_format_on_save(bufnr)
     if tooling_format_on_save == false then
       return nil

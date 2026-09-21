@@ -22,7 +22,7 @@ end
 
 ---@param path string
 ---@return string|nil
-local function read_text_file(path)
+function M.read_text_file(path)
   local file = io.open(path, 'r')
   if not file then
     return nil
@@ -35,50 +35,15 @@ end
 
 ---@param path string
 ---@return string|nil
-local function root_search_start(path)
+local function find_root_from_path(path)
   if type(path) ~= 'string' or path == '' then
     return nil
   end
 
-  local normalized = vim.fs.normalize(path)
-  local stat = vim.uv.fs_stat(normalized)
-  if stat and stat.type == 'directory' then
-    return normalized
-  end
-
-  return vim.fs.dirname(normalized)
-end
-
----@param directory string
----@return boolean
-local function has_root_marker(directory)
-  for _, marker in ipairs(ROOT_MARKERS) do
-    if vim.uv.fs_stat(directory .. '/' .. marker) then
-      return true
-    end
-  end
-
-  return false
-end
-
----@param path string
----@return string|nil
-local function find_root_from_path(path)
-  local current = root_search_start(path)
-
-  while current and current ~= '' do
-    if has_root_marker(current) then
-      return current
-    end
-
-    local parent = vim.fs.dirname(current)
-    if parent == current then
-      break
-    end
-    current = parent
-  end
-
-  return nil
+  -- A predicate gives all markers equal priority across Neovim versions.
+  return vim.fs.root(path, function(name)
+    return vim.tbl_contains(ROOT_MARKERS, name)
+  end)
 end
 
 ---@param path string
@@ -89,7 +54,7 @@ local function decode_json_file(path)
     return {}
   end
 
-  local raw = read_text_file(path)
+  local raw = M.read_text_file(path)
   if raw == nil then
     log.warn(('Could not read %s'):format(path), TITLE)
     return {}
@@ -126,33 +91,6 @@ function M.find_root(bufnr)
   end
 
   return find_root_from_path(vim.uv.cwd() or vim.fn.getcwd())
-end
-
----@param callback fun(root: string)
-function M.for_each_startup_root(callback)
-  if type(callback) ~= 'function' then
-    return
-  end
-
-  local seen_roots = {}
-
-  local function visit(path)
-    local root = find_root_from_path(path)
-    if not root or seen_roots[root] then
-      return
-    end
-
-    seen_roots[root] = true
-    callback(root)
-  end
-
-  visit(vim.uv.cwd() or vim.fn.getcwd())
-
-  for _, arg in ipairs(vim.fn.argv()) do
-    if type(arg) == 'string' and arg ~= '' and arg ~= '-' then
-      visit(vim.fn.fnamemodify(arg, ':p'))
-    end
-  end
 end
 
 ---@param root string

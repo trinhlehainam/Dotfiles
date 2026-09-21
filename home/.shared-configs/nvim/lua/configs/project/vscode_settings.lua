@@ -1,4 +1,5 @@
 local log = require('utils.log')
+local project_json = require('configs.project.json')
 
 local M = {}
 
@@ -19,19 +20,6 @@ local function load_codesettings_util()
   return codesettings_util
 end
 
----@param path string
----@return string|nil
-local function read_text_file(path)
-  local file = io.open(path, 'r')
-  if not file then
-    return nil
-  end
-
-  local data = file:read('*a')
-  file:close()
-  return data
-end
-
 ---@param root string
 ---@return table
 local function load_settings(root)
@@ -46,7 +34,7 @@ local function load_settings(root)
     return settings_cache[root]
   end
 
-  local raw = read_text_file(path)
+  local raw = project_json.read_text_file(path)
   if raw == nil then
     log.warn(('Could not read %s'):format(path), TITLE)
     settings_cache[root] = {}
