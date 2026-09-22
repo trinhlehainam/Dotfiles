@@ -8,7 +8,6 @@ import {
   runChezmoi,
   runCommand,
   type ChezmoiRuntime,
-  type CommandResult,
   type CommandRunner,
 } from "./worktree-runtime.ts";
 
@@ -19,12 +18,6 @@ export type CandidateTarget = {
   baselineKind?: "absent" | "directory" | "file" | "symlink";
   managedKind: ManagedKind;
   relativePath?: string;
-  snapshotCovered?: boolean;
-};
-
-export type PlannedChange = {
-  action: "A" | "D" | "M";
-  absolutePath: string;
 };
 
 export type SessionPaths = {
@@ -57,95 +50,29 @@ export function parseNulPaths(output: Buffer): string[] {
   return paths;
 }
 
-export function parseStatus(output: string): PlannedChange[] {
-  return output
-    .split("\n")
-    .filter((line) => line.length > 0)
-    .map((line) => {
-      if (line.length < 4 || line[2] !== " ") {
-        throw new Error(`malformed status line: ${line}`);
-      }
-      const sourceAction = line[0];
-      if (
-        sourceAction !== " " &&
-        sourceAction !== "A" &&
-        sourceAction !== "D" &&
-        sourceAction !== "M"
-      ) {
-        throw new Error(`unsupported status first column: ${line}`);
-      }
-      const action = line[1];
-      if (action === "R") throw new Error(`unsupported script status: ${line}`);
-      if (action !== "A" && action !== "D" && action !== "M") {
-        throw new Error(`unsupported status action: ${line}`);
-      }
-      return { action, absolutePath: line.slice(3) };
-    });
-}
-
-export function validateCoverage(
-  planned: PlannedChange[],
-  candidates: Map<string, CandidateTarget>,
-): void {
-  for (const change of planned) {
-    const candidate = candidates.get(path.normalize(change.absolutePath));
-    if (candidate === undefined) {
-      throw new Error(`status path has no snapshot coverage: ${change.absolutePath}`);
-    }
-    if (candidate.managedKind === "directory") {
-      if (candidate.baselineKind === "absent" && change.action === "A") continue;
-      throw new Error(`unsupported existing directory change: ${change.absolutePath}`);
-    }
-    if (candidate.snapshotCovered !== true) {
-      throw new Error(`status path has no snapshot coverage: ${change.absolutePath}`);
-    }
-  }
-}
-
 export type Question = (prompt: string) => Promise<string>;
 
-export async function confirmPaths(
-  planned: PlannedChange[],
-  yes: boolean,
-  question: Question,
-): Promise<boolean> {
-  if (yes) return true;
-  const lines = planned.map(({ action, absolutePath }) => `${action} ${absolutePath}`).join("\n");
-  const answer = await question(`${lines}\nApply these changes? [y/N] `);
-  return answer.trim().toLowerCase() === "y";
-}
-
-export async function applyPlannedChanges(
+function runForTargets(
   runtime: ChezmoiRuntime,
-  planned: PlannedChange[],
+  commandArgs: string[],
+  targets: string[],
   runner?: CommandRunner,
-): Promise<CommandResult> {
-  if (planned.length === 0) {
-    return {
-      signal: null,
-      status: 0,
-      stderr: Buffer.alloc(0),
-      stdout: Buffer.alloc(0),
-    };
+): void {
+  // Bound command size, and never turn an empty target list into an unscoped apply.
+  for (let offset = 0; offset < targets.length; offset += 100) {
+    requireSuccess(
+      runChezmoi(runtime, [...commandArgs, "--", ...targets.slice(offset, offset + 100)], runner),
+      `chezmoi ${commandArgs.join(" ")}`,
+    );
   }
-  return runChezmoi(
-    runtime,
-    [
-      "--force",
-      "apply",
-      "--exclude",
-      "scripts,externals,encrypted",
-      ...planned.map(({ absolutePath }) => absolutePath),
-    ],
-    runner,
-  );
 }
 
 export function validateSafeRemovalPath(relativePath: string): void {
   if (
+    relativePath.length === 0 ||
     relativePath.trim() !== relativePath ||
-    /^[!#]/.test(relativePath) ||
-    /[\r\n*?\[\]{}]/.test(relativePath)
+    relativePath.startsWith("!") ||
+    /[\\#\r\n*?\[\]{}]/.test(relativePath)
   ) {
     throw new Error(`unsafe removal path: ${relativePath}`);
   }
@@ -203,7 +130,8 @@ export async function inspectCandidates(
   candidates: Map<string, CandidateTarget>,
   options: {
     destinationDir: string;
-    normalSourceDir: string;
+    normalSourceDir?: string;
+    restoring?: boolean;
     sessionDir: string;
     worktreeRoot: string;
   },
@@ -212,7 +140,9 @@ export async function inspectCandidates(
   const protectedRoots = [
     [options.sessionDir, "session directory"],
     [options.worktreeRoot, "worktree root"],
-    [options.normalSourceDir, "normal source directory"],
+    ...(options.normalSourceDir === undefined
+      ? []
+      : [[options.normalSourceDir, "normal source directory"] as const]),
   ] as const;
 
   for (const candidate of candidates.values()) {
@@ -221,7 +151,7 @@ export async function inspectCandidates(
     }
 
     const absolutePath = path.normalize(candidate.absolutePath);
-    if (!isPathInside(destinationDir, absolutePath)) {
+    if (absolutePath === destinationDir || !isPathInside(destinationDir, absolutePath)) {
       throw new Error(`managed target is outside destination: ${absolutePath}`);
     }
     for (const [protectedRoot, label] of protectedRoots) {
@@ -243,11 +173,22 @@ export async function inspectCandidates(
     }
 
     if (targetStat.isFile()) {
+      if (targetStat.nlink > 1) {
+        throw new Error(`unsupported hard-linked target: ${absolutePath}`);
+      }
       candidate.baselineKind = "file";
     } else if (targetStat.isSymbolicLink()) {
       candidate.baselineKind = "symlink";
     } else if (targetStat.isDirectory()) {
-      if (candidate.managedKind !== "directory") {
+      if (candidate.managedKind === "remove" && options.restoring) {
+        // Removal rules delete whole directories. Never remove uncaptured contents.
+        for (const name of await fs.readdir(absolutePath)) {
+          const child = path.join(absolutePath, name);
+          if (!candidates.has(child)) {
+            throw new Error(`cannot revert directory containing uncaptured path: ${child}`);
+          }
+        }
+      } else if (candidate.managedKind !== "directory") {
         throw new Error(
           `managed non-directory target is an existing directory: ${absolutePath}`,
         );
@@ -255,6 +196,9 @@ export async function inspectCandidates(
       candidate.baselineKind = "directory";
     } else {
       throw new Error(`unsupported destination node: ${absolutePath}`);
+    }
+    if (candidate.managedKind === "directory" && candidate.baselineKind !== "directory") {
+      throw new Error(`unsupported directory type change: ${absolutePath}`);
     }
     candidate.relativePath = relativePath;
   }
@@ -292,30 +236,29 @@ export async function captureSnapshot(
   runner?: CommandRunner,
 ): Promise<void> {
   const runtime = snapshotRuntime(session);
-  const absentCandidates: CandidateTarget[] = [];
+  const existing: string[] = [];
+  const absent: string[] = [];
 
   for (const candidate of candidates.values()) {
-    if (candidate.baselineKind === "file" || candidate.baselineKind === "symlink") {
-      requireSuccess(
-        runChezmoi(runtime, ["add", candidate.absolutePath], runner),
-        `capture ${candidate.absolutePath}`,
-      );
-      candidate.snapshotCovered = true;
-      continue;
+    if (candidate.baselineKind === undefined || candidate.relativePath === undefined) {
+      throw new Error(`target was not inspected: ${candidate.absolutePath}`);
     }
-    if (candidate.baselineKind === "absent" && candidate.managedKind !== "directory") {
-      validateSafeRemovalPath(candidate.relativePath!);
-      absentCandidates.push(candidate);
+    if (candidate.baselineKind === "absent") {
+      validateSafeRemovalPath(candidate.relativePath);
+      absent.push(candidate.relativePath);
+    } else {
+      existing.push(candidate.absolutePath);
     }
   }
 
-  if (absentCandidates.length > 0) {
-    const target = path.join(session.snapshotSourceDir, ".chezmoiremove");
-    const temporary = `${target}.tmp`;
-    const absentPaths = absentCandidates.map((candidate) => candidate.relativePath!).sort();
-    await fs.writeFile(temporary, `${absentPaths.join("\n")}\n`, { mode: 0o600 });
-    await fs.rename(temporary, target);
-    for (const candidate of absentCandidates) candidate.snapshotCovered = true;
+  // https://www.chezmoi.io/reference/commands/add/#-r---recursive
+  runForTargets(runtime, ["add", "--recursive=false"], existing, runner);
+  if (absent.length > 0) {
+    await fs.writeFile(
+      path.join(session.snapshotSourceDir, ".chezmoiremove"),
+      `${absent.sort().join("\n")}\n`,
+      { mode: 0o600 },
+    );
   }
 
   requireSuccess(runChezmoi(runtime, ["verify"], runner), "verify captured snapshot");
@@ -360,13 +303,17 @@ function buildSessionPaths(
   };
 }
 
+// Only capture-time scaffolding is tracked here; recovery data stays in chezmoi's source.
+const createdStateRoots = new WeakMap<SessionPaths, string>();
+
 export async function createActiveSession(
   sessionBase: string,
   worktreeRoot: string,
   destinationDir: string,
 ): Promise<SessionPaths> {
   const session = buildSessionPaths(sessionBase, worktreeRoot, destinationDir);
-  await fs.mkdir(sessionBase, { mode: 0o700, recursive: true });
+  const createdRoot = await fs.mkdir(sessionBase, { mode: 0o700, recursive: true });
+  if (createdRoot !== undefined) createdStateRoots.set(session, createdRoot);
   try {
     await fs.mkdir(session.activeDir, { mode: 0o700, recursive: false });
   } catch (error) {
@@ -489,6 +436,19 @@ export async function markSessionReady(session: SessionPaths): Promise<void> {
 
 export async function removeActiveSession(session: SessionPaths): Promise<void> {
   await fs.rm(session.activeDir, { force: true, recursive: true });
+  const createdRoot = createdStateRoots.get(session);
+  if (createdRoot === undefined) return;
+  let directory = path.dirname(session.activeDir);
+  while (isPathInside(createdRoot, directory)) {
+    try {
+      await fs.rmdir(directory);
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === "ENOTEMPTY" || code === "EEXIST") return;
+      if (code !== "ENOENT") throw error;
+    }
+    directory = path.dirname(directory);
+  }
 }
 
 export async function revertActiveSession(options: {
@@ -505,12 +465,18 @@ export async function revertActiveSession(options: {
       runChezmoi(runtime, ["status", "--path-style", "absolute"], options.runner),
       "read snapshot status",
     );
-    const divergent = parseStatus(status.stdout.toString("utf8"));
-    const lines = divergent.map(({ action, absolutePath }) => `${action} ${absolutePath}`);
+    const lines = status.stdout.toString("utf8").trimEnd().split("\n").filter(Boolean);
 
     if (!options.automatic && !(await options.confirm(lines))) {
       throw new Error("revert cancelled");
     }
+
+    await inspectCandidates(await enumerateCandidates(runtime, options.runner), {
+      destinationDir: options.session.destinationDir,
+      sessionDir: options.session.activeDir,
+      worktreeRoot: options.session.worktreeRoot,
+      restoring: true,
+    });
 
     requireSuccess(
       runChezmoi(runtime, ["--force", "apply"], options.runner),
@@ -518,6 +484,7 @@ export async function revertActiveSession(options: {
     );
     requireSuccess(runChezmoi(runtime, ["verify"], options.runner), "verify restored snapshot");
     await removeActiveSession(options.session);
+    process.stderr.write("Restored and verified the pre-test dotfiles.\n");
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(
@@ -552,15 +519,31 @@ export async function runLiveApply(options: {
     await stageWorktreeSource(sourceDir, session);
     await validateStagedSource(session.stagedSourceDir);
     const candidates = await enumerateCandidates(stagedRuntime(session), options.runner);
+    const createdRoot = createdStateRoots.get(session);
+    for (const target of candidates.keys()) {
+      if (
+        createdRoot !== undefined &&
+        isPathInside(createdRoot, target) &&
+        isPathInside(target, session.activeDir)
+      ) {
+        throw new Error(
+          `recovery storage created a managed target: ${target}; create ${options.sessionBase} before retrying`,
+        );
+      }
+    }
+    if (candidates.size === 0) {
+      process.stderr.write("No supported managed targets to apply.\n");
+      return;
+    }
     const normalSourceDir = resolveNormalSourceCheckout(options.worktreeRoot, options.runner);
-    await inspectCandidates(candidates, {
+    const preflight = {
       destinationDir: options.destinationDir,
       normalSourceDir,
       sessionDir: session.activeDir,
       worktreeRoot: options.worktreeRoot,
-    });
+    };
+    await inspectCandidates(candidates, preflight);
     await captureSnapshot(session, candidates, options.runner);
-    await markSessionReady(session);
 
     const status = requireSuccess(
       runChezmoi(
@@ -576,22 +559,27 @@ export async function runLiveApply(options: {
       ),
       "read staged status",
     );
-    const planned = parseStatus(status.stdout.toString("utf8"));
-    validateCoverage(planned, candidates);
-
-    if (planned.length === 0) {
-      await removeActiveSession(session);
-      return;
-    }
-    if (!(await confirmPaths(planned, options.yes, options.question))) {
-      await removeActiveSession(session);
-      return;
+    if (!options.yes) {
+      const preview = status.stdout.toString("utf8").trimEnd() || "Managed targets already match.";
+      const answer = await options.question(`${preview}\nApply these targets to HOME? [y/N] `);
+      if (answer.trim().toLowerCase() !== "y") return;
     }
 
+    // The user may have edited a target while the confirmation prompt was open.
+    await inspectCandidates(candidates, preflight);
+    requireSuccess(
+      runChezmoi(snapshotRuntime(session), ["verify"], options.runner),
+      "baseline changed before apply; retry worktree:apply",
+    );
+    await markSessionReady(session);
     applyStarted = true;
     try {
-      const applied = await applyPlannedChanges(stagedRuntime(session), planned, options.runner);
-      requireSuccess(applied, "apply worktree");
+      runForTargets(
+        stagedRuntime(session),
+        ["--force", "apply", "--recursive=false", "--exclude", "scripts,externals,encrypted"],
+        [...candidates.keys()],
+        options.runner,
+      );
     } catch (applyError) {
       try {
         await revertActiveSession({
@@ -608,8 +596,10 @@ export async function runLiveApply(options: {
       }
       throw applyError;
     }
-  } catch (error) {
+    process.stderr.write(
+      `Worktree applied. Snapshot: ${session.snapshotSourceDir}\nRun pnpm run worktree:revert to restore.\n`,
+    );
+  } finally {
     if (!applyStarted) await removeActiveSession(session);
-    throw error;
   }
 }

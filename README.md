@@ -10,6 +10,58 @@ chezmoi diff
 chezmoi apply
 ```
 
+## Test a Worktree in Your Home Directory
+
+From the worktree you want to test:
+
+```bash
+pnpm run worktree:diff
+pnpm run worktree:apply
+# Open nvim, tmux, shells, and other applications normally.
+pnpm run worktree:revert
+```
+
+Both apply and revert show changed paths and ask for confirmation. Add `--yes` to
+skip the prompt. Your normal HOME, XDG variables, and application commands stay the same.
+Reload or restart applications as needed after applying and reverting.
+
+Apply captures the current managed targets with
+[`chezmoi add --recursive=false`](https://www.chezmoi.io/reference/commands/add/),
+records missing targets in [`.chezmoiremove`](https://www.chezmoi.io/reference/special-files/chezmoiremove/),
+and verifies that this temporary source represents the baseline before applying the worktree.
+Revert applies that snapshot and runs [`chezmoi verify`](https://www.chezmoi.io/reference/commands/verify/).
+The baseline is your actual files, including local edits. Revert overwrites edits to
+those captured targets made during testing.
+
+Only one session can be active. Apply prints the snapshot location; it stays on disk
+until restoration succeeds, including across terminal restarts. If apply fails, the
+wrapper attempts automatic recovery. If recovery or verification fails, fix the reported
+problem and run `pnpm run worktree:revert` again. Keep the worktree until you have reverted.
+
+Supported recovery covers regular file contents, symlink targets, directory presence,
+and permissions that chezmoi can represent. New managed files and directories are removed
+on revert. If a new directory contains an uncaptured file, revert stops and keeps the
+snapshot; move that file elsewhere and retry.
+
+To keep recovery predictable, live testing rejects scripts, modify scripts, externals,
+encrypted sources, exact directories, source filesystem symlinks, hard-linked targets,
+special filesystem nodes, directory type replacements, and symlinked target ancestors.
+Baselines that fail native verification are rejected before apply. This does not restore
+running process state, plugin installations, caches, ownership, ACLs, extended attributes,
+or timestamps. Use these commands sequentially, and stop applications that write managed
+configs before reverting.
+
+Use trusted templates: chezmoi evaluates them while inspecting source state, and template
+commands can have side effects outside the captured targets. The wrapper is not a sandbox.
+
+Snapshots are private local files under `chezmoi-worktree-test/active` in the platform's
+state directory: `${XDG_STATE_HOME:-~/.local/state}` on Linux,
+`~/Library/Application Support` on macOS, or `%LOCALAPPDATA%` on Windows.
+No additional backup tool or custom backup format is required.
+The state folder can remain after a successful session. If creating recovery storage would
+create an otherwise missing managed directory, apply stops; initialize the state folder
+shown in the error before retrying.
+
 ## Where To Edit
 
 - Neovim: `home/.shared-configs/nvim/`
