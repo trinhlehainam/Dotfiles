@@ -172,6 +172,41 @@ describe("active session lifecycle", () => {
     await expect(fs.stat(session.activeDir)).rejects.toMatchObject({ code: "ENOENT" });
     expect(await fs.readFile(sibling, "utf8")).toBe("keep\n");
   });
+
+  test("prunes created state ancestors after reopening a session", async () => {
+    const root = await makeTempRoot("worktree-session-test-");
+    const createdRoot = path.join(root, "created");
+    const base = path.join(createdRoot, "state");
+    const session = await createActiveSession(base, "/repo", "/home/u");
+    await markSessionReady(session);
+
+    await removeActiveSession(await openActiveSession(base, "/repo", "/home/u"));
+
+    await expect(fs.stat(createdRoot)).rejects.toMatchObject({ code: "ENOENT" });
+    expect(await fs.readdir(root)).toEqual([]);
+  });
+
+  test.each(["relative", "outside", "filesystem root", "unnormalized"])(
+    "rejects a %s cleanup root in session metadata",
+    async (kind) => {
+      const base = await makeTempRoot("worktree-session-test-");
+      const session = await createActiveSession(base, "/repo", "/home/u");
+      await markSessionReady(session);
+      const metadataFile = path.join(session.activeDir, "session.json");
+      const metadata = JSON.parse(await fs.readFile(metadataFile, "utf8"));
+      metadata.createdRoot = {
+        relative: "..",
+        outside: `${base}-outside`,
+        "filesystem root": path.parse(base).root,
+        unnormalized: `${base}${path.sep}..${path.sep}${path.basename(base)}`,
+      }[kind];
+      await fs.writeFile(metadataFile, JSON.stringify(metadata));
+
+      await expect(openActiveSession(base, "/repo", "/home/u"))
+        .rejects.toThrow("invalid session cleanup root");
+      expect((await fs.stat(session.activeDir)).isDirectory()).toBeTrue();
+    },
+  );
 });
 
 test("projects staged and snapshot runtimes without changing destination state", async () => {

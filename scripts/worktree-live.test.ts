@@ -228,33 +228,44 @@ describe("worktree apply and revert with real chezmoi", () => {
   realTest("preserves the original baseline across separate apply and revert processes", async () => {
     const fixture = await makeFixture({ dot_configfile: "first\n" });
     await fs.writeFile(path.join(fixture.home, ".configfile"), "baseline\n");
-    const run = async (command: "apply" | "revert") => {
-      const options = {
-        destinationDir: fixture.home, sessionBase: fixture.sessionBase,
-        worktreeRoot: fixture.worktree, yes: true,
-      };
-      const script = `
-        import { runLiveCliCommand } from ${JSON.stringify(import.meta.path.replace("worktree-live.test.ts", "worktree-dev.ts"))};
-        await runLiveCliCommand(${JSON.stringify(command)}, {
-          ...${JSON.stringify(options)}, question: async () => "y",
-        });
-      `;
-      const child = Bun.spawn([process.execPath, "-e", script], { stdout: "ignore", stderr: "pipe" });
-      const [stderr, exitCode] = await Promise.all([new Response(child.stderr).text(), child.exited]);
-      if (exitCode !== 0) throw new Error(stderr);
-    };
 
-    await run("apply");
+    await runLiveProcess(fixture, "apply");
     const snapshot = await readSnapshot(fixture);
     await fs.writeFile(path.join(fixture.source, "dot_configfile"), "second\n");
-    await run("apply");
+    await runLiveProcess(fixture, "apply");
     expect(await fs.readFile(path.join(fixture.home, ".configfile"), "utf8")).toBe("second\n");
     expect(await readSnapshot(fixture)).toEqual(snapshot);
-    await run("revert");
+    await runLiveProcess(fixture, "revert");
     expect(await fs.readFile(path.join(fixture.home, ".configfile"), "utf8")).toBe("baseline\n");
     await expectAbsent(fixture.activeDir);
     await expectAbsent(path.join(fixture.sessionBase, "operation"));
   });
+
+  realTest.each(["new", "preexisting", "nonempty"])(
+    "prunes only created empty state directories across processes (%s parent)",
+    async (parentState) => {
+      const fixture = await makeFixture({ dot_created: "worktree\n" });
+      const parent = path.join(fixture.home, ".local");
+      fixture.sessionBase = path.join(parent, "state", "chezmoi-worktree-test");
+      fixture.activeDir = path.join(fixture.sessionBase, "active");
+      if (parentState === "preexisting") await fs.mkdir(parent);
+
+      await runLiveProcess(fixture, "apply");
+      if (parentState === "nonempty") await fs.writeFile(path.join(parent, "keep"), "keep\n");
+      await runLiveProcess(fixture, "revert");
+
+      await expectAbsent(path.join(fixture.home, ".created"));
+      await expectAbsent(path.join(parent, "state"));
+      if (parentState === "new") {
+        await expectAbsent(parent);
+      } else {
+        expect(await fs.readdir(parent)).toEqual(parentState === "nonempty" ? ["keep"] : []);
+        if (parentState === "nonempty") {
+          expect(await fs.readFile(path.join(parent, "keep"), "utf8")).toBe("keep\n");
+        }
+      }
+    },
+  );
 
   realTest("allows an empty repeat and later reintroduction of an originally captured target", async () => {
     const fixture = await makeFixture({ dot_created: "first\n" });
@@ -481,6 +492,7 @@ describe("worktree apply and revert with real chezmoi", () => {
     expect(await fs.readFile(target, "utf8")).toBe("baseline\n");
     await expectAbsent(path.join(fixture.home, ".newdir"));
     await expectAbsent(fixture.activeDir);
+    await expectAbsent(fixture.sessionBase);
   });
 
   realTest("keeps the snapshot when automatic recovery fails and allows manual retry", async () => {
@@ -694,6 +706,22 @@ async function apply(
 async function revert(fixture: Fixture): Promise<void> {
   const session = await openActiveSession(fixture.sessionBase, fixture.worktree, fixture.home);
   await revertActiveSession({ confirm: async () => true, session });
+}
+
+async function runLiveProcess(fixture: Fixture, command: "apply" | "revert"): Promise<void> {
+  const options = {
+    destinationDir: fixture.home, sessionBase: fixture.sessionBase,
+    worktreeRoot: fixture.worktree, yes: true,
+  };
+  const script = `
+    import { runLiveCliCommand } from ${JSON.stringify(import.meta.path.replace("worktree-live.test.ts", "worktree-dev.ts"))};
+    await runLiveCliCommand(${JSON.stringify(command)}, {
+      ...${JSON.stringify(options)}, question: async () => "y",
+    });
+  `;
+  const child = Bun.spawn([process.execPath, "-e", script], { stdout: "ignore", stderr: "pipe" });
+  const [stderr, exitCode] = await Promise.all([new Response(child.stderr).text(), child.exited]);
+  if (exitCode !== 0) throw new Error(stderr);
 }
 
 async function expectAbsent(target: string): Promise<void> {

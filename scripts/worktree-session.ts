@@ -27,6 +27,7 @@ export type SessionPaths = {
   activeDir: string;
   cacheDir: string;
   configFile: string;
+  createdRoot?: string;
   destinationDir: string;
   persistentStateFile: string;
   readyFile: string;
@@ -306,17 +307,16 @@ function buildSessionPaths(
   };
 }
 
-// Only capture-time scaffolding is tracked here; recovery data stays in chezmoi's source.
-const createdStateRoots = new WeakMap<SessionPaths, string>();
-
 export async function createActiveSession(
   sessionBase: string,
   worktreeRoot: string,
   destinationDir: string,
+  createdRoot?: string,
 ): Promise<SessionPaths> {
   const session = buildSessionPaths(sessionBase, worktreeRoot, destinationDir);
-  const createdRoot = await fs.mkdir(sessionBase, { mode: 0o700, recursive: true });
-  if (createdRoot !== undefined) createdStateRoots.set(session, createdRoot);
+  const newlyCreatedRoot = await fs.mkdir(sessionBase, { mode: 0o700, recursive: true });
+  createdRoot ??= newlyCreatedRoot;
+  if (createdRoot !== undefined) session.createdRoot = path.resolve(createdRoot);
   try {
     await fs.mkdir(session.activeDir, { mode: 0o700, recursive: false });
   } catch (error) {
@@ -332,6 +332,7 @@ export async function createActiveSession(
     await fs.writeFile(
       path.join(session.activeDir, "session.json"),
       JSON.stringify({
+        createdRoot: session.createdRoot,
         destinationDir: path.resolve(destinationDir),
         worktreeRoot: path.resolve(worktreeRoot),
       }),
@@ -359,7 +360,21 @@ export async function openActiveSession(
   if (typeof identity.worktreeRoot !== "string" || !path.isAbsolute(identity.worktreeRoot)) {
     throw new Error(`invalid session owner: ${session.activeDir}`);
   }
-  return buildSessionPaths(sessionBase, identity.worktreeRoot, destinationDir);
+  if (identity.createdRoot !== undefined) {
+    const createdRoot = identity.createdRoot;
+    if (
+      typeof createdRoot !== "string" ||
+      !path.isAbsolute(createdRoot) ||
+      path.normalize(createdRoot) !== createdRoot ||
+      createdRoot === path.parse(createdRoot).root ||
+      !isPathInside(createdRoot, path.resolve(sessionBase))
+    ) {
+      throw new Error(`invalid session cleanup root: ${session.activeDir}`);
+    }
+    session.createdRoot = createdRoot;
+  }
+  session.worktreeRoot = identity.worktreeRoot;
+  return session;
 }
 
 export function stagedRuntime(session: SessionPaths): ChezmoiRuntime {
@@ -466,7 +481,7 @@ export async function markSessionReady(session: SessionPaths): Promise<void> {
 
 export async function removeActiveSession(session: SessionPaths): Promise<void> {
   await fs.rm(session.activeDir, { force: true, recursive: true });
-  await removeCreatedParents(path.dirname(session.activeDir), createdStateRoots.get(session));
+  await removeCreatedParents(path.dirname(session.activeDir), session.createdRoot);
 }
 
 async function removeCreatedParents(directory: string, createdRoot?: string): Promise<void> {
@@ -496,16 +511,20 @@ async function requireReadySession(session: SessionPaths): Promise<void> {
   }
 }
 
+type SessionCleanup = { createdRoot: string | undefined };
+
 async function withOperationLock(
   sessionBase: string,
-  operation: (createdRoot: string | undefined) => Promise<void>,
+  operation: (cleanup: SessionCleanup) => Promise<void>,
 ): Promise<void> {
-  const createdRoot = await fs.mkdir(sessionBase, { mode: 0o700, recursive: true });
+  const cleanup: SessionCleanup = {
+    createdRoot: await fs.mkdir(sessionBase, { mode: 0o700, recursive: true }),
+  };
   const lockDir = path.join(sessionBase, "operation");
   try {
     await fs.mkdir(lockDir, { mode: 0o700 });
   } catch (error) {
-    await removeCreatedParents(sessionBase, createdRoot);
+    await removeCreatedParents(sessionBase, cleanup.createdRoot);
     if ((error as NodeJS.ErrnoException).code === "EEXIST") {
       throw new Error(
         `worktree operation already in progress; if interrupted, stop all worktree commands, then remove only ${lockDir}; keep the active snapshot`,
@@ -514,10 +533,12 @@ async function withOperationLock(
     throw error;
   }
   try {
-    await operation(createdRoot);
+    await operation(cleanup);
   } finally {
     await fs.rmdir(lockDir);
-    await removeCreatedParents(sessionBase, createdRoot);
+    // A reopened session supplies its original boundary even if the operation throws.
+    // Prune after unlocking, since the lock itself keeps the state directory nonempty.
+    await removeCreatedParents(sessionBase, cleanup.createdRoot);
   }
 }
 
@@ -548,10 +569,11 @@ export async function revertActiveSession(options: {
   runner?: CommandRunner;
 }): Promise<void> {
   const { session: requested, runner } = options;
-  await withOperationLock(path.dirname(requested.activeDir), async () => {
+  await withOperationLock(path.dirname(requested.activeDir), async (cleanup) => {
     const session = await openActiveSession(
       path.dirname(requested.activeDir), requested.worktreeRoot, requested.destinationDir,
     );
+    cleanup.createdRoot = session.createdRoot ?? cleanup.createdRoot;
     const status = requireSuccess(
       runChezmoi(snapshotRuntime(session), ["status", "--path-style", "absolute"], runner),
       "read snapshot status",
@@ -575,13 +597,14 @@ export async function runLiveApply(options: {
   worktreeRoot: string;
   yes: boolean;
 }): Promise<void> {
-  await withOperationLock(options.sessionBase, (createdRoot) => applyWorktree(options, createdRoot));
+  await withOperationLock(options.sessionBase, (cleanup) => applyWorktree(options, cleanup));
 }
 
 async function applyWorktree(
   options: Parameters<typeof runLiveApply>[0],
-  createdRoot: string | undefined,
+  cleanup: SessionCleanup,
 ): Promise<void> {
+  const { createdRoot } = cleanup;
   const sourceDir = resolveSourceStateRoot(options.worktreeRoot);
   const activeDir = path.join(options.sessionBase, "active");
   let reapplying = true;
@@ -593,7 +616,8 @@ async function applyWorktree(
   }
   const session = reapplying
     ? await openActiveSession(options.sessionBase, options.worktreeRoot, options.destinationDir)
-    : await createActiveSession(options.sessionBase, options.worktreeRoot, options.destinationDir);
+    : await createActiveSession(options.sessionBase, options.worktreeRoot, options.destinationDir, createdRoot);
+  cleanup.createdRoot = session.createdRoot ?? cleanup.createdRoot;
   if (path.resolve(session.worktreeRoot) !== path.resolve(options.worktreeRoot)) {
     throw new Error(`HOME has an active test session owned by ${session.worktreeRoot}; run pnpm run worktree:revert before applying another worktree`);
   }
