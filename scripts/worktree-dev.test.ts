@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { promises as fs, readFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
 import {
   buildNonLiveCommandArgs,
@@ -11,6 +13,46 @@ import {
 } from "./worktree-dev.ts";
 import type { ChezmoiRuntime, CommandResult } from "./worktree-runtime.ts";
 import type { SessionPaths } from "./worktree-session.ts";
+
+const realChezmoiTest = Bun.which("chezmoi") ? test : test.skip;
+
+realChezmoiTest("prints a complete diff larger than the default subprocess buffer", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "worktree-large-diff-test-"));
+  try {
+    const source = path.join(root, "home");
+    const destination = path.join(root, "destination");
+    await fs.mkdir(path.join(source, ".shared-configs/nvim"), { recursive: true });
+    await fs.mkdir(path.join(source, ".shared-configs/yazi"), { recursive: true });
+    await fs.mkdir(destination);
+    await fs.writeFile(path.join(source, ".chezmoiignore"), ".shared-configs\n");
+    const contents = "large diff line\n".repeat(150_000) + "end of large diff\n";
+    await fs.writeFile(path.join(source, "dot_large"), contents);
+    const script = `
+      import { runWorktreeCommand } from ${JSON.stringify(import.meta.path.replace(".test.ts", ".ts"))};
+      const result = await runWorktreeCommand("diff", ${JSON.stringify(root)}, ${JSON.stringify(destination)});
+      if (result.error) throw result.error;
+      process.stdout.write(result.stdout);
+      process.stderr.write(result.stderr);
+      process.exitCode = result.status ?? 1;
+    `;
+    const child = Bun.spawn([process.execPath, "-e", script], {
+      env: { ...process.env, PAGER: "", CHEZMOI_PAGER: "" },
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const [stdout, stderr, exitCode] = await Promise.all([
+      new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited,
+    ]);
+
+    expect(stderr).not.toContain("ENOBUFS");
+    expect(exitCode).toBe(0);
+    expect(stdout.length).toBeGreaterThan(contents.length);
+    expect(stdout).toContain("+end of large diff");
+    expect((await fs.readdir(root)).sort()).toEqual(["destination", "home"]);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
 
 test.each([
   ["context", ["execute-template", "{{ .chezmoi.workingTree }}|{{ .chezmoi.sourceDir }}"]],

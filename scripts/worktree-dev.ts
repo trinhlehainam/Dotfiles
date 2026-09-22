@@ -11,6 +11,7 @@ import {
   createEphemeralRuntime,
   removeEphemeralRuntime,
   runChezmoi,
+  streamCommand,
   type CommandResult,
 } from "./worktree-runtime.ts";
 import {
@@ -131,7 +132,7 @@ type WorktreeCommandDependencies = {
 const defaultWorktreeCommandDependencies: WorktreeCommandDependencies = {
   reconcile: reconcileAllTools,
   createRuntime: createEphemeralRuntime,
-  run: runChezmoi,
+  run: (runtime, args) => runChezmoi(runtime, args, streamCommand),
   removeRuntime: removeEphemeralRuntime,
 };
 
@@ -190,7 +191,11 @@ export async function runWorktreeCommand(
   dependencies: WorktreeCommandDependencies = defaultWorktreeCommandDependencies,
 ): Promise<CommandResult> {
   const sourceDir = resolveSourceStateRoot(worktreeRoot);
-  await dependencies.reconcile({ repoRoot: worktreeRoot, sourceStateRoot: sourceDir });
+  await dependencies.reconcile({
+    hostHome: destinationDir,
+    repoRoot: worktreeRoot,
+    sourceStateRoot: sourceDir,
+  });
   const runtime = await dependencies.createRuntime({
     destinationDir,
     sourceDir,
@@ -311,8 +316,6 @@ async function main(): Promise<void> {
   }
 
   const result = await runWorktreeCommand(parsed.command, worktree, destinationDir);
-  process.stdout.write(result.stdout);
-  process.stderr.write(result.stderr);
   handleSpawnResult(result);
 }
 

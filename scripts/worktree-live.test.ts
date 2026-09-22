@@ -3,6 +3,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
+import { runWorktreeCommand } from "./worktree-dev.ts";
 import { runCommand, type CommandRunner } from "./worktree-runtime.ts";
 import {
   createActiveSession,
@@ -114,7 +115,7 @@ describe("worktree apply and revert with real chezmoi", () => {
     const unknown = path.join(fixture.home, ".newdir/user-file");
     await fs.writeFile(unknown, "keep me\n");
 
-    await expect(revert(fixture)).rejects.toThrow();
+    await expect(revert(fixture)).rejects.toThrow("cannot revert directory containing uncaptured path");
 
     expect(await fs.readFile(unknown, "utf8")).toBe("keep me\n");
     expect(await fs.readFile(path.join(fixture.home, ".newdir/nested/config"), "utf8"))
@@ -136,7 +137,7 @@ describe("worktree apply and revert with real chezmoi", () => {
     await fs.rename(path.join(fixture.home, ".config"), savedConfig);
     await fs.symlink(outside, path.join(fixture.home, ".config"), "dir");
 
-    await expect(revert(fixture)).rejects.toThrow();
+    await expect(revert(fixture)).rejects.toThrow("unsupported directory type change");
 
     expect(await fs.readFile(path.join(outside, "app/config"), "utf8"))
       .toBe("outside untouched\n");
@@ -186,6 +187,44 @@ describe("worktree apply and revert with real chezmoi", () => {
 
     await expectAbsent(path.join(fixture.home, ".created"));
     expect((await fs.stat(fixture.activeDir)).isDirectory()).toBeTrue();
+  });
+
+  for (const changedContext of ["destination", "worktree"] as const) {
+    realTest(`rejects recovery from a different ${changedContext} and preserves the snapshot`, async () => {
+      const fixture = await makeFixture({ dot_configfile: "worktree\n" });
+      const target = path.join(fixture.home, ".configfile");
+      await fs.writeFile(target, "baseline\n");
+      await apply(fixture);
+      const other = await makeFixture({ dot_configfile: "other worktree\n" });
+      const otherTarget = path.join(other.home, ".configfile");
+      await fs.writeFile(otherTarget, "other baseline\n");
+
+      await expect(openActiveSession(
+        fixture.sessionBase,
+        changedContext === "worktree" ? other.worktree : fixture.worktree,
+        changedContext === "destination" ? other.home : fixture.home,
+      )).rejects.toThrow(/destination|worktree/);
+
+      expect(await fs.readFile(target, "utf8")).toBe("worktree\n");
+      expect(await fs.readFile(otherTarget, "utf8")).toBe("other baseline\n");
+      expect((await fs.stat(fixture.activeDir)).isDirectory()).toBeTrue();
+      await revert(fixture);
+      expect(await fs.readFile(target, "utf8")).toBe("baseline\n");
+      expect(await fs.readFile(otherTarget, "utf8")).toBe("other baseline\n");
+      await expectAbsent(fixture.activeDir);
+    });
+  }
+
+  realTest("reconciles removal entries against the apply-temp destination", async () => {
+    const fixture = await makeFixture({});
+    const staleEntry = `.config/nvim/${path.basename(fixture.root)}-stale.lua`;
+    await writeTree(fixture.home, { [staleEntry]: "stale config\n" });
+    await fs.writeFile(path.join(fixture.source, ".chezmoiremove"), `${staleEntry}\n`);
+
+    const result = await runWorktreeCommand("apply-temp", fixture.worktree, fixture.home);
+
+    expect(result.status).toBe(0);
+    await expectAbsent(path.join(fixture.home, staleEntry));
   });
 
   realTest("automatically restores the baseline after apply reports failure", async () => {

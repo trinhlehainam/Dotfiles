@@ -323,9 +323,22 @@ export async function createActiveSession(
     }
     throw error;
   }
-  await fs.mkdir(session.cacheDir, { mode: 0o700 });
-  await fs.mkdir(session.snapshotSourceDir, { mode: 0o700 });
-  await fs.writeFile(session.configFile, "", { mode: 0o600 });
+  try {
+    await fs.mkdir(session.cacheDir, { mode: 0o700 });
+    await fs.mkdir(session.snapshotSourceDir, { mode: 0o700 });
+    await fs.writeFile(session.configFile, "", { mode: 0o600 });
+    await fs.writeFile(
+      path.join(session.activeDir, "session.json"),
+      JSON.stringify({
+        destinationDir: path.resolve(destinationDir),
+        worktreeRoot: path.resolve(worktreeRoot),
+      }),
+      { flag: "wx", mode: 0o600 },
+    );
+  } catch (error) {
+    await removeActiveSession(session);
+    throw error;
+  }
   return session;
 }
 
@@ -336,6 +349,13 @@ export async function openActiveSession(
 ): Promise<SessionPaths> {
   const session = buildSessionPaths(sessionBase, worktreeRoot, destinationDir);
   await fs.stat(session.activeDir);
+  const identity = JSON.parse(await fs.readFile(path.join(session.activeDir, "session.json"), "utf8"));
+  if (
+    identity?.destinationDir !== path.resolve(destinationDir) ||
+    identity?.worktreeRoot !== path.resolve(worktreeRoot)
+  ) {
+    throw new Error(`active session destination or worktree does not match: ${session.activeDir}`);
+  }
   return session;
 }
 

@@ -51,6 +51,17 @@ const defaultRunner: CommandRunner = (command, args) => {
   };
 };
 
+export const streamCommand: CommandRunner = (command, args) => {
+  const result = spawnSync(command, args, { stdio: "inherit" });
+  return {
+    error: result.error,
+    signal: result.signal,
+    status: result.status,
+    stderr: Buffer.alloc(0),
+    stdout: Buffer.alloc(0),
+  };
+};
+
 export function runChezmoi(
   runtime: ChezmoiRuntime,
   commandArgs: string[],

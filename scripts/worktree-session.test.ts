@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -98,6 +98,25 @@ test("writes ready only after explicit mark", async () => {
 });
 
 describe("active session lifecycle", () => {
+  test("cleans failed setup so a later apply can create a session", async () => {
+    const base = await fs.mkdtemp(path.join(os.tmpdir(), "worktree-session-test-"));
+    try {
+      const write = spyOn(fs, "writeFile").mockRejectedValueOnce(new Error("setup failed"));
+      try {
+        await expect(createActiveSession(base, "/repo", "/home/u")).rejects.toThrow("setup failed");
+      } finally {
+        write.mockRestore();
+      }
+
+      await expect(fs.stat(path.join(base, "active"))).rejects.toMatchObject({ code: "ENOENT" });
+      const session = await createActiveSession(base, "/repo", "/home/u");
+      expect(await fs.readFile(session.configFile, "utf8")).toBe("");
+      await removeActiveSession(session);
+    } finally {
+      await fs.rm(base, { recursive: true, force: true });
+    }
+  });
+
   test("creates the exact isolated paths with restrictive modes", async () => {
     const base = await fs.mkdtemp(path.join(os.tmpdir(), "worktree-session-test-"));
     const session = await createActiveSession(base, "/repo", "/home/u");
