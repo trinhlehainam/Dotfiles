@@ -351,13 +351,13 @@ export async function openActiveSession(
   await fs.stat(session.activeDir);
   await requireReadySession(session);
   const identity = JSON.parse(await fs.readFile(path.join(session.activeDir, "session.json"), "utf8"));
-  if (
-    identity?.destinationDir !== path.resolve(destinationDir) ||
-    identity?.worktreeRoot !== path.resolve(worktreeRoot)
-  ) {
-    throw new Error(`active session destination or worktree does not match: ${session.activeDir}`);
+  if (identity?.destinationDir !== path.resolve(destinationDir)) {
+    throw new Error(`active session destination does not match: ${session.activeDir}`);
   }
-  return session;
+  if (typeof identity.worktreeRoot !== "string" || !path.isAbsolute(identity.worktreeRoot)) {
+    throw new Error(`invalid session owner: ${session.activeDir}`);
+  }
+  return buildSessionPaths(sessionBase, identity.worktreeRoot, destinationDir);
 }
 
 export function stagedRuntime(session: SessionPaths): ChezmoiRuntime {
@@ -464,9 +464,11 @@ export async function markSessionReady(session: SessionPaths): Promise<void> {
 
 export async function removeActiveSession(session: SessionPaths): Promise<void> {
   await fs.rm(session.activeDir, { force: true, recursive: true });
-  const createdRoot = createdStateRoots.get(session);
+  await removeCreatedParents(path.dirname(session.activeDir), createdStateRoots.get(session));
+}
+
+async function removeCreatedParents(directory: string, createdRoot?: string): Promise<void> {
   if (createdRoot === undefined) return;
-  let directory = path.dirname(session.activeDir);
   while (isPathInside(createdRoot, directory)) {
     try {
       await fs.rmdir(directory);
@@ -492,47 +494,76 @@ async function requireReadySession(session: SessionPaths): Promise<void> {
   }
 }
 
+async function withOperationLock(
+  sessionBase: string,
+  operation: (createdRoot: string | undefined) => Promise<void>,
+): Promise<void> {
+  const createdRoot = await fs.mkdir(sessionBase, { mode: 0o700, recursive: true });
+  const lockDir = path.join(sessionBase, "operation");
+  try {
+    await fs.mkdir(lockDir, { mode: 0o700 });
+  } catch (error) {
+    await removeCreatedParents(sessionBase, createdRoot);
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+      throw new Error(
+        `worktree operation already in progress; if interrupted, stop all worktree commands, then remove only ${lockDir}; keep the active snapshot`,
+      );
+    }
+    throw error;
+  }
+  try {
+    await operation(createdRoot);
+  } finally {
+    await fs.rmdir(lockDir);
+    await removeCreatedParents(sessionBase, createdRoot);
+  }
+}
+
+async function restoreSnapshot(session: SessionPaths, runner?: CommandRunner): Promise<void> {
+  try {
+    await requireReadySession(session);
+    const runtime = snapshotRuntime(session);
+    await inspectCandidates(await enumerateCandidates(runtime, runner), {
+      destinationDir: session.destinationDir,
+      sessionDir: path.dirname(session.activeDir),
+      worktreeRoot: session.worktreeRoot,
+      restoring: true,
+    });
+    requireSuccess(runChezmoi(runtime, ["--force", "apply"], runner), "apply snapshot");
+    requireSuccess(runChezmoi(runtime, ["verify"], runner), "verify restored snapshot");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `${message}; session: ${session.activeDir}; run pnpm run worktree:revert`,
+      { cause: error },
+    );
+  }
+}
+
 export async function revertActiveSession(options: {
   automatic: boolean;
   confirm: (lines: string[]) => Promise<boolean>;
   session: SessionPaths;
   runner?: CommandRunner;
 }): Promise<void> {
-  await requireReadySession(options.session);
-
-  try {
-    const runtime = snapshotRuntime(options.session);
+  const { session: requested, runner } = options;
+  await withOperationLock(path.dirname(requested.activeDir), async () => {
+    const session = await openActiveSession(
+      path.dirname(requested.activeDir), requested.worktreeRoot, requested.destinationDir,
+    );
     const status = requireSuccess(
-      runChezmoi(runtime, ["status", "--path-style", "absolute"], options.runner),
+      runChezmoi(snapshotRuntime(session), ["status", "--path-style", "absolute"], runner),
       "read snapshot status",
     );
     const lines = status.stdout.toString("utf8").trimEnd().split("\n").filter(Boolean);
-
+    lines.unshift(`Session owner: ${session.worktreeRoot}`);
     if (!options.automatic && !(await options.confirm(lines))) {
       throw new Error("revert cancelled");
     }
-
-    await inspectCandidates(await enumerateCandidates(runtime, options.runner), {
-      destinationDir: options.session.destinationDir,
-      sessionDir: options.session.activeDir,
-      worktreeRoot: options.session.worktreeRoot,
-      restoring: true,
-    });
-
-    requireSuccess(
-      runChezmoi(runtime, ["--force", "apply"], options.runner),
-      "apply snapshot",
-    );
-    requireSuccess(runChezmoi(runtime, ["verify"], options.runner), "verify restored snapshot");
-    await removeActiveSession(options.session);
+    await restoreSnapshot(session, runner);
+    await removeActiveSession(session);
     process.stderr.write("Restored and verified the pre-test dotfiles.\n");
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(
-      `${message}; session: ${options.session.activeDir}; run pnpm run worktree:revert`,
-      { cause: error },
-    );
-  }
+  });
 }
 
 export async function runLiveApply(options: {
@@ -543,13 +574,29 @@ export async function runLiveApply(options: {
   worktreeRoot: string;
   yes: boolean;
 }): Promise<void> {
+  await withOperationLock(options.sessionBase, (createdRoot) => applyWorktree(options, createdRoot));
+}
+
+async function applyWorktree(
+  options: Parameters<typeof runLiveApply>[0],
+  createdRoot: string | undefined,
+): Promise<void> {
   const sourceDir = resolveSourceStateRoot(options.worktreeRoot);
-  const session = await createActiveSession(
-    options.sessionBase,
-    options.worktreeRoot,
-    options.destinationDir,
-  );
-  let applyStarted = false;
+  const activeDir = path.join(options.sessionBase, "active");
+  let reapplying = true;
+  try {
+    await fs.stat(activeDir);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    reapplying = false;
+  }
+  const session = reapplying
+    ? await openActiveSession(options.sessionBase, options.worktreeRoot, options.destinationDir)
+    : await createActiveSession(options.sessionBase, options.worktreeRoot, options.destinationDir);
+  if (path.resolve(session.worktreeRoot) !== path.resolve(options.worktreeRoot)) {
+    throw new Error(`HOME has an active test session owned by ${session.worktreeRoot}; run pnpm run worktree:revert before applying another worktree`);
+  }
+  let keepSession = reapplying;
 
   try {
     await reconcileAllTools({
@@ -557,10 +604,10 @@ export async function runLiveApply(options: {
       repoRoot: options.worktreeRoot,
       sourceStateRoot: sourceDir,
     });
+    if (reapplying) await fs.rm(session.stagedSourceDir, { force: true, recursive: true });
     await stageWorktreeSource(sourceDir, session);
     await validateStagedSource(session.stagedSourceDir);
     const candidates = await enumerateCandidates(stagedRuntime(session), options.runner);
-    const createdRoot = createdStateRoots.get(session);
     for (const target of candidates.keys()) {
       if (
         createdRoot !== undefined &&
@@ -572,7 +619,7 @@ export async function runLiveApply(options: {
         );
       }
     }
-    if (candidates.size === 0) {
+    if (candidates.size === 0 && !reapplying) {
       process.stderr.write("No supported managed targets to apply.\n");
       return;
     }
@@ -580,11 +627,29 @@ export async function runLiveApply(options: {
     const preflight = {
       destinationDir: options.destinationDir,
       normalSourceDir,
-      sessionDir: session.activeDir,
+      sessionDir: options.sessionBase,
       worktreeRoot: options.worktreeRoot,
     };
     await inspectCandidates(candidates, preflight);
-    await captureSnapshot(session, candidates, options.runner);
+    const inventoryFile = path.join(session.activeDir, "targets.json");
+    if (reapplying) {
+      let inventory: string;
+      try {
+        inventory = await fs.readFile(inventoryFile, "utf8");
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+        throw new Error("session has no target inventory; run pnpm run worktree:revert before applying again");
+      }
+      const captured = new Set<string>(JSON.parse(inventory));
+      for (const target of candidates.keys()) {
+        if (!captured.has(target)) {
+          throw new Error(`uncaptured target: ${target}; run pnpm run worktree:revert before applying new targets`);
+        }
+      }
+    } else {
+      await captureSnapshot(session, candidates, options.runner);
+      await fs.writeFile(inventoryFile, JSON.stringify([...candidates.keys()]), { flag: "wx", mode: 0o600 });
+    }
 
     const status = requireSuccess(
       runChezmoi(
@@ -602,18 +667,25 @@ export async function runLiveApply(options: {
     );
     if (!options.yes) {
       const preview = status.stdout.toString("utf8").trimEnd() || "Managed targets already match.";
-      const answer = await options.question(`${preview}\nApply these targets to HOME? [y/N] `);
+      const action = reapplying
+        ? "Restore the original baseline, then reapply this worktree to HOME?"
+        : "Apply these targets to HOME?";
+      const answer = await options.question(`${preview}\n${action} [y/N] `);
       if (answer.trim().toLowerCase() !== "y") return;
     }
 
-    // The user may have edited a target while the confirmation prompt was open.
+    if (reapplying) {
+      await restoreSnapshot(session, options.runner);
+    } else {
+      // The user may have edited a target while the confirmation prompt was open.
+      requireSuccess(
+        runChezmoi(snapshotRuntime(session), ["verify"], options.runner),
+        "baseline changed before apply; retry worktree:apply",
+      );
+    }
     await inspectCandidates(candidates, preflight);
-    requireSuccess(
-      runChezmoi(snapshotRuntime(session), ["verify"], options.runner),
-      "baseline changed before apply; retry worktree:apply",
-    );
-    await markSessionReady(session);
-    applyStarted = true;
+    if (!reapplying) await markSessionReady(session);
+    keepSession = true;
     try {
       runForTargets(
         stagedRuntime(session),
@@ -623,12 +695,8 @@ export async function runLiveApply(options: {
       );
     } catch (applyError) {
       try {
-        await revertActiveSession({
-          automatic: true,
-          confirm: async () => true,
-          runner: options.runner,
-          session,
-        });
+        await restoreSnapshot(session, options.runner);
+        await removeActiveSession(session);
       } catch (recoveryError) {
         const applyMessage = applyError instanceof Error ? applyError.message : String(applyError);
         const recoveryMessage = recoveryError instanceof Error ? recoveryError.message : String(recoveryError);
@@ -643,6 +711,6 @@ export async function runLiveApply(options: {
       `Worktree applied. Snapshot: ${session.snapshotSourceDir}\nRun pnpm run worktree:revert to restore.\n`,
     );
   } finally {
-    if (!applyStarted) await removeActiveSession(session);
+    if (!keepSession) await removeActiveSession(session);
   }
 }

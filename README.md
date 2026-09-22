@@ -17,17 +17,23 @@ From the worktree you want to test:
 ```bash
 pnpm run worktree:diff
 pnpm run worktree:apply
-# Test applications normally in your real HOME.
+# Test applications normally in your real HOME; edit configs in this worktree.
+pnpm run worktree:apply  # Reapply edits, keeping the original snapshot.
 pnpm run worktree:revert
 ```
 
-Apply saves current managed targets, including local edits, as a temporary chezmoi
-source. Revert restores that snapshot, overwrites test edits, and verifies restoration
-before deleting it.
+First apply saves managed targets, including local edits, as a temporary chezmoi source.
+Repeat apply restores that baseline before applying updated configs. Revert restores the
+state before the first apply, overwrites test edits, and verifies restoration before
+removing the snapshot.
 
-- One session at a time. Both commands ask for confirmation; `--yes` skips the prompt.
-- Keep the worktree until you revert. Stop apps that write configs before reverting;
-  reload or restart apps afterward.
+- One session per HOME. Only its owning worktree can reapply; another worktree must revert
+  the existing session first. Revert works from either worktree using the stored snapshot.
+- Target paths stay fixed during a session. Revert before adding new managed paths.
+  Paths removed from the worktree return to their original state on reapply.
+- Both commands ask for confirmation; `--yes` skips the prompt. Only one command can run
+  at a time. After an interrupted command, follow its lock-cleanup instructions.
+- Stop apps that write configs before reapplying or reverting; reload or restart afterward.
 - Failed apply triggers automatic recovery. If recovery fails, the snapshot stays at
   the printed path. Fix the reported problem and run `pnpm run worktree:revert` again.
 - If preparation was interrupted, `worktree:revert` prints cleanup instructions. Stop any

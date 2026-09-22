@@ -193,56 +193,248 @@ describe("worktree apply and revert with real chezmoi", () => {
     await expectAbsent(fixture.activeDir);
   });
 
-  realTest("rejects a second apply and preserves the first session's baseline", async () => {
+  realTest("reapplies the owner worktree and restores dropped targets without recapturing baseline", async () => {
+    const fixture = await makeFixture({
+      dot_configfile: "first worktree\n",
+      dot_dropped: "first worktree\n",
+      dot_created: "created\n",
+      "dot_newdir/nested/config": "created\n",
+    });
+    const target = path.join(fixture.home, ".configfile");
+    await writeTree(fixture.home, {
+      ".configfile": "baseline\n",
+      ".dropped": "dropped baseline\n",
+    });
+    await apply(fixture);
+    const snapshot = await readSnapshot(fixture);
+    await fs.writeFile(path.join(fixture.source, "dot_configfile"), "second worktree\n");
+    for (const dropped of ["dot_dropped", "dot_created", "dot_newdir"]) {
+      await fs.rm(path.join(fixture.source, dropped), { recursive: true });
+    }
+
+    await apply(fixture);
+
+    expect(await fs.readFile(target, "utf8")).toBe("second worktree\n");
+    expect(await fs.readFile(path.join(fixture.home, ".dropped"), "utf8"))
+      .toBe("dropped baseline\n");
+    await expectAbsent(path.join(fixture.home, ".created"));
+    await expectAbsent(path.join(fixture.home, ".newdir"));
+    expect(await readSnapshot(fixture)).toEqual(snapshot);
+    await revert(fixture);
+    expect(await fs.readFile(target, "utf8")).toBe("baseline\n");
+    await expectAbsent(fixture.activeDir);
+  });
+
+  realTest("preserves the original baseline across separate apply and revert processes", async () => {
+    const fixture = await makeFixture({ dot_configfile: "first\n" });
+    await fs.writeFile(path.join(fixture.home, ".configfile"), "baseline\n");
+    const run = async (command: "apply" | "revert") => {
+      const options = {
+        destinationDir: fixture.home, sessionBase: fixture.sessionBase,
+        worktreeRoot: fixture.worktree, yes: true,
+      };
+      const script = `
+        import { runLiveCliCommand } from ${JSON.stringify(import.meta.path.replace("worktree-live.test.ts", "worktree-dev.ts"))};
+        await runLiveCliCommand(${JSON.stringify(command)}, {
+          ...${JSON.stringify(options)}, question: async () => "y",
+        });
+      `;
+      const child = Bun.spawn([process.execPath, "-e", script], { stdout: "ignore", stderr: "pipe" });
+      const [stderr, exitCode] = await Promise.all([new Response(child.stderr).text(), child.exited]);
+      if (exitCode !== 0) throw new Error(stderr);
+    };
+
+    await run("apply");
+    const snapshot = await readSnapshot(fixture);
+    await fs.writeFile(path.join(fixture.source, "dot_configfile"), "second\n");
+    await run("apply");
+    expect(await fs.readFile(path.join(fixture.home, ".configfile"), "utf8")).toBe("second\n");
+    expect(await readSnapshot(fixture)).toEqual(snapshot);
+    await run("revert");
+    expect(await fs.readFile(path.join(fixture.home, ".configfile"), "utf8")).toBe("baseline\n");
+    await expectAbsent(fixture.activeDir);
+    await expectAbsent(path.join(fixture.sessionBase, "operation"));
+  });
+
+  realTest("allows an empty repeat and later reintroduction of an originally captured target", async () => {
+    const fixture = await makeFixture({ dot_created: "first\n" });
+    await apply(fixture);
+    const snapshot = await readSnapshot(fixture);
+    await fs.unlink(path.join(fixture.source, "dot_created"));
+    await apply(fixture);
+    await expectAbsent(path.join(fixture.home, ".created"));
+    await fs.writeFile(path.join(fixture.source, "dot_created"), "reintroduced\n");
+    await apply(fixture);
+    expect(await fs.readFile(path.join(fixture.home, ".created"), "utf8")).toBe("reintroduced\n");
+    expect(await readSnapshot(fixture)).toEqual(snapshot);
+    await revert(fixture);
+    await expectAbsent(path.join(fixture.home, ".created"));
+  });
+
+  realTest("rejects managed targets inside the operation lock directory", async () => {
+    const fixture = await makeFixture({ "dot_state/operation/file": "must not apply\n" });
+    const sessionBase = path.join(fixture.home, ".state");
+    await fs.mkdir(sessionBase);
+    await expect(runLiveApply({
+      destinationDir: fixture.home, question: async () => "y", sessionBase,
+      worktreeRoot: fixture.worktree, yes: true,
+    })).rejects.toThrow("managed target is inside session directory");
+    expect(await fs.readdir(sessionBase)).toEqual([]);
+  });
+
+  realTest("rejects new repeat-apply targets before changing HOME or the original snapshot", async () => {
+    const fixture = await makeFixture({ dot_configfile: "first worktree\n" });
+    const target = path.join(fixture.home, ".configfile");
+    await writeTree(fixture.home, {
+      ".configfile": "baseline\n",
+      ".extra": "uncaptured baseline\n",
+    });
+    await apply(fixture);
+    const snapshot = await readSnapshot(fixture);
+    await writeTree(fixture.source, {
+      dot_configfile: "second worktree\n",
+      dot_extra: "must not apply\n",
+    });
+
+    await expect(apply(fixture)).rejects.toThrow(/uncaptured|new target/);
+
+    expect(await fs.readFile(target, "utf8")).toBe("first worktree\n");
+    expect(await fs.readFile(path.join(fixture.home, ".extra"), "utf8"))
+      .toBe("uncaptured baseline\n");
+    expect(await readSnapshot(fixture)).toEqual(snapshot);
+    await revert(fixture);
+    expect(await fs.readFile(target, "utf8")).toBe("baseline\n");
+    expect(await fs.readFile(path.join(fixture.home, ".extra"), "utf8"))
+      .toBe("uncaptured baseline\n");
+  });
+
+  realTest("keeps the tested HOME and original snapshot when repeat apply is cancelled or invalid", async () => {
     const fixture = await makeFixture({ dot_configfile: "first worktree\n" });
     const target = path.join(fixture.home, ".configfile");
     await fs.writeFile(target, "baseline\n");
     await apply(fixture);
+    const snapshot = await readSnapshot(fixture);
     await fs.writeFile(path.join(fixture.source, "dot_configfile"), "second worktree\n");
 
-    await expect(apply(fixture)).rejects.toThrow("active worktree test session already exists");
+    await apply(fixture, { question: async () => "n", yes: false });
 
     expect(await fs.readFile(target, "utf8")).toBe("first worktree\n");
+    expect(await readSnapshot(fixture)).toEqual(snapshot);
+    await fs.writeFile(path.join(fixture.source, "run_bad.sh"), "exit 1\n");
+    await expect(apply(fixture)).rejects.toThrow(/unsupported/);
+    expect(await fs.readFile(target, "utf8")).toBe("first worktree\n");
+    expect(await readSnapshot(fixture)).toEqual(snapshot);
     await revert(fixture);
     expect(await fs.readFile(target, "utf8")).toBe("baseline\n");
-    await expectAbsent(fixture.activeDir);
   });
 
   realTest("reserves the session before starting apply", async () => {
     const fixture = await makeFixture({ dot_created: "worktree\n" });
     await createActiveSession(fixture.sessionBase, fixture.worktree, fixture.home);
 
-    await expect(apply(fixture)).rejects.toThrow("active worktree test session already exists");
+    await expect(apply(fixture)).rejects.toThrow("Incomplete session");
 
     await expectAbsent(path.join(fixture.home, ".created"));
     expect((await fs.stat(fixture.activeDir)).isDirectory()).toBeTrue();
   });
 
-  for (const changedContext of ["destination", "worktree"] as const) {
-    realTest(`rejects recovery from a different ${changedContext} and preserves the snapshot`, async () => {
-      const fixture = await makeFixture({ dot_configfile: "worktree\n" });
-      const target = path.join(fixture.home, ".configfile");
-      await fs.writeFile(target, "baseline\n");
-      await apply(fixture);
-      const other = await makeFixture({ dot_configfile: "other worktree\n" });
-      const otherTarget = path.join(other.home, ".configfile");
-      await fs.writeFile(otherTarget, "other baseline\n");
+  realTest("rejects recovery from a different destination and preserves the snapshot", async () => {
+    const fixture = await makeFixture({ dot_configfile: "worktree\n" });
+    const target = path.join(fixture.home, ".configfile");
+    await fs.writeFile(target, "baseline\n");
+    await apply(fixture);
+    const other = await makeFixture({ dot_configfile: "other worktree\n" });
+    const otherTarget = path.join(other.home, ".configfile");
+    await fs.writeFile(otherTarget, "other baseline\n");
 
-      await expect(openActiveSession(
-        fixture.sessionBase,
-        changedContext === "worktree" ? other.worktree : fixture.worktree,
-        changedContext === "destination" ? other.home : fixture.home,
-      )).rejects.toThrow(/destination|worktree/);
+    await expect(openActiveSession(
+      fixture.sessionBase,
+      fixture.worktree,
+      other.home,
+    )).rejects.toThrow(/destination/);
 
-      expect(await fs.readFile(target, "utf8")).toBe("worktree\n");
-      expect(await fs.readFile(otherTarget, "utf8")).toBe("other baseline\n");
-      expect((await fs.stat(fixture.activeDir)).isDirectory()).toBeTrue();
-      await revert(fixture);
-      expect(await fs.readFile(target, "utf8")).toBe("baseline\n");
-      expect(await fs.readFile(otherTarget, "utf8")).toBe("other baseline\n");
-      await expectAbsent(fixture.activeDir);
+    expect(await fs.readFile(target, "utf8")).toBe("worktree\n");
+    expect(await fs.readFile(otherTarget, "utf8")).toBe("other baseline\n");
+    expect((await fs.stat(fixture.activeDir)).isDirectory()).toBeTrue();
+    await revert(fixture);
+    expect(await fs.readFile(target, "utf8")).toBe("baseline\n");
+    expect(await fs.readFile(otherTarget, "utf8")).toBe("other baseline\n");
+    await expectAbsent(fixture.activeDir);
+  });
+
+  realTest("blocks another worktree's apply but permits it to revert the owner's snapshot", async () => {
+    const fixture = await makeFixture({ dot_configfile: "owner worktree\n" });
+    const other = await makeFixture({ dot_configfile: "other worktree\n" });
+    const target = path.join(fixture.home, ".configfile");
+    await fs.writeFile(target, "baseline\n");
+    await apply(fixture);
+    const snapshot = await readSnapshot(fixture);
+
+    await expect(runLiveApply({
+      destinationDir: fixture.home,
+      question: async () => "y",
+      sessionBase: fixture.sessionBase,
+      worktreeRoot: other.worktree,
+      yes: true,
+    })).rejects.toThrow(fixture.worktree);
+
+    expect(await fs.readFile(target, "utf8")).toBe("owner worktree\n");
+    expect(await readSnapshot(fixture)).toEqual(snapshot);
+    const session = await openActiveSession(fixture.sessionBase, other.worktree, fixture.home);
+    expect(session.worktreeRoot).toBe(fixture.worktree);
+    await revertActiveSession({ automatic: false, confirm: async () => true, session });
+    expect(await fs.readFile(target, "utf8")).toBe("baseline\n");
+    await expectAbsent(fixture.activeDir);
+  });
+
+  realTest("serializes apply and revert while repeat-apply confirmation is open", async () => {
+    const fixture = await makeFixture({ dot_configfile: "first worktree\n" });
+    const target = path.join(fixture.home, ".configfile");
+    await fs.writeFile(target, "baseline\n");
+    await apply(fixture);
+    const snapshot = await readSnapshot(fixture);
+    await fs.writeFile(path.join(fixture.source, "dot_configfile"), "second worktree\n");
+
+    await apply(fixture, {
+      yes: false,
+      question: async () => {
+        await expect(apply(fixture)).rejects.toThrow("worktree operation already in progress");
+        await expect(revert(fixture)).rejects.toThrow("worktree operation already in progress");
+        expect(await fs.readFile(target, "utf8")).toBe("first worktree\n");
+        expect(await readSnapshot(fixture)).toEqual(snapshot);
+        return "n";
+      },
     });
-  }
+
+    expect(await readSnapshot(fixture)).toEqual(snapshot);
+    await revert(fixture);
+    expect(await fs.readFile(target, "utf8")).toBe("baseline\n");
+  });
+
+  realTest("serializes apply and revert while revert confirmation is open", async () => {
+    const fixture = await makeFixture({ dot_configfile: "worktree\n" });
+    const target = path.join(fixture.home, ".configfile");
+    await fs.writeFile(target, "baseline\n");
+    await apply(fixture);
+    const snapshot = await readSnapshot(fixture);
+    const session = await openActiveSession(fixture.sessionBase, fixture.worktree, fixture.home);
+
+    await expect(revertActiveSession({
+      automatic: false,
+      session,
+      confirm: async () => {
+        await expect(apply(fixture)).rejects.toThrow("worktree operation already in progress");
+        await expect(revert(fixture)).rejects.toThrow("worktree operation already in progress");
+        expect(await fs.readFile(target, "utf8")).toBe("worktree\n");
+        expect(await readSnapshot(fixture)).toEqual(snapshot);
+        return false;
+      },
+    })).rejects.toThrow("revert cancelled");
+
+    expect(await readSnapshot(fixture)).toEqual(snapshot);
+    await revert(fixture);
+    expect(await fs.readFile(target, "utf8")).toBe("baseline\n");
+  });
 
   realTest("reconciles removal entries against the apply-temp destination", async () => {
     const fixture = await makeFixture({});
@@ -267,6 +459,27 @@ describe("worktree apply and revert with real chezmoi", () => {
       .rejects.toThrow("injected apply failure");
 
     expect(await fs.readFile(path.join(fixture.home, ".configfile"), "utf8")).toBe("baseline\n");
+    await expectAbsent(path.join(fixture.home, ".newdir"));
+    await expectAbsent(fixture.activeDir);
+  });
+
+  realTest("restores the original baseline when a repeated apply fails", async () => {
+    const fixture = await makeFixture({
+      dot_configfile: "first worktree\n",
+      "dot_newdir/config": "first worktree\n",
+    });
+    const target = path.join(fixture.home, ".configfile");
+    await fs.writeFile(target, "baseline\n");
+    await apply(fixture);
+    await writeTree(fixture.source, {
+      dot_configfile: "second worktree\n",
+      "dot_newdir/config": "second worktree\n",
+    });
+
+    await expect(apply(fixture, { runner: failAfterApply(fixture) }))
+      .rejects.toThrow("injected apply failure");
+
+    expect(await fs.readFile(target, "utf8")).toBe("baseline\n");
     await expectAbsent(path.join(fixture.home, ".newdir"));
     await expectAbsent(fixture.activeDir);
   });
@@ -418,6 +631,18 @@ async function writeTree(root: string, files: Tree): Promise<void> {
     await fs.mkdir(contents === null ? target : path.dirname(target), { recursive: true });
     if (contents !== null) await fs.writeFile(target, contents);
   }
+}
+
+async function readSnapshot(fixture: Fixture): Promise<Record<string, string | null>> {
+  const root = path.join(fixture.activeDir, "snapshot-source");
+  const contents: Record<string, string | null> = {};
+  for (const relative of await fs.readdir(root, { recursive: true })) {
+    const target = path.join(root, relative);
+    contents[relative] = (await fs.lstat(target)).isDirectory()
+      ? null
+      : (await fs.readFile(target)).toString("base64");
+  }
+  return contents;
 }
 
 async function apply(
