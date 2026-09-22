@@ -547,19 +547,28 @@ function candidateMap(
 }
 
 describe("resolveNormalSourceCheckout", () => {
-  test("resolves the normal checkout from the shared git directory", () => {
+  test("resolves the main checkout from the first worktree record", () => {
     let invocation: { args: string[]; command: string } | undefined;
     const runner: CommandRunner = (command, args) => {
       invocation = { args, command };
-      return commandResult({ stdout: Buffer.from("../normal/.git\n") });
+      return commandResult({ stdout: Buffer.from("worktree /repo/normal\0HEAD abc\0\0worktree /repo/worktree\0HEAD def\0\0") });
     };
 
     expect(resolveNormalSourceCheckout("/repo/worktree", runner)).toBe("/repo/normal");
     expect(invocation).toEqual({
       command: "git",
-      args: ["-C", "/repo/worktree", "rev-parse", "--git-common-dir"],
+      args: ["-C", "/repo/worktree", "worktree", "list", "--porcelain", "-z"],
     });
   });
+
+  test.each(["", "worktree /repo", "HEAD abc\0", "worktree relative\0"])(
+    "rejects an invalid main worktree record %s",
+    (output) => {
+      const runner: CommandRunner = () => commandResult({ stdout: Buffer.from(output) });
+      expect(() => resolveNormalSourceCheckout("/repo/worktree", runner))
+        .toThrow("invalid main worktree path from git");
+    },
+  );
 
   test("uses stable context for git resolution failures", () => {
     const runner: CommandRunner = () =>

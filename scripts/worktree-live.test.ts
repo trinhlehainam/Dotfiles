@@ -72,6 +72,35 @@ describe("worktree apply and revert with real chezmoi", () => {
     await expectAbsent(fixture.activeDir);
   });
 
+  realTest("applies and reverts a bare-repository worktree without exposing Git metadata", async () => {
+    const fixture = await makeFixture({ dot_configfile: "worktree\n" });
+    const bare = path.join(fixture.home, ".dotfiles repo");
+    const seed = path.join(fixture.root, "seed");
+    const git = (...args: string[]) => {
+      const result = Bun.spawnSync(["git", ...args]);
+      if (result.exitCode !== 0) throw new Error(result.stderr.toString());
+    };
+    git("-C", fixture.worktree, "add", ".");
+    git("-C", fixture.worktree, "-c", "user.name=Test", "-c", "user.email=test@example.invalid",
+      "-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "fixture");
+    await fs.rename(fixture.worktree, seed);
+    git("clone", "--quiet", "--bare", seed, bare);
+    git("--git-dir", bare, "worktree", "add", "--quiet", "-b", "probe", fixture.worktree);
+    await writeTree(fixture.source, { ".shared-configs/nvim": null, ".shared-configs/yazi": null });
+    const config = await fs.readFile(path.join(bare, "config"));
+    await writeTree(fixture.home, { ".configfile": "baseline\n" });
+
+    await apply(fixture);
+    expect(await fs.readFile(path.join(fixture.home, ".configfile"), "utf8")).toBe("worktree\n");
+    await revert(fixture);
+    expect(await fs.readFile(path.join(fixture.home, ".configfile"), "utf8")).toBe("baseline\n");
+
+    await writeTree(fixture.source, { "dot_dotfiles repo/config": "must not apply\n" });
+    await expect(apply(fixture)).rejects.toThrow("managed target is inside normal source directory");
+    expect(await fs.readFile(path.join(bare, "config"))).toEqual(config);
+    await expectAbsent(fixture.activeDir);
+  });
+
   realTest("removes newly created nested directories when reverting", async () => {
     const fixture = await makeFixture({ "dot_newdir/nested/config": "worktree\n" });
 

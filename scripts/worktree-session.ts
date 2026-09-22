@@ -387,11 +387,17 @@ export function resolveNormalSourceCheckout(
   runner?: CommandRunner,
 ): string {
   const result = requireSuccess(
-    runCommand("git", ["-C", worktreeRoot, "rev-parse", "--git-common-dir"], runner),
-    "resolve git common directory",
+    runCommand("git", ["-C", worktreeRoot, "worktree", "list", "--porcelain", "-z"], runner),
+    "resolve main worktree",
   );
-  const gitDir = path.resolve(worktreeRoot, result.stdout.toString("utf8").trim());
-  return path.dirname(gitDir);
+  // Git lists the main checkout (or bare repository itself) first.
+  const end = result.stdout.indexOf(0);
+  const first = result.stdout.subarray(0, end).toString("utf8");
+  const root = first.slice("worktree ".length);
+  if (end < 0 || !first.startsWith("worktree ") || !path.isAbsolute(root)) {
+    throw new Error("invalid main worktree path from git");
+  }
+  return path.normalize(root);
 }
 
 export async function stageWorktreeSource(
