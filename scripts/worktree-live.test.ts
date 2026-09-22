@@ -534,6 +534,40 @@ describe("worktree apply and revert with real chezmoi", () => {
     await expectAbsent(fixture.activeDir);
   });
 
+  realTest("rejects create-encrypted targets before changing HOME", async () => {
+    const fixture = await makeFixture({
+      dot_configfile: "worktree\n",
+      create_encrypted_dot_secret: "encrypted contents\n",
+    });
+    await fs.writeFile(path.join(fixture.home, ".configfile"), "baseline\n");
+
+    await expect(apply(fixture)).rejects.toThrow("unsupported source attribute: create_encrypted_dot_secret");
+
+    expect(await fs.readFile(path.join(fixture.home, ".configfile"), "utf8")).toBe("baseline\n");
+    await expectAbsent(path.join(fixture.home, ".secret"));
+    await expectAbsent(fixture.activeDir);
+  });
+
+  realTest("supports create files and external directories through apply and revert", async () => {
+    const fixture = await makeFixture({
+      create_dot_existing: "worktree\n",
+      create_dot_created: "created\n",
+      "external_bundle/dot_literal": "external contents\n",
+    });
+    await fs.writeFile(path.join(fixture.home, ".existing"), "baseline\n");
+
+    await apply(fixture);
+
+    expect(await fs.readFile(path.join(fixture.home, ".existing"), "utf8")).toBe("baseline\n");
+    expect(await fs.readFile(path.join(fixture.home, ".created"), "utf8")).toBe("created\n");
+    expect(await fs.readFile(path.join(fixture.home, "bundle/dot_literal"), "utf8"))
+      .toBe("external contents\n");
+    await revert(fixture);
+    expect(await fs.readFile(path.join(fixture.home, ".existing"), "utf8")).toBe("baseline\n");
+    await expectAbsent(path.join(fixture.home, ".created"));
+    await expectAbsent(path.join(fixture.home, "bundle"));
+  });
+
   realTest("cleans newly created state directories when nothing is managed", async () => {
     const fixture = await makeFixture({});
     const sessionBase = path.join(fixture.home, ".local/state/chezmoi-worktree-test");

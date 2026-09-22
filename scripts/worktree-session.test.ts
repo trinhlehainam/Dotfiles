@@ -625,6 +625,7 @@ test.each([
   ["modify_dot_file", "unsupported source attribute: modify_dot_file"],
   ["exact_dot_config", "unsupported source attribute: exact_dot_config"],
   ["encrypted_dot_secret", "unsupported source attribute: encrypted_dot_secret"],
+  ["create_encrypted_dot_secret", "unsupported source attribute: create_encrypted_dot_secret"],
   ["remove_exact_dot_cache", "unsupported source attribute: remove_exact_dot_cache"],
   ["external_exact_dot_cache", "unsupported source attribute: external_exact_dot_cache"],
   [".chezmoiscripts/run_probe", "unsupported special source path: .chezmoiscripts"],
@@ -647,11 +648,13 @@ test("accepts ordinary, remove, and literal-prefixed source components", async (
   const source = await makeTempRoot("staged-source-test-");
   for (const relativePath of [
     "dot_file",
+    "create_dot_file",
     "remove_dot_old",
     "literal_run_probe",
     "literal_modify_dot_file",
     "literal_exact_dot_config",
     "literal_encrypted_dot_secret",
+    "literal_create_encrypted_dot_secret",
   ]) {
     await writeSourceFixture(source, relativePath);
   }

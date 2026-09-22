@@ -414,7 +414,7 @@ export async function stageWorktreeSource(
   });
 }
 
-const FORBIDDEN_ATTRIBUTE = /^(?:run_|modify_|encrypted_|(?:(?:remove_|external_)*)exact_)/;
+const FORBIDDEN_ATTRIBUTE = /^(?:run_|modify_|(?:create_)?encrypted_|(?:(?:remove_|external_)*)exact_)/;
 const FORBIDDEN_SPECIAL = /^\.chezmoiexternal(?:s|\.)|^\.chezmoiscripts$/;
 
 export async function validateStagedSource(sourceDir: string): Promise<void> {
