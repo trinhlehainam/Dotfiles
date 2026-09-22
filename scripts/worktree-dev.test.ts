@@ -251,7 +251,6 @@ describe("live CLI dispatch", () => {
           return session;
         },
         revert: async (options) => {
-          calls.push(`automatic:${options.automatic}`);
           calls.push(`confirmed:${await options.confirm(["M /fake-home/.target"])}`);
           expect(options.session).toBe(session);
         },
@@ -260,7 +259,6 @@ describe("live CLI dispatch", () => {
 
     expect(calls).toEqual([
       "open:/fake-state:/repo:/fake-home",
-      "automatic:false",
       "confirmed:true",
     ]);
   });

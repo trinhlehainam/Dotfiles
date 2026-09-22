@@ -359,9 +359,9 @@ describe("candidate destination preflight", () => {
       [absentDirectory, "directory"],
     ]);
 
-    await inspectCandidates(candidates, fixture.options);
+    const inspected = await inspectCandidates(candidates, fixture.options);
 
-    expect([...candidates.values()]).toEqual([
+    expect([...inspected.values()]).toEqual([
       {
         absolutePath: regular,
         baselineKind: "file",
@@ -400,10 +400,10 @@ describe("candidate destination preflight", () => {
     const target = path.join(fixture.home, ".config", "tool", "settings.json");
     const candidates = candidateMap([[target, "file"]]);
 
-    await inspectCandidates(candidates, fixture.options);
+    const inspected = await inspectCandidates(candidates, fixture.options);
 
-    expect(candidates.get(target)?.relativePath).toBe(".config/tool/settings.json");
-    expect(candidates.get(target)?.baselineKind).toBe("absent");
+    expect(inspected.get(target)?.relativePath).toBe(".config/tool/settings.json");
+    expect(inspected.get(target)?.baselineKind).toBe("absent");
   });
 
   test("rejects a target outside the destination", async () => {

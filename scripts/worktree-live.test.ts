@@ -382,7 +382,7 @@ describe("worktree apply and revert with real chezmoi", () => {
     expect(await readSnapshot(fixture)).toEqual(snapshot);
     const session = await openActiveSession(fixture.sessionBase, other.worktree, fixture.home);
     expect(session.worktreeRoot).toBe(fixture.worktree);
-    await revertActiveSession({ automatic: false, confirm: async () => true, session });
+    await revertActiveSession({ confirm: async () => true, session });
     expect(await fs.readFile(target, "utf8")).toBe("baseline\n");
     await expectAbsent(fixture.activeDir);
   });
@@ -420,7 +420,6 @@ describe("worktree apply and revert with real chezmoi", () => {
     const session = await openActiveSession(fixture.sessionBase, fixture.worktree, fixture.home);
 
     await expect(revertActiveSession({
-      automatic: false,
       session,
       confirm: async () => {
         await expect(apply(fixture)).rejects.toThrow("worktree operation already in progress");
@@ -583,11 +582,10 @@ describe("worktree apply and revert with real chezmoi", () => {
     const session = await openActiveSession(fixture.sessionBase, fixture.worktree, fixture.home);
 
     await expect(revertActiveSession({
-      automatic: false, confirm: async () => false, session,
+      confirm: async () => false, session,
     })).rejects.toThrow("revert cancelled");
     expect(await fs.readFile(target, "utf8")).toBe("worktree\n");
     await expect(revertActiveSession({
-      automatic: false,
       confirm: async () => true,
       session,
       runner: (command, args) => {
@@ -661,7 +659,7 @@ async function apply(
 
 async function revert(fixture: Fixture): Promise<void> {
   const session = await openActiveSession(fixture.sessionBase, fixture.worktree, fixture.home);
-  await revertActiveSession({ automatic: false, confirm: async () => true, session });
+  await revertActiveSession({ confirm: async () => true, session });
 }
 
 async function expectAbsent(target: string): Promise<void> {

@@ -15,9 +15,12 @@ export type ManagedKind = "directory" | "file" | "remove" | "symlink";
 
 export type CandidateTarget = {
   absolutePath: string;
-  baselineKind?: "absent" | "directory" | "file" | "symlink";
   managedKind: ManagedKind;
-  relativePath?: string;
+};
+
+export type InspectedTarget = CandidateTarget & {
+  baselineKind: "absent" | "directory" | "file" | "symlink";
+  relativePath: string;
 };
 
 export type SessionPaths = {
@@ -135,8 +138,9 @@ export async function inspectCandidates(
     sessionDir: string;
     worktreeRoot: string;
   },
-): Promise<void> {
+): Promise<Map<string, InspectedTarget>> {
   const destinationDir = path.normalize(options.destinationDir);
+  const inspected = new Map<string, InspectedTarget>();
   const protectedRoots = [
     [options.sessionDir, "session directory"],
     [options.worktreeRoot, "worktree root"],
@@ -167,18 +171,18 @@ export async function inspectCandidates(
       targetStat = await fs.lstat(absolutePath);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-      candidate.baselineKind = "absent";
-      candidate.relativePath = relativePath;
+      inspected.set(candidate.absolutePath, { ...candidate, baselineKind: "absent", relativePath });
       continue;
     }
 
+    let baselineKind: InspectedTarget["baselineKind"];
     if (targetStat.isFile()) {
       if (targetStat.nlink > 1) {
         throw new Error(`unsupported hard-linked target: ${absolutePath}`);
       }
-      candidate.baselineKind = "file";
+      baselineKind = "file";
     } else if (targetStat.isSymbolicLink()) {
-      candidate.baselineKind = "symlink";
+      baselineKind = "symlink";
     } else if (targetStat.isDirectory()) {
       if (candidate.managedKind === "remove" && options.restoring) {
         // Removal rules delete whole directories. Never remove uncaptured contents.
@@ -193,15 +197,16 @@ export async function inspectCandidates(
           `managed non-directory target is an existing directory: ${absolutePath}`,
         );
       }
-      candidate.baselineKind = "directory";
+      baselineKind = "directory";
     } else {
       throw new Error(`unsupported destination node: ${absolutePath}`);
     }
-    if (candidate.managedKind === "directory" && candidate.baselineKind !== "directory") {
+    if (candidate.managedKind === "directory" && baselineKind !== "directory") {
       throw new Error(`unsupported directory type change: ${absolutePath}`);
     }
-    candidate.relativePath = relativePath;
+    inspected.set(candidate.absolutePath, { ...candidate, baselineKind, relativePath });
   }
+  return inspected;
 }
 
 async function rejectSymlinkedAncestors(
@@ -232,7 +237,7 @@ async function rejectSymlinkedAncestors(
 
 export async function captureSnapshot(
   session: SessionPaths,
-  candidates: Map<string, CandidateTarget>,
+  candidates: Map<string, InspectedTarget>,
   runner?: CommandRunner,
 ): Promise<void> {
   const runtime = snapshotRuntime(session);
@@ -240,9 +245,6 @@ export async function captureSnapshot(
   const absent: string[] = [];
 
   for (const candidate of candidates.values()) {
-    if (candidate.baselineKind === undefined || candidate.relativePath === undefined) {
-      throw new Error(`target was not inspected: ${candidate.absolutePath}`);
-    }
     if (candidate.baselineKind === "absent") {
       validateSafeRemovalPath(candidate.relativePath);
       absent.push(candidate.relativePath);
@@ -541,7 +543,6 @@ async function restoreSnapshot(session: SessionPaths, runner?: CommandRunner): P
 }
 
 export async function revertActiveSession(options: {
-  automatic: boolean;
   confirm: (lines: string[]) => Promise<boolean>;
   session: SessionPaths;
   runner?: CommandRunner;
@@ -557,7 +558,7 @@ export async function revertActiveSession(options: {
     );
     const lines = status.stdout.toString("utf8").trimEnd().split("\n").filter(Boolean);
     lines.unshift(`Session owner: ${session.worktreeRoot}`);
-    if (!options.automatic && !(await options.confirm(lines))) {
+    if (!(await options.confirm(lines))) {
       throw new Error("revert cancelled");
     }
     await restoreSnapshot(session, runner);
@@ -630,7 +631,7 @@ async function applyWorktree(
       sessionDir: options.sessionBase,
       worktreeRoot: options.worktreeRoot,
     };
-    await inspectCandidates(candidates, preflight);
+    const inspected = await inspectCandidates(candidates, preflight);
     const inventoryFile = path.join(session.activeDir, "targets.json");
     if (reapplying) {
       let inventory: string;
@@ -647,7 +648,7 @@ async function applyWorktree(
         }
       }
     } else {
-      await captureSnapshot(session, candidates, options.runner);
+      await captureSnapshot(session, inspected, options.runner);
       await fs.writeFile(inventoryFile, JSON.stringify([...candidates.keys()]), { flag: "wx", mode: 0o600 });
     }
 
@@ -684,6 +685,8 @@ async function applyWorktree(
       );
     }
     await inspectCandidates(candidates, preflight);
+    // Commit the verified snapshot before HOME can change. From here, retain it
+    // on failure until recovery has restored and verified the original baseline.
     if (!reapplying) await markSessionReady(session);
     keepSession = true;
     try {

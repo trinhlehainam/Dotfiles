@@ -172,7 +172,6 @@ export async function runLiveCliCommand(
     options.destinationDir,
   );
   await dependencies.revert({
-    automatic: false,
     confirm: async (lines) => {
       if (options.yes) return true;
       const answer = await options.question(
