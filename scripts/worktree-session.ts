@@ -319,7 +319,7 @@ export async function createActiveSession(
     await fs.mkdir(session.activeDir, { mode: 0o700, recursive: false });
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "EEXIST") {
-      throw new Error("an active worktree test session already exists");
+      throw new Error("an active worktree test session already exists; run pnpm run worktree:revert");
     }
     throw error;
   }
@@ -349,6 +349,7 @@ export async function openActiveSession(
 ): Promise<SessionPaths> {
   const session = buildSessionPaths(sessionBase, worktreeRoot, destinationDir);
   await fs.stat(session.activeDir);
+  await requireReadySession(session);
   const identity = JSON.parse(await fs.readFile(path.join(session.activeDir, "session.json"), "utf8"));
   if (
     identity?.destinationDir !== path.resolve(destinationDir) ||
@@ -472,13 +473,26 @@ export async function removeActiveSession(session: SessionPaths): Promise<void> 
   }
 }
 
+async function requireReadySession(session: SessionPaths): Promise<void> {
+  try {
+    await fs.stat(session.readyFile);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    // Never delete automatically: another apply may still be preparing this session.
+    throw new Error(
+      `Incomplete session. Stop any running worktree:apply process, then remove only this directory: ${session.activeDir}; retry pnpm run worktree:apply. Do not remove a session containing a ready file.`,
+      { cause: error },
+    );
+  }
+}
+
 export async function revertActiveSession(options: {
   automatic: boolean;
   confirm: (lines: string[]) => Promise<boolean>;
   session: SessionPaths;
   runner?: CommandRunner;
 }): Promise<void> {
-  await fs.stat(options.session.readyFile);
+  await requireReadySession(options.session);
 
   try {
     const runtime = snapshotRuntime(options.session);
@@ -610,8 +624,10 @@ export async function runLiveApply(options: {
           session,
         });
       } catch (recoveryError) {
+        const applyMessage = applyError instanceof Error ? applyError.message : String(applyError);
+        const recoveryMessage = recoveryError instanceof Error ? recoveryError.message : String(recoveryError);
         throw new Error(
-          `apply and automatic revert failed; run pnpm run worktree:revert; session: ${session.activeDir}`,
+          `apply and automatic revert failed\nApply: ${applyMessage}\nRecovery: ${recoveryMessage}\nRun pnpm run worktree:revert; session: ${session.activeDir}`,
           { cause: recoveryError },
         );
       }

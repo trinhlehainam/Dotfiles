@@ -30,6 +30,8 @@ before deleting it.
   reload or restart apps afterward.
 - Failed apply triggers automatic recovery. If recovery fails, the snapshot stays at
   the printed path. Fix the reported problem and run `pnpm run worktree:revert` again.
+- If preparation was interrupted, `worktree:revert` prints cleanup instructions. Stop any
+  running apply process before removing the incomplete session; never delete a ready snapshot.
 - Revert stops if a new directory contains uncaptured files. Move those files elsewhere
   and retry.
 

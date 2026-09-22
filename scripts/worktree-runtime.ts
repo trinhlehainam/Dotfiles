@@ -106,8 +106,13 @@ export async function createEphemeralRuntime(options: {
     worktreeRoot: options.worktreeRoot,
   };
 
-  await fs.mkdir(runtime.cacheDir, { mode: 0o700 });
-  await fs.writeFile(runtime.configFile, "", { mode: 0o600 });
+  try {
+    await fs.mkdir(runtime.cacheDir, { mode: 0o700 });
+    await fs.writeFile(runtime.configFile, "", { mode: 0o600 });
+  } catch (error) {
+    await fs.rm(root, { force: true, recursive: true });
+    throw error;
+  }
   runtimeRoots.set(runtime, root);
   return runtime;
 }

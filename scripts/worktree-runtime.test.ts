@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 
 import {
   buildChezmoiArgs,
@@ -152,3 +152,19 @@ describe("requireSuccess", () => {
     expect(() => requireSuccess(result)).toThrow("chezmoi: exited with status 17");
   });
 });
+
+for (const operation of ["mkdir", "writeFile"] as const) {
+  test(`cleans the temporary runtime when ${operation} fails`, async () => {
+    const parent = await fs.mkdtemp(path.join(os.tmpdir(), "worktree-runtime-test-"));
+    const failure = spyOn(fs, operation).mockRejectedValueOnce(new Error("setup failed"));
+    try {
+      await expect(createEphemeralRuntime({
+        destinationDir: parent, sourceDir: "/repo/home", tempParent: parent, worktreeRoot: "/repo",
+      })).rejects.toThrow("setup failed");
+      expect(await fs.readdir(parent)).toEqual([]);
+    } finally {
+      failure.mockRestore();
+      await fs.rm(parent, { recursive: true, force: true });
+    }
+  });
+}

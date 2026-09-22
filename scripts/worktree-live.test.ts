@@ -248,7 +248,7 @@ describe("worktree apply and revert with real chezmoi", () => {
     await fs.writeFile(target, "baseline\n");
 
     await expect(apply(fixture, { runner: failAfterApply(fixture, true) }))
-      .rejects.toThrow("apply and automatic revert failed");
+      .rejects.toThrow(/apply and automatic revert failed[\s\S]*injected apply failure[\s\S]*injected recovery failure/);
 
     expect(await fs.readFile(target, "utf8")).toBe("worktree\n");
     expect((await fs.stat(fixture.activeDir)).isDirectory()).toBeTrue();

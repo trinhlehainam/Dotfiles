@@ -1,4 +1,4 @@
-import { describe, expect, spyOn, test } from "bun:test";
+import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -87,7 +87,7 @@ test("resolves per-platform state roots", () => {
 });
 
 test("writes ready only after explicit mark", async () => {
-  const base = await fs.mkdtemp(path.join(os.tmpdir(), "worktree-session-test-"));
+  const base = await makeTempRoot("worktree-session-test-");
   const session = await createActiveSession(base, "/repo", "/home/u");
 
   await expect(fs.stat(session.readyFile)).rejects.toMatchObject({ code: "ENOENT" });
@@ -99,7 +99,7 @@ test("writes ready only after explicit mark", async () => {
 
 describe("active session lifecycle", () => {
   test("cleans failed setup so a later apply can create a session", async () => {
-    const base = await fs.mkdtemp(path.join(os.tmpdir(), "worktree-session-test-"));
+    const base = await makeTempRoot("worktree-session-test-");
     try {
       const write = spyOn(fs, "writeFile").mockRejectedValueOnce(new Error("setup failed"));
       try {
@@ -118,7 +118,7 @@ describe("active session lifecycle", () => {
   });
 
   test("creates the exact isolated paths with restrictive modes", async () => {
-    const base = await fs.mkdtemp(path.join(os.tmpdir(), "worktree-session-test-"));
+    const base = await makeTempRoot("worktree-session-test-");
     const session = await createActiveSession(base, "/repo", "/home/u");
 
     expect(session).toEqual({
@@ -141,7 +141,7 @@ describe("active session lifecycle", () => {
   });
 
   test("rejects a second active session with the stable lock error", async () => {
-    const base = await fs.mkdtemp(path.join(os.tmpdir(), "worktree-session-test-"));
+    const base = await makeTempRoot("worktree-session-test-");
     await createActiveSession(base, "/repo", "/home/u");
 
     await expect(createActiveSession(base, "/repo", "/home/u")).rejects.toThrow(
@@ -150,8 +150,9 @@ describe("active session lifecycle", () => {
   });
 
   test("opens an existing session and rejects a missing session", async () => {
-    const base = await fs.mkdtemp(path.join(os.tmpdir(), "worktree-session-test-"));
+    const base = await makeTempRoot("worktree-session-test-");
     const created = await createActiveSession(base, "/repo", "/home/u");
+    await markSessionReady(created);
 
     expect(await openActiveSession(base, "/repo", "/home/u")).toEqual(created);
     await removeActiveSession(created);
@@ -161,7 +162,7 @@ describe("active session lifecycle", () => {
   });
 
   test("removes only the exact active directory", async () => {
-    const base = await fs.mkdtemp(path.join(os.tmpdir(), "worktree-session-test-"));
+    const base = await makeTempRoot("worktree-session-test-");
     const sibling = path.join(base, "keep");
     await fs.writeFile(sibling, "keep\n");
     const session = await createActiveSession(base, "/repo", "/home/u");
@@ -174,7 +175,7 @@ describe("active session lifecycle", () => {
 });
 
 test("projects staged and snapshot runtimes without changing destination state", async () => {
-  const base = await fs.mkdtemp(path.join(os.tmpdir(), "worktree-session-test-"));
+  const base = await makeTempRoot("worktree-session-test-");
   const session = await createActiveSession(base, "/repo", "/home/u");
 
   expect(stagedRuntime(session)).toEqual({
@@ -508,7 +509,7 @@ type PreflightFixture = {
 };
 
 async function makePreflightFixture(): Promise<PreflightFixture> {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "candidate-preflight-test-"));
+  const root = await makeTempRoot("candidate-preflight-test-");
   const home = path.join(root, "home");
   const normal = path.join(home, "normal-source");
   const session = path.join(home, ".session");
@@ -573,7 +574,7 @@ describe("resolveNormalSourceCheckout", () => {
 describe("stageWorktreeSource", () => {
   test("copies the source recursively into the initially absent staged directory", async () => {
     const source = await makeSourceFixture("dot_config/tool/config.toml");
-    const base = await fs.mkdtemp(path.join(os.tmpdir(), "worktree-session-test-"));
+    const base = await makeTempRoot("worktree-session-test-");
     const session = await createActiveSession(base, "/repo", "/home/u");
 
     await stageWorktreeSource(source, session);
@@ -589,7 +590,7 @@ describe("stageWorktreeSource", () => {
   test("preserves source symlinks instead of dereferencing them", async () => {
     const source = await makeSourceFixture("dot_target");
     await fs.symlink("dot_target", path.join(source, "dot_link"));
-    const base = await fs.mkdtemp(path.join(os.tmpdir(), "worktree-session-test-"));
+    const base = await makeTempRoot("worktree-session-test-");
     const session = await createActiveSession(base, "/repo", "/home/u");
 
     await stageWorktreeSource(source, session);
@@ -599,7 +600,7 @@ describe("stageWorktreeSource", () => {
 
   test("does not overwrite an existing staged source", async () => {
     const source = await makeSourceFixture("dot_file");
-    const base = await fs.mkdtemp(path.join(os.tmpdir(), "worktree-session-test-"));
+    const base = await makeTempRoot("worktree-session-test-");
     const session = await createActiveSession(base, "/repo", "/home/u");
     await fs.mkdir(session.stagedSourceDir);
     const existingFile = path.join(session.stagedSourceDir, "dot_file");
@@ -625,7 +626,7 @@ test.each([
 });
 
 test("rejects exact directories", async () => {
-  const source = await fs.mkdtemp(path.join(os.tmpdir(), "staged-source-test-"));
+  const source = await makeTempRoot("staged-source-test-");
   await fs.mkdir(path.join(source, "exact_dot_config"));
 
   await expect(validateStagedSource(source)).rejects.toThrow(
@@ -634,7 +635,7 @@ test("rejects exact directories", async () => {
 });
 
 test("accepts ordinary, remove, and literal-prefixed source components", async () => {
-  const source = await fs.mkdtemp(path.join(os.tmpdir(), "staged-source-test-"));
+  const source = await makeTempRoot("staged-source-test-");
   for (const relativePath of [
     "dot_file",
     "remove_dot_old",
@@ -661,6 +662,7 @@ test("rejects source symlinks without following them", async () => {
 test("rejects a symlink used as the source root", async () => {
   const source = await makeSourceFixture("dot_file");
   const sourceLink = `${source}-link`;
+  tempRoots.push(sourceLink);
   await fs.symlink(source, sourceLink, "dir");
 
   await expect(validateStagedSource(sourceLink)).rejects.toThrow(
@@ -670,7 +672,7 @@ test("rejects a symlink used as the source root", async () => {
 
 test("rejects special source nodes", async () => {
   if (process.platform === "win32") return;
-  const source = await fs.mkdtemp(path.join(os.tmpdir(), "staged-source-test-"));
+  const source = await makeTempRoot("staged-source-test-");
   const fifo = path.join(source, "dot_pipe");
   const processResult = Bun.spawn(["mkfifo", fifo], { stderr: "pipe" });
   expect(await processResult.exited).toBe(0);
@@ -681,7 +683,7 @@ test("rejects special source nodes", async () => {
 });
 
 async function makeSourceFixture(relativePath: string): Promise<string> {
-  const source = await fs.mkdtemp(path.join(os.tmpdir(), "staged-source-test-"));
+  const source = await makeTempRoot("staged-source-test-");
   await writeSourceFixture(source, relativePath);
   return source;
 }
@@ -690,4 +692,35 @@ async function writeSourceFixture(source: string, relativePath: string): Promise
   const target = path.join(source, ...relativePath.split("/"));
   await fs.mkdir(path.dirname(target), { recursive: true });
   await fs.writeFile(target, "fixture\n");
+}
+
+test.each([false, true])("gives safe cleanup instructions for an incomplete session (metadata: %s)", async (withMetadata) => {
+  const base = await makeTempRoot("worktree-session-test-");
+  const active = path.join(base, "active");
+  if (withMetadata) {
+    await createActiveSession(base, "/repo", "/home/u");
+  } else {
+    await fs.mkdir(active);
+  }
+  await expect(openActiveSession(base, "/repo", "/home/u"))
+    .rejects.toThrow("Stop any running worktree:apply process");
+  await expect(openActiveSession(base, "/repo", "/home/u"))
+    .rejects.toThrow(active);
+  expect((await fs.stat(active)).isDirectory()).toBeTrue();
+  await fs.rm(active, { recursive: true });
+  const retry = await createActiveSession(base, "/repo", "/home/u");
+  await markSessionReady(retry);
+  expect(await openActiveSession(base, "/repo", "/home/u")).toEqual(retry);
+});
+
+const tempRoots: string[] = [];
+
+afterEach(async () => {
+  await Promise.all(tempRoots.splice(0).map((root) => fs.rm(root, { recursive: true, force: true })));
+});
+
+async function makeTempRoot(prefix: string): Promise<string> {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), prefix));
+  tempRoots.push(root);
+  return root;
 }
