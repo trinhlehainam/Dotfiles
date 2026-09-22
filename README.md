@@ -10,57 +10,34 @@ chezmoi diff
 chezmoi apply
 ```
 
-## Test a Worktree in Your Home Directory
+## Test a Worktree
 
 From the worktree you want to test:
 
 ```bash
 pnpm run worktree:diff
 pnpm run worktree:apply
-# Open nvim, tmux, shells, and other applications normally.
+# Test applications normally in your real HOME.
 pnpm run worktree:revert
 ```
 
-Both apply and revert show changed paths and ask for confirmation. Add `--yes` to
-skip the prompt. Your normal HOME, XDG variables, and application commands stay the same.
-Reload or restart applications as needed after applying and reverting.
+Apply saves current managed targets, including local edits, as a temporary chezmoi
+source. Revert restores that snapshot, overwrites test edits, and verifies restoration
+before deleting it.
 
-Apply captures the current managed targets with
-[`chezmoi add --recursive=false`](https://www.chezmoi.io/reference/commands/add/),
-records missing targets in [`.chezmoiremove`](https://www.chezmoi.io/reference/special-files/chezmoiremove/),
-and verifies that this temporary source represents the baseline before applying the worktree.
-Revert applies that snapshot and runs [`chezmoi verify`](https://www.chezmoi.io/reference/commands/verify/).
-The baseline is your actual files, including local edits. Revert overwrites edits to
-those captured targets made during testing.
+- One session at a time. Both commands ask for confirmation; `--yes` skips the prompt.
+- Keep the worktree until you revert. Stop apps that write configs before reverting;
+  reload or restart apps afterward.
+- Failed apply triggers automatic recovery. If recovery fails, the snapshot stays at
+  the printed path. Fix the reported problem and run `pnpm run worktree:revert` again.
+- Revert stops if a new directory contains uncaptured files. Move those files elsewhere
+  and retry.
 
-Only one session can be active. Apply prints the snapshot location; it stays on disk
-until restoration succeeds, including across terminal restarts. If apply fails, the
-wrapper attempts automatic recovery. If recovery or verification fails, fix the reported
-problem and run `pnpm run worktree:revert` again. Keep the worktree until you have reverted.
-
-Supported recovery covers regular file contents, symlink targets, directory presence,
-and permissions that chezmoi can represent. New managed files and directories are removed
-on revert. If a new directory contains an uncaptured file, revert stops and keeps the
-snapshot; move that file elsewhere and retry.
-
-To keep recovery predictable, live testing rejects scripts, modify scripts, externals,
-encrypted sources, exact directories, source filesystem symlinks, hard-linked targets,
-special filesystem nodes, directory type replacements, and symlinked target ancestors.
-Baselines that fail native verification are rejected before apply. This does not restore
-running process state, plugin installations, caches, ownership, ACLs, extended attributes,
-or timestamps. Use these commands sequentially, and stop applications that write managed
-configs before reverting.
-
-Use trusted templates: chezmoi evaluates them while inspecting source state, and template
-commands can have side effects outside the captured targets. The wrapper is not a sandbox.
-
-Snapshots are private local files under `chezmoi-worktree-test/active` in the platform's
-state directory: `${XDG_STATE_HOME:-~/.local/state}` on Linux,
-`~/Library/Application Support` on macOS, or `%LOCALAPPDATA%` on Windows.
-No additional backup tool or custom backup format is required.
-The state folder can remain after a successful session. If creating recovery storage would
-create an otherwise missing managed directory, apply stops; initialize the state folder
-shown in the error before retrying.
+Recovery covers managed file contents, symlinks, directory presence, and permissions
+chezmoi can represent. Unsupported source features and filesystem layouts are rejected.
+App state, caches, plugin installations, and other filesystem metadata are outside scope.
+Templates run during source inspection. Use trusted templates; their command side effects
+are outside recovery scope.
 
 ## Where To Edit
 
@@ -69,97 +46,35 @@ shown in the error before retrying.
 - WezTerm: `home/dot_config/wezterm/`
 - Windows configs: `home/AppData/`
 
-📁 `dot_config/` → `~/.config/`
+`home/dot_config/` maps to `~/.config/`.
 
-## How Config Wrappers Are Managed
+Neovim and Yazi templates under `home/dot_config/` and `home/AppData/` are generated.
+Edit their raw files under `.shared-configs/`; manual template edits are overwritten.
 
-**Edit source:** `home/.shared-configs/<tool>/`
+The hook in `home/.chezmoi.toml.tmpl` runs [scripts/reconcile-configs.ts](scripts/reconcile-configs.ts)
+before chezmoi reads the source. It generates include wrappers and records stale targets
+in `.chezmoiremove`. Tools and platform paths are defined in [scripts/tools.config.ts](scripts/tools.config.ts).
 
-**Tool registry:** `scripts/tools.config.ts`
-
-**Chezmoi hook config:**
-- Bootstrap template: `home/.chezmoi.toml.tmpl`
-
-The repo does not manage the live chezmoi config file.
-
-If you change the hook in `home/.chezmoi.toml.tmpl`, regenerate your active config manually so `~/.config/chezmoi/chezmoi.toml` or `~/.chezmoi.toml` stays in sync.
-
-**Auto-generated by hook** (do not edit):
-- Neovim Unix/Linux/macOS: `home/dot_config/nvim/**/*.tmpl`
-- Neovim Windows: `home/AppData/Local/nvim/**/*.tmpl`
-- Yazi Unix/Linux/macOS: `home/dot_config/yazi/**/*.tmpl`
-- Yazi Windows: `home/AppData/Roaming/yazi/config/**/*.tmpl`
-
-Changes to generated wrapper files are overwritten.
-
-## Layout
-
-```text
-home/
-  .shared-configs/         # Raw config source files
-    nvim/                  # Neovim source
-    yazi/                  # Yazi source
-  dot_config/              # Unix app configs (chezmoi-managed)
-  AppData/                 # Windows app configs (chezmoi-managed)
-```
+If you change the hook template, regenerate your active chezmoi config manually;
+the repository does not manage that file.
 
 ## Requirements
 
 - chezmoi + git
 - A package manager (brew/winget/apt/…)
-- pnpm for local TypeScript dependencies
-- Bun for the config reconciler runtime and local TypeScript IDE support
+- pnpm for dependencies
+- Bun for the repository scripts
 
-## TypeScript Tooling
-
-This repo uses pnpm for dependency installation and Bun as the runtime for [scripts/reconcile-configs.ts](scripts/reconcile-configs.ts).
-
-The project metadata is based on Bun's official `bun init --yes` defaults, then adapted for this repo:
-- pnpm is the package manager
-- Bun stays the runtime in the script commands
-- `tsconfig.json` keeps the Bun-recommended compiler options and adds repo-specific `include`/`exclude`
-- `types: ["bun"]` is included for TypeScript 6+ editor compatibility
-- the reconciler uses Bun's built-in `Glob.scan()` for recursive file discovery
-- the reconciler uses `node:util` `parseArgs()` for `--verbose` / `--debug` flag parsing
-
-Operationally:
-- use `pnpm install` to populate `node_modules` for the editor
-- use `pnpm run reconcile:configs` or `bun run scripts/reconcile-configs.ts` to execute the reconciler
-- default logs use timestamped `INFO` lines
-- `chezmoi -v` or `CHEZMOI_ARGS=...--verbose...` enables `VERBOSE` logs
-- `chezmoi --debug` or `CHEZMOI_ARGS=...--debug...` enables `DEBUG` logs
-- all log lines are prefixed with `[reconcile-configs/<tool>]`
-- `INFO` logs only show the summary
-- `VERBOSE` logs show scanned file count plus raw files added/removed
-- `DEBUG` logs show the rest of the internal maintenance details
-- success logs are printed to stdout; errors are printed to stderr
-
-The reconciler reports added and removed files as its sync status.
-
-One implementation detail remains intentionally custom:
-- `CHEZMOI_ARGS` arrives as a shell-style environment string, not a real argv array
-- Bun and Node document `parseArgs()` for option parsing, but do not provide a standard shell-string tokenizer for env-var input
-- the script therefore keeps a small tokenizer helper, then hands the resulting tokens to `parseArgs()`
-
-Reason:
-- wrapper files only encode `include` paths
-- raw content changes flow through normal chezmoi rendering
-- this hook only needs to materialize missing wrappers before chezmoi reads source state
-- stale-wrapper cleanup and `.chezmoiremove` maintenance remain internal implementation details
-
-Install dependencies:
+## Development
 
 ```bash
 pnpm install
-```
-
-Useful commands:
-
-```bash
 pnpm run reconcile:configs
 pnpm test
 pnpm run typecheck
 ```
+
+Use `chezmoi -v` or `chezmoi --debug` for more detailed reconciler logs.
 
 ## Adding a New Tool
 

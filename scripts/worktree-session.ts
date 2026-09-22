@@ -251,6 +251,7 @@ export async function captureSnapshot(
     }
   }
 
+  // Capture directory modes without including unmanaged children:
   // https://www.chezmoi.io/reference/commands/add/#-r---recursive
   runForTargets(runtime, ["add", "--recursive=false"], existing, runner);
   if (absent.length > 0) {
