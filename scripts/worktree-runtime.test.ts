@@ -53,18 +53,22 @@ import path from "node:path";
 
 test("creates and removes a hookless isolated runtime", async () => {
   const parent = await fs.mkdtemp(path.join(os.tmpdir(), "worktree-runtime-test-"));
-  const runtime = await createEphemeralRuntime({
-    destinationDir: path.join(parent, "home"),
-    sourceDir: "/repo/home",
-    tempParent: parent,
-    worktreeRoot: "/repo",
-  });
+  try {
+    const runtime = await createEphemeralRuntime({
+      destinationDir: path.join(parent, "home"),
+      sourceDir: "/repo/home",
+      tempParent: parent,
+      worktreeRoot: "/repo",
+    });
 
-  expect(await fs.readFile(runtime.configFile, "utf8")).toBe("");
-  expect(runtime.cacheDir.startsWith(parent)).toBe(true);
+    expect(await fs.readFile(runtime.configFile, "utf8")).toBe("");
+    expect(runtime.cacheDir.startsWith(parent)).toBe(true);
 
-  await removeEphemeralRuntime(runtime);
-  await expect(fs.stat(path.dirname(runtime.configFile))).rejects.toMatchObject({ code: "ENOENT" });
+    await removeEphemeralRuntime(runtime);
+    await expect(fs.stat(path.dirname(runtime.configFile))).rejects.toMatchObject({ code: "ENOENT" });
+  } finally {
+    await fs.rm(parent, { recursive: true, force: true });
+  }
 });
 
 function commandResult(overrides: Partial<CommandResult> = {}): CommandResult {

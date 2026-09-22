@@ -281,10 +281,10 @@ export function resolveSessionBase(
     );
   }
   if (platform === "darwin") {
-    return path.join(homeDir, "Library", "Application Support", "chezmoi-worktree-test");
+    return path.posix.join(homeDir, "Library", "Application Support", "chezmoi-worktree-test");
   }
-  return path.join(
-    env.XDG_STATE_HOME ?? path.join(homeDir, ".local", "state"),
+  return path.posix.join(
+    env.XDG_STATE_HOME ?? path.posix.join(homeDir, ".local", "state"),
     "chezmoi-worktree-test",
   );
 }
