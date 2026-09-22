@@ -4,12 +4,15 @@ import os from "node:os";
 import path from "node:path";
 
 import { runWorktreeCommand } from "./worktree-dev.ts";
+import { runCoordinatedChezmoi } from "./chezmoi.ts";
 import { runCommand, type CommandRunner } from "./worktree-runtime.ts";
 import {
   createActiveSession,
   openActiveSession,
   revertActiveSession,
   runLiveApply,
+  applyMainWithWorktree,
+  resolveSessionBase,
 } from "./worktree-session.ts";
 
 const realTest = Bun.which("chezmoi") && Bun.which("git") ? test : test.skip;
@@ -21,6 +24,150 @@ afterEach(async () => {
 });
 
 describe("worktree apply and revert with real chezmoi", () => {
+  realTest("main apply keeps the worktree active and replaces its revert baseline", async () => {
+    const fixture = await makeFixture({ dot_configfile: "worktree\n", dot_only_worktree: "temporary\n" });
+    await writeTree(fixture.home, { ".configfile": "local edits\n" });
+    await apply(fixture);
+    const main = path.join(fixture.root, "main");
+    await writeTree(main, { dot_configfile: "main\n", dot_only_main: "keep\n" });
+
+    await applyMainWithWorktree({
+      destinationDir: fixture.home,
+      sessionBase: fixture.sessionBase,
+      apply: () => runCommand("chezmoi", mainApplyArgs(fixture, main)),
+    });
+
+    expect(await fs.readFile(path.join(fixture.home, ".configfile"), "utf8")).toBe("worktree\n");
+    expect(await fs.readFile(path.join(fixture.home, ".only_worktree"), "utf8")).toBe("temporary\n");
+    await revert(fixture);
+    expect(await fs.readFile(path.join(fixture.home, ".configfile"), "utf8")).toBe("main\n");
+    expect(await fs.readFile(path.join(fixture.home, ".only_main"), "utf8")).toBe("keep\n");
+    await expectAbsent(path.join(fixture.home, ".only_worktree"));
+  });
+
+  realTest("partial main failure keeps its result as the baseline and returns the failure", async () => {
+    const fixture = await makeFixture({ dot_configfile: "worktree\n" });
+    await writeTree(fixture.home, { ".configfile": "old\n" });
+    await apply(fixture);
+    const result = await applyMainWithWorktree({
+      destinationDir: fixture.home,
+      sessionBase: fixture.sessionBase,
+      apply: async () => {
+        await fs.writeFile(path.join(fixture.home, ".configfile"), "partial main\n");
+        return { status: 1, signal: null, stdout: Buffer.alloc(0), stderr: Buffer.from("failed") };
+      },
+    });
+    expect(result.status).toBe(1);
+    expect(await fs.readFile(path.join(fixture.home, ".configfile"), "utf8")).toBe("worktree\n");
+    await revert(fixture);
+    expect(await fs.readFile(path.join(fixture.home, ".configfile"), "utf8")).toBe("partial main\n");
+  });
+
+  realTest("normal CLI dry run leaves test edits intact, then targeted apply updates only its baseline", async () => {
+    const fixture = await makeFixture({ "dot_with space": "worktree\n", dot_other: "worktree\n" });
+    await writeTree(fixture.home, { ".with space": "old\n", ".other": "old\n" });
+    await apply(fixture);
+    const main = path.join(fixture.root, "main source");
+    await writeTree(main, { "dot_with space": "main\n", dot_other: "main\n" });
+    const before = await readSnapshot(fixture);
+    await fs.writeFile(path.join(fixture.home, ".other"), "test edits\n");
+    const options = { homeDir: fixture.home, sessionBase: fixture.sessionBase };
+
+    expect((await runCoordinatedChezmoi([...mainApplyArgs(fixture, main), "-n"], options)).status).toBe(0);
+    expect(await readSnapshot(fixture)).toEqual(before);
+    expect(await fs.readFile(path.join(fixture.home, ".other"), "utf8")).toBe("test edits\n");
+    expect((await runCoordinatedChezmoi([
+      ...mainApplyArgs(fixture, main), "--", path.join(fixture.home, ".with space"),
+    ], options)).status).toBe(0);
+    expect(await fs.readFile(path.join(fixture.home, ".with space"), "utf8")).toBe("worktree\n");
+    await revert(fixture);
+    expect(await fs.readFile(path.join(fixture.home, ".with space"), "utf8")).toBe("main\n");
+    expect(await fs.readFile(path.join(fixture.home, ".other"), "utf8")).toBe("old\n");
+  });
+
+  realTest("main exact directories see the restored baseline before computing removals", async () => {
+    const fixture = await makeFixture({ "dot_dir/worktree": "temporary\n" });
+    await writeTree(fixture.home, { ".dir/unmanaged": "old\n" });
+    await apply(fixture);
+    const main = path.join(fixture.root, "main");
+    await writeTree(main, { "exact_dot_dir/main": "main\n" });
+    await runCoordinatedChezmoi(mainApplyArgs(fixture, main), {
+      homeDir: fixture.home, sessionBase: fixture.sessionBase,
+    });
+    await expectAbsent(path.join(fixture.home, ".dir/unmanaged"));
+    await revert(fixture);
+    expect(await fs.readdir(path.join(fixture.home, ".dir"))).toEqual(["main"]);
+  });
+
+  realTest("failed worktree resume cannot leave an old snapshot that undoes main", async () => {
+    const fixture = await makeFixture({ dot_configfile: "worktree\n" });
+    await writeTree(fixture.home, { ".configfile": "old\n" });
+    await apply(fixture);
+    await writeTree(fixture.source, { run_before_unsupported: "exit 0\n" });
+    await expect(applyMainWithWorktree({
+      destinationDir: fixture.home,
+      sessionBase: fixture.sessionBase,
+      apply: async () => {
+        await fs.writeFile(path.join(fixture.home, ".configfile"), "new main\n");
+        return { status: 0, signal: null, stdout: Buffer.alloc(0), stderr: Buffer.alloc(0) };
+      },
+    })).rejects.toThrow("Could not resume worktree");
+    expect(await fs.readFile(path.join(fixture.home, ".configfile"), "utf8")).toBe("new main\n");
+    await expectAbsent(fixture.activeDir);
+    await expectAbsent(path.join(fixture.sessionBase, "operation"));
+  });
+
+  for (const shell of ["bash", "pwsh"] as const) {
+    (Bun.which(shell) ? realTest : test.skip)(`${shell} function coordinates apply and the native hook prevents bypass`, async () => {
+      const fixture = await makeFixture({ "dot_with space": "worktree\n" });
+      const env = { ...process.env, HOME: fixture.home, USERPROFILE: fixture.home,
+        XDG_STATE_HOME: path.join(fixture.root, "state"), LOCALAPPDATA: path.join(fixture.home, "AppData/Local") };
+      fixture.sessionBase = resolveSessionBase(process.platform, fixture.home, env);
+      fixture.activeDir = path.join(fixture.sessionBase, "active");
+      await writeTree(fixture.home, { ".with space": "old\n" });
+      await apply(fixture);
+      const main = path.join(fixture.root, "main source");
+      await writeTree(main, { "dot_with space": "main\n" });
+      const args = mainApplyArgs(fixture, main);
+      const repo = path.dirname(import.meta.dir);
+      const templateFile = shell === "bash" ? "home/dot_bash_aliases.tmpl"
+        : "home/.chezmoitemplates/PowerShell/Microsoft.PowerShell_profile.ps1";
+      const template = await fs.readFile(path.join(repo, templateFile), "utf8");
+      const functionTemplate = template.match(/(?:function chezmoi|chezmoi\(\)) \{[\s\S]*?\n\}/)![0];
+      const rendered = runCommand("chezmoi", [...args.slice(0, -2), "--working-tree", repo,
+        "execute-template", functionTemplate]);
+      expect(rendered.status).toBe(0);
+      await fs.writeFile(path.join(fixture.root, "empty.toml"), `[hooks.apply.pre]\ncommand = "bun"\nargs = ${JSON.stringify(["run", path.join(repo, "scripts/chezmoi.ts"), "--guard"])}\n`);
+      const bypass = Bun.spawnSync(["chezmoi", ...args], { env });
+      expect(bypass.exitCode).not.toBe(0);
+      expect(bypass.stderr.toString()).toContain("coordinated chezmoi apply");
+      expect(await fs.readFile(path.join(fixture.home, ".with space"), "utf8")).toBe("worktree\n");
+      const launcher = path.join(fixture.root, shell === "bash" ? "apply.sh" : "apply.ps1");
+      await fs.writeFile(launcher, rendered.stdout.toString() + (shell === "bash"
+        ? '\nchezmoi "$@"\n'
+        : '\n$nativeArgs = ConvertFrom-Json $env:TEST_CHEZMOI_ARGS\nif ($env:TEST_PIPE_INPUT) { $env:TEST_PIPE_INPUT | chezmoi @nativeArgs } else { chezmoi @nativeArgs }\nexit $LASTEXITCODE\n'));
+      const run = (nativeArgs: string[], input = "") => Bun.spawnSync(shell === "bash"
+        ? [shell, "--noprofile", "--norc", launcher, ...nativeArgs]
+        : [shell, "-NoProfile", "-File", launcher], {
+        env: { ...env, TEST_CHEZMOI_ARGS: JSON.stringify(nativeArgs), TEST_PIPE_INPUT: input },
+        stdin: shell === "bash" ? Buffer.from(input) : "ignore",
+      });
+      const piped = run([...args.slice(0, -2), "execute-template"], '{{ "pipeline preserved" }}');
+      expect(piped.exitCode).toBe(0);
+      expect(piped.stdout.toString().trim()).toBe("pipeline preserved");
+      const snapshot = await readSnapshot(fixture);
+      const dryRun = run([...args, "-n"]);
+      expect(dryRun.stderr.toString()).toBe("");
+      expect(dryRun.exitCode).toBe(0);
+      expect(await readSnapshot(fixture)).toEqual(snapshot);
+      const applied = run([...args, path.join(fixture.home, ".with space")]);
+      if (applied.exitCode !== 0) throw new Error(applied.stderr.toString());
+      expect(await fs.readFile(path.join(fixture.home, ".with space"), "utf8")).toBe("worktree\n");
+      await revert(fixture);
+      expect(await fs.readFile(path.join(fixture.home, ".with space"), "utf8")).toBe("main\n");
+    });
+  }
+
   posixTest("restores file contents, supported modes, symlinks, and absent targets", async () => {
     const fixture = await makeFixture({
       dot_binary: "changed\n",
@@ -649,6 +796,13 @@ describe("worktree apply and revert with real chezmoi", () => {
 
 type Tree = Record<string, string | Buffer | null>;
 type Fixture = Awaited<ReturnType<typeof makeFixture>>;
+
+function mainApplyArgs(fixture: Fixture, source: string): string[] {
+  return ["--source", source, "--destination", fixture.home,
+    "--config", path.join(fixture.root, "empty.toml"),
+    "--cache", path.join(fixture.root, "main-cache"),
+    "--persistent-state", path.join(fixture.root, "main-state.boltdb"), "--force", "apply"];
+}
 
 async function makeFixture(sourceFiles: Tree) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "worktree-live-test-"));

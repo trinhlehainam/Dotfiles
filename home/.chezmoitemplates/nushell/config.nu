@@ -1,4 +1,8 @@
 # Nushell Config File
+
+def --wrapped --env chezmoi [...args] {
+    ^bun run {{ printf "%s/scripts/chezmoi.ts" .chezmoi.workingTree | toJson }} ...$args
+}
 #
 # version = "0.94.2"
 

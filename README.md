@@ -19,13 +19,33 @@ pnpm run worktree:diff
 pnpm run worktree:apply
 # Test applications normally in your real HOME; edit configs in this worktree.
 pnpm run worktree:apply  # Reapply edits, keeping the original snapshot.
+chezmoi apply           # Apply main and refresh the baseline; worktree stays active.
 pnpm run worktree:revert
 ```
 
 First apply saves managed targets, including local edits, as a temporary chezmoi source.
 Repeat apply restores that baseline before applying updated configs. Revert restores the
-state before the first apply, overwrites test edits, and verifies restoration before
-removing the snapshot.
+latest baseline, overwrites test edits, and verifies restoration before removing the snapshot.
+
+Normal `chezmoi apply` temporarily restores the baseline, applies the configured main source,
+then captures the result and reapplies the owning worktree's current source. Revert now returns
+to that main result. Targeted applies work too; dry runs leave HOME and the snapshot untouched.
+If main apply fails partway through, its partial result becomes the baseline and its error
+status is preserved. If the worktree cannot resume, the command reports the error; main's
+result remains in HOME (or the new recovery snapshot if restoration also fails).
+
+After installing this feature in the normal checkout, run `chezmoi init` once to install the
+guard hooks, then `bun run scripts/chezmoi.ts apply` and restart your shell. Bash, PowerShell,
+and Nushell route `chezmoi` through the coordinator. Other shells and automation can invoke
+that script directly. The hooks prevent native commands from bypassing an active session;
+other commands that apply configs (`update`, `init`, `edit`) require reverting first.
+Custom configs must retain these hooks for that protection.
+
+The coordinator owns the whole operation because [chezmoi hooks](https://www.chezmoi.io/reference/configuration-file/hooks/)
+also run during dry runs and a failed command can skip its post-hook. No separate pending
+session or snapshot-merging mechanism is needed. An interruption after the old baseline is
+restored leaves the worktree inactive rather than leaving a stale revert snapshot; after
+following the lock-cleanup instructions, rerun main apply and `worktree:apply`.
 
 - One session per HOME. Only its owning worktree can reapply; another worktree must revert
   the existing session first. Revert works from either worktree using the stored snapshot.

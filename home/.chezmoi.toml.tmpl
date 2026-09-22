@@ -8,4 +8,10 @@
 
 [hooks.read-source-state.pre]
 command = "bun"
-args = ["run", "{{ .chezmoi.workingTree }}/scripts/reconcile-configs.ts"]
+args = ["run", {{ printf "%s/scripts/reconcile-configs.ts" .chezmoi.workingTree | toJson }}]
+
+{{ range list "apply" "update" "init" "edit" }}
+[hooks.{{ . }}.pre]
+command = "bun"
+args = ["run", {{ printf "%s/scripts/chezmoi.ts" $.chezmoi.workingTree | toJson }}, "--guard"]
+{{ end }}

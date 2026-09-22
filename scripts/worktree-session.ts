@@ -8,6 +8,7 @@ import {
   runChezmoi,
   runCommand,
   type ChezmoiRuntime,
+  type CommandResult,
   type CommandRunner,
 } from "./worktree-runtime.ts";
 
@@ -513,10 +514,10 @@ async function requireReadySession(session: SessionPaths): Promise<void> {
 
 type SessionCleanup = { createdRoot: string | undefined };
 
-async function withOperationLock(
+async function withOperationLock<T>(
   sessionBase: string,
-  operation: (cleanup: SessionCleanup) => Promise<void>,
-): Promise<void> {
+  operation: (cleanup: SessionCleanup) => Promise<T>,
+): Promise<T> {
   const cleanup: SessionCleanup = {
     createdRoot: await fs.mkdir(sessionBase, { mode: 0o700, recursive: true }),
   };
@@ -527,13 +528,13 @@ async function withOperationLock(
     await removeCreatedParents(sessionBase, cleanup.createdRoot);
     if ((error as NodeJS.ErrnoException).code === "EEXIST") {
       throw new Error(
-        `worktree operation already in progress; if interrupted, stop all worktree commands, then remove only ${lockDir}; keep the active snapshot`,
+        `worktree operation already in progress; if interrupted, stop all chezmoi and worktree commands, then remove only ${lockDir}; keep any active snapshot`,
       );
     }
     throw error;
   }
   try {
-    await operation(cleanup);
+    return await operation(cleanup);
   } finally {
     await fs.rmdir(lockDir);
     // A reopened session supplies its original boundary even if the operation throws.
@@ -585,7 +586,47 @@ export async function revertActiveSession(options: {
     }
     await restoreSnapshot(session, runner);
     await removeActiveSession(session);
-    process.stderr.write("Restored and verified the pre-test dotfiles.\n");
+    process.stderr.write("Restored and verified the saved baseline.\n");
+  });
+}
+
+export async function applyMainWithWorktree(options: {
+  apply: () => CommandResult | Promise<CommandResult>;
+  destinationDir: string;
+  sessionBase: string;
+}): Promise<CommandResult> {
+  return withOperationLock(options.sessionBase, async (cleanup) => {
+    try {
+      await fs.stat(path.join(options.sessionBase, "active"));
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      return options.apply();
+    }
+    const session = await openActiveSession(options.sessionBase, "", options.destinationDir);
+    cleanup.createdRoot = session.createdRoot ?? cleanup.createdRoot;
+    await restoreSnapshot(session);
+    // Retire the old baseline before main can write: even an interrupted command
+    // must never leave a snapshot that could undo the new main result.
+    await removeActiveSession(session);
+    try {
+      return await options.apply();
+    } finally {
+      try {
+        await applyWorktree({
+          destinationDir: options.destinationDir,
+          question: async () => "y",
+          sessionBase: options.sessionBase,
+          worktreeRoot: session.worktreeRoot,
+          yes: true,
+        }, cleanup);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(
+          `Could not resume worktree ${session.worktreeRoot} after main apply. ${message}`,
+          { cause: error },
+        );
+      }
+    }
   });
 }
 
@@ -693,7 +734,7 @@ async function applyWorktree(
     if (!options.yes) {
       const preview = status.stdout.toString("utf8").trimEnd() || "Managed targets already match.";
       const action = reapplying
-        ? "Restore the original baseline, then reapply this worktree to HOME?"
+        ? "Restore the saved baseline, then reapply this worktree to HOME?"
         : "Apply these targets to HOME?";
       const answer = await options.question(`${preview}\n${action} [y/N] `);
       if (answer.trim().toLowerCase() !== "y") return;

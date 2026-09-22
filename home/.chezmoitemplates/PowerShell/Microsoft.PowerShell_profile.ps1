@@ -1,6 +1,15 @@
 # NOTE: Change Powershell default profile location
 # https://stackoverflow.com/questions/61192049/powershell-profile-variable-pointing-to-wrong-location-where-is-profile-varia
 
+function chezmoi {
+	$coordinator = '{{ .chezmoi.workingTree | replace "'" "''" }}/scripts/chezmoi.ts'
+	if ($MyInvocation.ExpectingInput) {
+		$input | & bun run $coordinator @args
+	} else {
+		& bun run $coordinator @args
+	}
+}
+
 # NOTE: remove default alias curlebRequest
 # https://superuser.com/a/1755566
 if (Test-Path -Path alias:curl)
