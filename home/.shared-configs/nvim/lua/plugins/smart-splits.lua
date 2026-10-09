@@ -24,7 +24,6 @@ return {
       end,
     })
 
-    require('smart-splits.api')
     local smart_splits = require('smart-splits')
     -- https://github.com/mrjones2014/smart-splits.nvim?tab=readme-ov-file#configuration
     smart_splits.setup({})
