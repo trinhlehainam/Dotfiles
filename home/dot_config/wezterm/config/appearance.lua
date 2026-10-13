@@ -34,8 +34,10 @@ return {
     }
 
     if platform.is_win then
+      config.max_fps = 60
+      config.animation_fps = 10
       config.win32_system_backdrop = 'Disable'
-      config.window_background_opacity = 0.6
+      config.window_background_opacity = 1.0
       config.window_decorations = 'INTEGRATED_BUTTONS|RESIZE'
       config.integrated_title_button_style = 'Windows'
     end

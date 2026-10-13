@@ -32,7 +32,9 @@ tabline.setup({
       { 'zoomed', padding = 0 },
     },
     tab_inactive = { 'index', { 'process', padding = { left = 0, right = 1 } } },
-    tabline_x = { { 'ram', use_pwsh = true }, { 'cpu', use_pwsh = true } },
+    -- Windows metrics spawn PowerShell and load its profile on every update.
+    tabline_x = wezterm.target_triple:find('windows') and {}
+      or { { 'ram', use_pwsh = true }, { 'cpu', use_pwsh = true } },
     tabline_y = { 'datetime', 'battery' },
     tabline_z = { 'domain' },
   },
