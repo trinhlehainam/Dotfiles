@@ -1,42 +1,30 @@
 return {
-  -- https://github.com/mrjones2014/smart-splits.nvim
-  'mrjones2014/smart-splits.nvim',
+  -- https://github.com/smart-splits-nvim/smart-splits.nvim#backends
+  'smart-splits-nvim/smart-splits.nvim',
+  version = '^3.0.0',
+  -- The tmux backend must mark the pane before tmux can forward navigation keys.
   lazy = false,
-  config = function()
-    -- WezTerm user var used by WezTerm config/keybindings to detect when
-    -- the foreground program is Neovim.
-    -- Reference (OSC 1337 `SetUserVar` / `__wezterm_set_user_var`):
-    -- https://wezterm.org/config/lua/pane/get_user_vars.html
-    local common = require('utils.common')
-
-    local wezterm_group = vim.api.nvim_create_augroup('wezterm_user_vars', { clear = true })
-    vim.api.nvim_create_autocmd('VimEnter', {
-      group = wezterm_group,
-      callback = function()
-        common.wezterm_set_user_var('IS_NVIM', 'true')
-      end,
-    })
-
-    vim.api.nvim_create_autocmd('VimLeavePre', {
-      group = wezterm_group,
-      callback = function()
-        common.wezterm_set_user_var('IS_NVIM', '')
-      end,
-    })
-
+  dependencies = {
+    { 'smart-splits-nvim/backend-tmux', main = 'smart-splits-backend-tmux' },
+    { 'smart-splits-nvim/backend-wezterm', main = 'smart-splits-backend-wezterm' },
+  },
+  opts = {
+    mux = {
+      -- tmux is the inner multiplexer when it runs inside WezTerm.
+      backend = { 'smart-splits-backend-tmux', 'smart-splits-backend-wezterm' },
+      warn_if_unusable = false, -- Plain terminals still support Neovim splits.
+    },
+  },
+  config = function(_, opts)
     local smart_splits = require('smart-splits')
-    -- https://github.com/mrjones2014/smart-splits.nvim?tab=readme-ov-file#configuration
-    smart_splits.setup({})
-    -- https://github.com/mrjones2014/smart-splits.nvim?tab=readme-ov-file#key-mappings
-    -- recommended mappings
-    -- resizing splits
-    -- these keymaps will also accept a range,
-    -- for example `10<A-,>` will `resize_left` by `(10 * config.default_amount)`
+    smart_splits.setup(opts)
+
+    -- Counts multiply resize.amount (3 cells by default), e.g. 10<A-,> resizes by 30.
     vim.keymap.set('n', '<A-,>', smart_splits.resize_left)
     vim.keymap.set('n', '<A-.>', smart_splits.resize_right)
     vim.keymap.set('n', '<A-u>', smart_splits.resize_up)
     vim.keymap.set('n', '<A-d>', smart_splits.resize_down)
-    -- moving between splits
+    -- Move through Neovim windows, then into the selected multiplexer.
     vim.keymap.set('n', '<C-h>', smart_splits.move_cursor_left)
     vim.keymap.set('n', '<C-j>', smart_splits.move_cursor_down)
     vim.keymap.set('n', '<C-k>', smart_splits.move_cursor_up)

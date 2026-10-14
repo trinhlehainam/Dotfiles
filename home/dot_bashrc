@@ -219,10 +219,15 @@ __wezterm_set_user_var() {
 	fi
 }
 
-# Mark this terminal pane as "in tmux".
-# Works locally and over SSH: the OSC sequence is forwarded to WezTerm.
-if [[ -n "${TMUX-}" ]]; then
-	__wezterm_set_user_var "IS_TMUX" "true"
+# Refresh on each prompt so detaching from remote tmux clears the marker too.
+__wezterm_update_tmux() {
+	__wezterm_set_user_var "IS_TMUX" "${TMUX:+true}"
+}
+__wezterm_update_tmux
+if [[ "$(declare -p PROMPT_COMMAND 2>/dev/null)" == "declare -a "* ]]; then
+	PROMPT_COMMAND+=(__wezterm_update_tmux)
+else
+	PROMPT_COMMAND="${PROMPT_COMMAND-}"$'\n__wezterm_update_tmux'
 fi
 
 eval "$(zoxide init bash)"

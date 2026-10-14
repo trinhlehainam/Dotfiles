@@ -20,28 +20,10 @@ local pane = require('utils.pane')
 ---
 ---Integration requirements
 ---
----Neovim detection is based on a user var (`IS_NVIM`) set on the pane.
----`utils.pane.is_nvim()` checks:
----
----```lua
----pane:get_user_vars().IS_NVIM == 'true'
----```
----
----So you must set/unset that variable from inside Neovim.
----WezTerm supports setting user vars via the iTerm2-compatible escape sequence:
----
----`OSC 1337 ; SetUserVar=<KEY>=<BASE64(VALUE)> BEL`
----
----A minimal Neovim snippet (put in your config, or adapt to an autocmd):
----
----```lua
----local function wezterm_set_user_var(key, value)
----  local b64 = vim.base64.encode(value)
----  vim.fn.chansend(vim.v.stderr, string.format('\x1b]1337;SetUserVar=%s=%s\x07', key, b64))
----end
----
----wezterm_set_user_var('IS_NVIM', 'true')
----```
+---The smart-splits WezTerm backend owns `IS_NVIM` and sends pane requests to
+---the GUI plugin registered in `plugins.smart_splits`. Shell integration sets
+---`IS_TMUX`; keys must pass into tmux so it can route them to Neovim or its panes.
+---https://github.com/smart-splits-nvim/backend-wezterm#how-it-works
 ---
 ---Usage
 ---
@@ -68,7 +50,7 @@ local pane = require('utils.pane')
 local M = {}
 
 local function should_passthrough(win, current_pane)
-  return pane.is_nvim(current_pane) or pane.pane_count(win) == 1
+  return pane.is_nvim(current_pane) or pane.is_tmux(current_pane) or pane.pane_count(win) == 1
 end
 
 ---@alias NavigationDirection 'Left' | 'Right' | 'Up' | 'Down'

@@ -1,5 +1,6 @@
 local Config = require('config')
 
+-- Register smart-splits v3 requests before config.keys replaces its default bindings.
 return Config:init()
   :event(require('events.gui_startup'))
   :event(require('events.open_uri'))
@@ -7,6 +8,7 @@ return Config:init()
   :load(require('config.general'))
   :load(require('config.appearance'))
   :load(require('config.fonts'))
+  :load(require('plugins.smart_splits'))
   :load(require('config.keys'))
   :load(require('config.domains'))
   :load(require('config.launch'))
