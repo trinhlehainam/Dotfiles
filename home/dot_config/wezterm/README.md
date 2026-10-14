@@ -2,6 +2,14 @@
 
 A small, modular WezTerm config written in Lua.
 
+## Smart splits
+
+Use `Ctrl-h/j/k/l` to navigate and `Alt-,/./u/d` to resize. The official
+smart-splits v3 GUI plugin handles requests from Neovim. When tmux is running,
+WezTerm forwards these keys to it, checking the local process or the remote
+`IS_TMUX` marker. See the
+[routing and setup guide](../../.shared-configs/nvim/doc/smart-splits.md).
+
 ## Clipboard shortcuts
 
 - `Ctrl+Shift+V`: paste text directly, without launching PowerShell or WSL commands.
