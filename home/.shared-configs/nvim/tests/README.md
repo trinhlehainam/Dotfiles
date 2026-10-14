@@ -1,36 +1,36 @@
 # Neovim tests
 
-Requires Neovim 0.12+.
+These tests require Neovim 0.12+.
 
 ## Run
 
-Run all tests from `home/.shared-configs/nvim/`:
+Run the test suite from `home/.shared-configs/nvim/`:
 
 ```bash
 make test
 ```
 
-To run one spec:
+To run one test file:
 
 ```bash
 nvim --headless --noplugin -u tests/plenary/minimal_init.lua \
   -c "lua require('plenary.busted').run('tests/plenary/spec/project_detection_spec.lua')"
 ```
 
-To check real tmux client markers on Linux/macOS with tmux and Bash installed:
+On Linux or macOS, install tmux and Bash to check markers from a real tmux client:
 
 ```bash
 make test-tmux
 ```
 
-This uses a private temporary tmux server and a terminal running Bash. It checks
-reattachment to an already-running program, configuration reloads, detachment,
-and final-session exit. Existing tmux sessions are not touched.
+This test starts a private temporary tmux server and a Bash terminal. It checks
+reattaching to a running program, reloading the config, detaching, and exiting
+the final session. It leaves existing tmux sessions alone.
 
 ## Required plugins
 
-The runner uses local plugin checkouts. Override their paths with environment
-variables if needed:
+Tests use local plugin checkouts. Set the environment variables below if your
+plugins are stored elsewhere:
 
 | Plugin | Environment variable | Default path |
 | --- | --- | --- |
@@ -45,14 +45,14 @@ variables if needed:
 
 - [minimal_init.lua](plenary/minimal_init.lua) loads the config and plugins in each test process.
 - [spec/](plenary/spec/) contains tests named `*_spec.lua`.
-- [integration/](plenary/integration/) contains opt-in tests against real processes.
+- [integration/](plenary/integration/) contains tests you run separately against real processes.
 - [helpers/](plenary/helpers/) contains shared test helpers.
 
 Tests use real Neovim APIs, codesettings JSONC parsing, and Conform definitions.
-LSP and Tree-sitter specs stub server startup and parser installation, so they
-do not require running language servers or downloading parsers.
+LSP and Tree-sitter tests simulate server startup and parser installation, so
+they do not need running language servers or parser downloads.
 
-The smart-splits spec uses the real core and backend plugins, replacing only
-tmux process calls and terminal OSC writes. The WezTerm navigation spec uses
-the real routing helpers with a small WezTerm action API stub. Neither spec
-requires a running tmux server or WezTerm GUI.
+The smart-splits tests run the real core and backend plugins. They replace tmux
+process calls and terminal OSC writes with test doubles. The WezTerm navigation
+tests run the real routing helpers with a small substitute for WezTerm's action
+API. These tests need neither a running tmux server nor a WezTerm GUI.
