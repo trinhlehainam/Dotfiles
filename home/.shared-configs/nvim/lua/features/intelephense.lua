@@ -1,5 +1,5 @@
 -- Intelephense lifecycle: reindex commands and unused-reference diagnostics.
--- Reuse cached CodeLens results first; sequence numbers reject stale replies.
+-- Reuse completed CodeLens results; sequence numbers reject stale replies.
 local log = require('utils.log')
 local lsp_codelens = require('utils.lsp_codelens')
 local Methods = vim.lsp.protocol.Methods
@@ -8,13 +8,14 @@ local CACHE_PATH = vim.fn.stdpath('cache') .. '/intelephense'
 local STOP_TIMEOUT = 5000
 local POLL_INTERVAL = 50
 local UNUSED_REFS_REFRESH_DELAY_MS = 100
-local UNUSED_REFS_CACHE_TIMEOUT_MS = 800
+local UNUSED_REFS_FALLBACK_DELAY_MS = 800
 
 local INDEX_COMMAND = 'IntelephenseIndexWorkspace'
 
 ---@class dotfiles.IntelephenseUnusedRefsState
 ---@field timer? uv.uv_timer_t
 ---@field refresh_seq? integer
+---@field pending table<string, integer> Shared request key to buffer changedtick.
 
 local commands_registered = false
 ---@type table<integer, table<integer, true>>
@@ -212,29 +213,6 @@ local function get_cached_codelenses(bufnr, client_id)
   return lenses
 end
 
----@param lenses lsp.CodeLens[]
----@return string
-local function codelens_cache_key(lenses)
-  local parts = {}
-
-  for _, lens in ipairs(lenses) do
-    local range = lens.range or {}
-    local start_pos = range.start or {}
-    local end_pos = range['end'] or {}
-    local title = lens.command and lens.command.title or ''
-    parts[#parts + 1] = table.concat({
-      tostring(start_pos.line or -1),
-      tostring(start_pos.character or -1),
-      tostring(end_pos.line or -1),
-      tostring(end_pos.character or -1),
-      title,
-    }, ':')
-  end
-
-  table.sort(parts)
-  return table.concat(parts, '|')
-end
-
 ---@param client_id integer
 ---@return table<integer, true>?
 local function prune_active_client_buffers(client_id)
@@ -375,7 +353,7 @@ end
 ---@param seq integer
 local function request_unused_reference_diagnostics(bufnr, client, state, seq)
   local params = { textDocument = vim.lsp.util.make_text_document_params(bufnr) }
-  client:request(Methods.textDocument_codeLens, params, function(err, lenses)
+  local ok, request_id = client:request(Methods.textDocument_codeLens, params, function(err, lenses)
     if not is_unused_reference_refresh_current(bufnr, state, seq) then
       return
     end
@@ -388,60 +366,16 @@ local function request_unused_reference_diagnostics(bufnr, client, state, seq)
 
     apply_unused_reference_diagnostics(bufnr, client, state, seq, lenses)
   end, bufnr)
+  if ok and request_id then
+    -- This reply handles diagnostics directly; it does not populate the shared cache.
+    state.pending[client.id .. ':' .. request_id] = nil
+  end
 end
 
 ---@param bufnr integer
 ---@param state dotfiles.IntelephenseUnusedRefsState
----@param seq integer
----@param initial_cache_key string
----@param remaining_ms integer
-local function refresh_unused_reference_diagnostics_from_cache(
-  bufnr,
-  state,
-  seq,
-  initial_cache_key,
-  remaining_ms
-)
-  if not is_unused_reference_refresh_current(bufnr, state, seq) then
-    return
-  end
-
-  local client = vim.lsp.get_clients({ bufnr = bufnr, name = 'intelephense' })[1]
-  if not client or not client:supports_method(Methods.textDocument_codeLens, bufnr) then
-    state.timer = nil
-    clear_unused_reference_diagnostics(bufnr)
-    return
-  end
-
-  local lenses = get_cached_codelenses(bufnr, client.id)
-  local cache_key = codelens_cache_key(lenses)
-  if cache_key ~= initial_cache_key then
-    state.timer = nil
-    apply_unused_reference_diagnostics(bufnr, client, state, seq, lenses)
-    return
-  end
-
-  if remaining_ms <= 0 then
-    state.timer = nil
-    -- An unchanged cache may still be fresh; confirm with a direct request.
-    request_unused_reference_diagnostics(bufnr, client, state, seq)
-    return
-  end
-
-  state.timer = vim.defer_fn(function()
-    refresh_unused_reference_diagnostics_from_cache(
-      bufnr,
-      state,
-      seq,
-      initial_cache_key,
-      remaining_ms - POLL_INTERVAL
-    )
-  end, POLL_INTERVAL)
-end
-
----@param bufnr integer
----@param state dotfiles.IntelephenseUnusedRefsState
-local function schedule_unused_reference_refresh(bufnr, state)
+---@param previous_lenses? lsp.CodeLens[] Cache before a shared response handler runs.
+local function schedule_unused_reference_refresh(bufnr, state, previous_lenses)
   if not vim.api.nvim_buf_is_valid(bufnr) or unused_refs_states[bufnr] ~= state then
     return
   end
@@ -449,18 +383,33 @@ local function schedule_unused_reference_refresh(bufnr, state)
   reset_unused_reference_refresh_timer(state)
   state.refresh_seq = (state.refresh_seq or 0) + 1
   local seq = state.refresh_seq
-  local client = vim.lsp.get_clients({ bufnr = bufnr, name = 'intelephense' })[1]
-  local initial_cache_key = client and codelens_cache_key(get_cached_codelenses(bufnr, client.id))
-    or ''
+  -- Edits only invalidate/debounce. Do not scan or sort every lens on each keystroke.
   state.timer = vim.defer_fn(function()
-    refresh_unused_reference_diagnostics_from_cache(
-      bufnr,
-      state,
-      seq,
-      initial_cache_key,
-      UNUSED_REFS_CACHE_TIMEOUT_MS
-    )
-  end, UNUSED_REFS_REFRESH_DELAY_MS)
+    if not is_unused_reference_refresh_current(bufnr, state, seq) then
+      return
+    end
+    state.timer = nil
+    local client = vim.lsp.get_clients({ bufnr = bufnr, name = 'intelephense' })[1]
+    if not client or not client:supports_method(Methods.textDocument_codeLens, bufnr) then
+      clear_unused_reference_diagnostics(bufnr)
+      return
+    end
+    if previous_lenses then
+      local lenses = get_cached_codelenses(bufnr, client.id)
+      -- Failed/discarded responses leave the old cache intact. Compare lens identities,
+      -- not their contents: a successful refresh can legitimately return identical data.
+      local changed = #lenses ~= #previous_lenses
+      for index, lens in ipairs(lenses) do
+        changed = changed or lens ~= previous_lenses[index]
+      end
+      if changed then
+        apply_unused_reference_diagnostics(bufnr, client, state, seq, lenses)
+        return
+      end
+    end
+    -- Also covers disabled rendering and empty caches whose freshness is unknown.
+    request_unused_reference_diagnostics(bufnr, client, state, seq)
+  end, previous_lenses and UNUSED_REFS_REFRESH_DELAY_MS or UNUSED_REFS_FALLBACK_DELAY_MS)
 end
 
 ---Track edits and detach events once per buffer to refresh and clean up hints.
@@ -470,9 +419,37 @@ local function attach_unused_reference_updates_once(bufnr)
     return
   end
 
-  local state = {}
+  local state = { pending = {} }
   unused_refs_states[bufnr] = state
   pcall(vim.api.nvim_clear_autocmds, { group = unused_refs_augroup, buffer = bufnr })
+  vim.api.nvim_create_autocmd('LspRequest', {
+    group = unused_refs_augroup,
+    buffer = bufnr,
+    callback = function(args)
+      local data = args.data
+      local request = data.request
+      if request.method ~= Methods.textDocument_codeLens then
+        return
+      end
+      local client = vim.lsp.get_client_by_id(data.client_id)
+      if not client or client.name ~= 'intelephense' then
+        return
+      end
+      local key = data.client_id .. ':' .. data.request_id
+      if request.type == 'pending' then
+        state.pending[key] = vim.api.nvim_buf_get_changedtick(bufnr)
+      else
+        local changedtick = state.pending[key]
+        state.pending[key] = nil
+        if
+          request.type == 'complete' and changedtick == vim.api.nvim_buf_get_changedtick(bufnr)
+        then
+          -- LspRequest precedes the response handler, so capture the old cache here.
+          schedule_unused_reference_refresh(bufnr, state, get_cached_codelenses(bufnr, client.id))
+        end
+      end
+    end,
+  })
   vim.api.nvim_create_autocmd('LspDetach', {
     group = unused_refs_augroup,
     buffer = bufnr,

@@ -1,5 +1,7 @@
 return { -- Main LSP Configuration
   'neovim/nvim-lspconfig',
+  -- Capabilities and shared LspAttach hooks must exist before filetype-owned servers start.
+  lazy = false,
   dependencies = {
     'folke/snacks.nvim',
     'mrjones2014/codesettings.nvim',
@@ -12,6 +14,15 @@ return { -- Main LSP Configuration
     {
       'mason-org/mason.nvim',
       config = function()
+        -- Mason's Windows Python workaround is unnecessary for minimal prompt edits.
+        -- https://github.com/williamboman/mason.nvim/issues/1753
+        if require('utils.common').IS_WINDOWS and vim.fn.executable('pyenv') == 1 then
+          local version = vim.fn.system('pyenv global'):gsub('%s+$', '')
+          local python_path = vim.env.USERPROFILE .. '/.pyenv/pyenv-win/versions/' .. version
+          if vim.v.shell_error == 0 and vim.fn.executable(python_path .. '/python.exe') == 1 then
+            vim.env.PATH = python_path .. ';' .. vim.env.PATH
+          end
+        end
         require('mason').setup({
           -- https://github.com/seblyng/roslyn.nvim?tab=readme-ov-file#-installation
           registries = {

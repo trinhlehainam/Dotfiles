@@ -48,6 +48,10 @@ return {
     },
   },
   opts = {
+    env = {
+      VISUAL = 'nvim --cmd let[g:dotfiles_minimal]=[v:true]',
+      EDITOR = 'nvim --cmd let[g:dotfiles_minimal]=[v:true]',
+    },
     backend = 'terminal',
     terminal = {
       layout = 'split',

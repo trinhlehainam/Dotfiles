@@ -33,32 +33,7 @@ vim.api.nvim_create_autocmd('LspAttach', {
     end, '[G]oto [T]ype Definition')
 
     local client = vim.lsp.get_client_by_id(event.data.client_id)
-    if
-      client
-      and client:supports_method(vim.lsp.protocol.Methods.textDocument_documentHighlight, event.buf)
-    then
-      -- String keys preserve a set through vim.b's Vimscript conversion.
-      local highlight_clients = vim.b[event.buf].lsp_highlight_clients or {}
-      local first_client = next(highlight_clients) == nil
-      highlight_clients[tostring(client.id)] = true
-      vim.b[event.buf].lsp_highlight_clients = highlight_clients
-
-      if first_client then
-        local highlight_augroup =
-          vim.api.nvim_create_augroup('kickstart-lsp-highlight', { clear = false })
-        vim.api.nvim_create_autocmd({ 'CursorHold', 'CursorHoldI' }, {
-          buffer = event.buf,
-          group = highlight_augroup,
-          callback = vim.lsp.buf.document_highlight,
-        })
-
-        vim.api.nvim_create_autocmd({ 'CursorMoved', 'CursorMovedI' }, {
-          buffer = event.buf,
-          group = highlight_augroup,
-          callback = vim.lsp.buf.clear_references,
-        })
-      end
-    end
+    -- vim-illuminate owns document highlighting and reference navigation.
 
     if
       client
@@ -68,28 +43,6 @@ vim.api.nvim_create_autocmd('LspAttach', {
         local filter = { bufnr = event.buf }
         vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled(filter), filter)
       end, '[T]oggle Inlay [H]ints')
-    end
-  end,
-})
-
--- Keep highlights until the last supporting client detaches.
-vim.api.nvim_create_autocmd('LspDetach', {
-  group = vim.api.nvim_create_augroup('kickstart-lsp-detach', { clear = true }),
-  callback = function(event)
-    local bufnr = event.buf
-    local client_id = tostring(event.data.client_id)
-
-    -- vim.b returns copies; reassign the set after changing it.
-    local highlight_clients = vim.b[bufnr].lsp_highlight_clients
-    if highlight_clients and highlight_clients[client_id] then
-      highlight_clients[client_id] = nil
-      if next(highlight_clients) == nil then
-        vim.lsp.util.buf_clear_references(bufnr)
-        pcall(vim.api.nvim_clear_autocmds, { group = 'kickstart-lsp-highlight', buffer = bufnr })
-        vim.b[bufnr].lsp_highlight_clients = nil
-      else
-        vim.b[bufnr].lsp_highlight_clients = highlight_clients
-      end
     end
   end,
 })

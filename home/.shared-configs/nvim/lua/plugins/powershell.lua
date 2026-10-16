@@ -1,5 +1,6 @@
 return {
   'TheLeoP/powershell.nvim',
+  ft = 'ps1',
   dependencies = { 'williamboman/mason.nvim' },
   config = function()
     require('powershell').setup({

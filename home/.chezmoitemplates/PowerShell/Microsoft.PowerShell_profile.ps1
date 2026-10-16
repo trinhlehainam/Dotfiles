@@ -80,6 +80,22 @@ if (Test-Command nvim)
 {
 	[System.Environment]::SetEnvironmentVariable("EDITOR", "nvim")
 	Set-Alias -Name v -Value nvim
+	function Invoke-AgentWithPromptEditor($agent, $agentArgs)
+	{
+		$previousVisual, $previousEditor = $env:VISUAL, $env:EDITOR
+		try
+		{
+			$env:VISUAL = $env:EDITOR = 'nvim --cmd let[g:dotfiles_minimal]=[v:true]'
+			& @(Get-Command $agent -CommandType Application)[0].Source @agentArgs
+		}
+		finally
+		{
+			$env:VISUAL, $env:EDITOR = $previousVisual, $previousEditor
+		}
+	}
+	function claude { Invoke-AgentWithPromptEditor claude $args }
+	function codex { Invoke-AgentWithPromptEditor codex $args }
+	function opencode { Invoke-AgentWithPromptEditor opencode $args }
 }
 
 if (Test-Command pnpm)

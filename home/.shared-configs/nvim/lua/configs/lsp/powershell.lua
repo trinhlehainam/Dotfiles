@@ -1,8 +1,10 @@
 ---@type dotfiles.lsp.Language
 local M = { parsers = { 'powershell' } }
 
-if vim.fn.executable('powershell') == 0 and vim.fn.executable('pwsh') == 0 then
-  require('utils.log').warn('PowerShellEditorServices requires PowerShell to be installed')
+if
+  vim.fn.executable('pwsh') == 0
+  and not (require('utils.common').IS_WINDOWS and vim.fn.executable('powershell') == 1)
+then
   return M
 end
 

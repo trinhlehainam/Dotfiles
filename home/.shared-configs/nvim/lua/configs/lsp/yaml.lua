@@ -4,6 +4,9 @@ return {
   tools = { 'yaml-language-server' },
   servers = {
     yamlls = {
+      before_init = function(_, config)
+        config.settings.yaml.schemas = require('schemastore').yaml.schemas()
+      end,
       -- NOTE: yaml.docker-compose has its own lsp config, not use yamlls
       -- https://github.com/neovim/nvim-lspconfig/blob/master/doc/server_configurations.md#yamlls
       filetypes = { 'yaml', 'yaml.gitlab' },
@@ -16,7 +19,6 @@ return {
             -- Avoid TypeError: Cannot read properties of undefined (reading 'length')
             url = '',
           },
-          schemas = require('schemastore').yaml.schemas(),
         },
       },
     },

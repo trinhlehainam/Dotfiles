@@ -4,6 +4,7 @@ return {
   ---@module "ibl"
   ---@type ibl.config
   opts = {
+    exclude = { filetypes = { 'bigfile' } },
     indent = {
       char = '╎',
     },

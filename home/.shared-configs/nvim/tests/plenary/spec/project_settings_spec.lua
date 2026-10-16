@@ -99,6 +99,22 @@ describe('project settings regression', function()
     assert.equals('', vim.bo[bufnr].filetype)
   end)
 
+  it('preserves large-file protection when project associations are reapplied', function()
+    local root = h.mktemp_root(base, 'bigfile-root')
+    h.write_json(h.join(root, '.vscode', 'settings.json'), {
+      ['files.associations'] = { ['*.custom'] = 'lua' },
+    })
+    local file = h.join(root, 'large.custom')
+    h.write_file(file, 'local value = 1\n')
+    local bufnr = h.edit(file)
+    vim.bo[bufnr].filetype = 'bigfile'
+
+    require('configs.project.detector').redetect_filetype(bufnr)
+    h.reload()
+
+    assert.equals('bigfile', vim.bo[bufnr].filetype)
+  end)
+
   it('restores default indentation when project overrides are removed on reload', function()
     local defaults = h.php_defaults()
     local root = h.mktemp_root(base, 'indent-reset-root')

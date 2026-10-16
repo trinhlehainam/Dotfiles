@@ -7,14 +7,16 @@ return {
       vim.cmd.colorscheme('kanagawa')
     end,
   },
-  'folke/tokyonight.nvim',
-  'navarasu/onedark.nvim',
+  { 'folke/tokyonight.nvim', lazy = true },
+  { 'navarasu/onedark.nvim', lazy = true },
   {
     'f4z3r/gruvbox-material.nvim',
     name = 'gruvbox-material',
+    lazy = true,
   },
   {
     'catppuccin/nvim',
     name = 'catppuccin',
+    lazy = true,
   },
 }
