@@ -80,22 +80,10 @@ if (Test-Command nvim)
 {
 	[System.Environment]::SetEnvironmentVariable("EDITOR", "nvim")
 	Set-Alias -Name v -Value nvim
-	function Invoke-AgentWithPromptEditor($agent, $agentArgs)
-	{
-		$previousVisual, $previousEditor = $env:VISUAL, $env:EDITOR
-		try
-		{
-			$env:VISUAL = $env:EDITOR = 'nvim --cmd let[g:dotfiles_minimal]=[v:true]'
-			& @(Get-Command $agent -CommandType Application)[0].Source @agentArgs
-		}
-		finally
-		{
-			$env:VISUAL, $env:EDITOR = $previousVisual, $previousEditor
-		}
-	}
-	function claude { Invoke-AgentWithPromptEditor claude $args }
-	function codex { Invoke-AgentWithPromptEditor codex $args }
-	function opencode { Invoke-AgentWithPromptEditor opencode $args }
+	# Scripts preserve native exit status without binding the agents' command-line flags.
+	Set-Alias -Name claude -Value (Join-Path $PSScriptRoot 'agent-prompt-editors/claude.ps1')
+	Set-Alias -Name codex -Value (Join-Path $PSScriptRoot 'agent-prompt-editors/codex.ps1')
+	Set-Alias -Name opencode -Value (Join-Path $PSScriptRoot 'agent-prompt-editors/opencode.ps1')
 }
 
 if (Test-Command pnpm)

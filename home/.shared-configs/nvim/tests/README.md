@@ -35,6 +35,8 @@ plugins are stored elsewhere:
 | Plugin | Environment variable | Default path |
 | --- | --- | --- |
 | Plenary | `PLENARY_DIR` | `stdpath('data') . '/lazy/plenary.nvim'` |
+| lazy.nvim | `LAZY_DIR` | `stdpath('data') . '/lazy/lazy.nvim'` |
+| Easy Dotnet | `EASY_DOTNET_DIR` | `stdpath('data') . '/lazy/easy-dotnet.nvim'` |
 | codesettings | `CODESETTINGS_DIR` | `stdpath('data') . '/lazy/codesettings.nvim'` |
 | Conform | `CONFORM_DIR` | `stdpath('data') . '/lazy/conform.nvim'` |
 | smart-splits v3 | `SMART_SPLITS_DIR` | `stdpath('data') . '/lazy/smart-splits.nvim'` |

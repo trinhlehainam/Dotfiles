@@ -3,11 +3,12 @@ return {
   'GustavEikaas/easy-dotnet.nvim',
   cmd = 'Dotnet',
   ft = { 'cs', 'fsharp', 'vb', 'razor' },
-  -- Project files activate tooling too; load before detection to register XML/JSON5.
+  -- Load before C# bootstrap hooks and project filetype detection are needed.
   event = {
     {
       event = { 'BufReadPre', 'BufNewFile' },
       pattern = {
+        '*.cs',
         '*.sln',
         '*.slnx',
         '*.slnf',
