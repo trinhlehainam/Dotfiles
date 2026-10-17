@@ -90,6 +90,13 @@ return { -- Autocompletion
         per_filetype = {
           php = { inherit_defaults = true, 'laravel' },
           blade = { inherit_defaults = true, 'laravel' },
+          -- ProjX skips F# projects, which Neovim detects as XML.
+          xml = function()
+            if vim.api.nvim_buf_get_name(0):lower():match('%.fsproj$') then
+              return { inherit_defaults = true, 'easy-dotnet' }
+            end
+            return { inherit_defaults = true }
+          end,
         },
         providers = {
           -- https://github.com/folke/lazydev.nvim?tab=readme-ov-file#-installation
@@ -103,6 +110,12 @@ return { -- Autocompletion
             name = 'laravel',
             module = 'blink.compat.source',
             score_offset = 95, -- show at a higher priority than lsp
+          },
+          ['easy-dotnet'] = {
+            name = 'easy-dotnet',
+            module = 'easy-dotnet.completion.blink',
+            score_offset = 10000,
+            async = true,
           },
         },
       },
