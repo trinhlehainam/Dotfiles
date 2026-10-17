@@ -1,12 +1,16 @@
 return {
   -- https://github.com/GustavEikaas/easy-dotnet.nvim
   'GustavEikaas/easy-dotnet.nvim',
+  -- Startup argument buffers exist before BufNew handlers can be registered.
+  lazy = not vim.iter(vim.fn.argv()):any(function(path)
+    return path:match('%.cs$') ~= nil
+  end),
   cmd = 'Dotnet',
   ft = { 'cs', 'fsharp', 'vb', 'razor' },
   -- Load before C# bootstrap hooks and project filetype detection are needed.
   event = {
     {
-      event = { 'BufReadPre', 'BufNewFile' },
+      event = { 'BufNew', 'BufReadPre', 'BufNewFile' },
       pattern = {
         '*.cs',
         '*.sln',
