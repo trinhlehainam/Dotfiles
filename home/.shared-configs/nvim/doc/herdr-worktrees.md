@@ -38,10 +38,7 @@ creation command is not a reusable toggle.
 Herdr uses its `Ctrl+B` prefix; tmux uses `Ctrl+A`. No Herdr-specific key
 forwarding is needed. Unprefixed `Ctrl+h/j/k/l` and `Alt+,/./u/d` retain the
 existing smart-splits behavior for Neovim and outer tmux panes. In the `agents`
-window they act on outer tmux panes; they no longer reach Herdr or agent prompts.
-
-If you loaded the earlier `Ctrl+A H` binding, run `tmux unbind-key -q H` once
-after reloading the new config. Reloading tmux does not remove deleted bindings.
+window they act on outer tmux panes.
 
 Use the default local Herdr session from both Neovim and the `agents` window.
 Neovim runs directly in tmux; do not nest tmux inside Herdr or invent
@@ -195,8 +192,8 @@ servers. Existing user sessions were not used for the experiments.
 - A real tmux client exercised numbered window selection, SessionX, smart-splits,
   and clean/dirty file refresh after focus. Herdr's `Ctrl+B v/h/l` worked with
   the ordinary TPM bindings and no Herdr-specific forwarding overrides.
-  Reloading an existing server restored TPM's eight bindings; the documented
-  one-time unbind removed the old `H` shortcut.
+  Starting Smug from an auto-named tmux window kept that window's rename settings
+  intact while the new `agents` window retained its stable name.
 - Context reached the selected pane with Herdr focused on another worktree.
   Duplicate agent types, cancellation, one/zero agents, reference guards,
   UTF-8, control bytes, and oversized payloads were checked.
@@ -208,11 +205,6 @@ servers. Existing user sessions were not used for the experiments.
 - A real Claude Code Opus 5.5 max terminal displayed both kinds of draft without
   submission. Other agent transports used synthetic terminal receivers in this
   implementation test; model execution and cache-read permissions were not tested.
-
-Claude Code `claude-opus-5-5` with `--effort max` reviewed the design and diff.
-Its reference, file-freshness, and focus-check feedback is included. The final
-review found no blocking code defects and requested additional runtime checks,
-covered above.
 
 Sources: [Herdr CLI](https://herdr.dev/docs/cli-reference/),
 [Herdr context plugin](https://github.com/makyinmars/herdr-context.nvim),

@@ -12,6 +12,4 @@ windows:
       - nvim
   - name: agents
     commands:
-      - tmux set-window-option -t "$TMUX_PANE" automatic-rename off
-      - tmux set-option -p -t "$TMUX_PANE" allow-rename off
       - herdr
