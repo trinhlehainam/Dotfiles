@@ -13,7 +13,10 @@ return {
     -- Only depend on `nvim-treesitter/queries/filetype/folds.scm`,
     -- performance and stability are better than `foldmethod=nvim_treesitter#foldexpr()`
     require('ufo').setup({
-      provider_selector = function(_, _, _)
+      provider_selector = function(_, filetype, _)
+        if filetype == 'bigfile' then
+          return ''
+        end
         return { 'treesitter', 'indent' }
       end,
     })

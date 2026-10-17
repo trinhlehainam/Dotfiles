@@ -896,6 +896,17 @@ $env.config = {
 
 # TODO: ensure executable before alias and sourcing
 alias v = nvim
+# Keep prompt editors minimal; direct nvim commands still use the full config.
+const AGENT_EDITOR = 'nvim --cmd let[g:dotfiles_minimal]=[v:true]'
+def --wrapped claude [...args] {
+    with-env { VISUAL: $AGENT_EDITOR, EDITOR: $AGENT_EDITOR } { ^claude ...$args }
+}
+def --wrapped codex [...args] {
+    with-env { VISUAL: $AGENT_EDITOR, EDITOR: $AGENT_EDITOR } { ^codex ...$args }
+}
+def --wrapped opencode [...args] {
+    with-env { VISUAL: $AGENT_EDITOR, EDITOR: $AGENT_EDITOR } { ^opencode ...$args }
+}
 alias la = eza -a
 alias ll = eza -l -a
 alias lt = eza -l -a --tree --level=2 --git

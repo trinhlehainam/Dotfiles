@@ -8,8 +8,8 @@ return {
       end,
     },
   },
-  cmd = 'Copilot',
-  event = 'InsertEnter',
+  -- Set up editing hooks before the first keystroke; the server starts asynchronously.
+  lazy = false,
   config = function()
     -- https://github.com/zbirenbaum/copilot.lua?tab=readme-ov-file#setup-and-configuration
     require('copilot').setup({
@@ -35,6 +35,7 @@ return {
 
       filetypes = {
         ['*'] = true,
+        bigfile = false,
         ['opencode_terminal'] = false,
         ['neo-tree'] = false,
         sh = function()

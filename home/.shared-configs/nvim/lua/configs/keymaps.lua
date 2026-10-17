@@ -69,8 +69,10 @@ vim.keymap.set('n', 'Y', 'yg_', opts.nore)
 -- Disable 's' and 'S' in normal mode to free them for other uses
 -- 's' normally deletes character and enters insert mode (use 'cl' instead)
 -- 'S' normally deletes line and enters insert mode (use 'cc' instead)
-vim.keymap.set('n', 's', '', opts.nore)
-vim.keymap.set('n', 'S', '', opts.nore)
+if not vim.g.dotfiles_minimal then
+  vim.keymap.set('n', 's', '', opts.nore)
+  vim.keymap.set('n', 'S', '', opts.nore)
+end
 
 -- ----------------------------------------------------------------------------
 -- Insert Mode Escape Mechanisms

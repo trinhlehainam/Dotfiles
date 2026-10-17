@@ -6,6 +6,10 @@ return {
     local opencode_cmd = 'opencode --port'
     ---@type snacks.terminal.Opts
     local snacks_terminal_opts = {
+      env = {
+        VISUAL = 'nvim --cmd let[g:dotfiles_minimal]=[v:true]',
+        EDITOR = 'nvim --cmd let[g:dotfiles_minimal]=[v:true]',
+      },
       win = {
         bo = {
           filetype = 'opencode_terminal',

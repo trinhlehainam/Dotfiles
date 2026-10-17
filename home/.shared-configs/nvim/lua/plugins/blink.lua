@@ -11,7 +11,7 @@ return { -- Autocompletion
   {
     -- https://cmp.saghen.dev/
     'saghen/blink.cmp',
-    event = 'VimEnter',
+    lazy = false, -- Advertise completion capabilities before any LSP client starts.
     version = '1.*',
     dependencies = {
       -- Snippet Engine
@@ -86,7 +86,19 @@ return { -- Autocompletion
       },
 
       sources = {
-        default = { 'lazydev', 'lsp', 'path', 'snippets', 'laravel', 'easy-dotnet' },
+        default = { 'lazydev', 'lsp', 'path', 'snippets' },
+        per_filetype = {
+          php = { inherit_defaults = true, 'laravel' },
+          blade = { inherit_defaults = true, 'laravel' },
+          -- ProjX skips F# and VB projects, which Neovim detects as XML.
+          xml = function()
+            local filename = vim.api.nvim_buf_get_name(0):lower()
+            if filename:match('%.fsproj$') or filename:match('%.vbproj$') then
+              return { inherit_defaults = true, 'easy-dotnet' }
+            end
+            return { inherit_defaults = true }
+          end,
+        },
         providers = {
           -- https://github.com/folke/lazydev.nvim?tab=readme-ov-file#-installation
           lazydev = {
@@ -100,10 +112,8 @@ return { -- Autocompletion
             module = 'blink.compat.source',
             score_offset = 95, -- show at a higher priority than lsp
           },
-          -- https://github.com/GustavEikaas/easy-dotnet.nvim?tab=readme-ov-file#using-blinkcmp
           ['easy-dotnet'] = {
             name = 'easy-dotnet',
-            enabled = true,
             module = 'easy-dotnet.completion.blink',
             score_offset = 10000,
             async = true,

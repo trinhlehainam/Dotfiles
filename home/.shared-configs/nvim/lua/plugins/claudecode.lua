@@ -3,6 +3,10 @@ return {
   dependencies = { 'folke/snacks.nvim' },
   -- https://github.com/coder/claudecode.nvim?tab=readme-ov-file#advanced-configuration
   opts = {
+    env = {
+      VISUAL = 'nvim --cmd let[g:dotfiles_minimal]=[v:true]',
+      EDITOR = 'nvim --cmd let[g:dotfiles_minimal]=[v:true]',
+    },
     terminal = {
       split_width_percentage = 0.4, -- 40% width (matches opencode)
       ---@module "snacks"

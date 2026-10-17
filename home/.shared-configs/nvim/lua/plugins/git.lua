@@ -10,6 +10,38 @@ local pending_blame_diffview_req_id = 0
 return {
   {
     'NeogitOrg/neogit',
+    -- Diffview is configured here too, including the blame-to-diff handoff.
+    cmd = {
+      'Neogit',
+      'NeogitCommit',
+      'NeogitLogCurrent',
+      'NeogitResetState',
+      'DiffviewOpen',
+      'DiffviewWorktreeOverview',
+      'DiffviewToggle',
+      'DiffviewDiffFiles',
+      'DiffviewMergeFiles',
+      'DiffviewDiffDirs',
+      'DiffviewClose',
+      'DiffviewFileHistory',
+      'DiffviewFocusFiles',
+      'DiffviewToggleFiles',
+      'DiffviewRefresh',
+      'DiffviewLog',
+    },
+    keys = {
+      {
+        '<leader>gs',
+        function()
+          require('neogit').open()
+        end,
+        desc = '[S]how [G]it',
+        silent = true,
+      },
+      { '<leader>gc', ':Neogit commit<CR>', desc = '[G]it [C]ommit', silent = true },
+      { '<leader>gp', ':Neogit pull<CR>', desc = '[G]it [P]ull', silent = true },
+      { '<leader>gP', ':Neogit push<CR>', desc = '[G]it [P]ush', silent = true },
+    },
     dependencies = {
       'nvim-lua/plenary.nvim', -- required
       {
@@ -319,31 +351,6 @@ return {
           end,
         },
       })
-
-      vim.keymap.set(
-        'n',
-        '<leader>gs',
-        neogit.open,
-        { desc = '[S]how [G]it', silent = true, noremap = true }
-      )
-      vim.keymap.set(
-        'n',
-        '<leader>gc',
-        ':Neogit commit<CR>',
-        { desc = '[G]it [C]ommit', silent = true, noremap = true }
-      )
-      vim.keymap.set(
-        'n',
-        '<leader>gp',
-        ':Neogit pull<CR>',
-        { desc = '[G]it [P]ull', silent = true, noremap = true }
-      )
-      vim.keymap.set(
-        'n',
-        '<leader>gP',
-        ':Neogit push<CR>',
-        { desc = '[G]it [P]ush', silent = true, noremap = true }
-      )
     end,
   },
   -- 'tpope/vim-rhubarb',

@@ -1,10 +1,6 @@
 describe('LSP buffer features', function()
   local module_names = { 'configs.plugins.nvim-lspconfig', 'configs.lsp', 'codesettings' }
-  local group_names = {
-    'kickstart-lsp-attach',
-    'kickstart-lsp-detach',
-    'kickstart-lsp-highlight',
-  }
+  local group_names = { 'kickstart-lsp-attach' }
   local original_modules
   local original
   local buffers
@@ -29,30 +25,10 @@ describe('LSP buffer features', function()
 
   local function emit(event, bufnr, client_id)
     vim.api.nvim_exec_autocmds(event, {
-      group = event == 'LspAttach' and 'kickstart-lsp-attach' or 'kickstart-lsp-detach',
+      group = 'kickstart-lsp-attach',
       buffer = bufnr,
       data = { client_id = client_id },
     })
-  end
-
-  local function highlight_autocmds(bufnr)
-    return vim.api.nvim_get_autocmds({ group = 'kickstart-lsp-highlight', buffer = bufnr })
-  end
-
-  local function add_reference(bufnr)
-    vim.lsp.util.buf_highlight_references(bufnr, {
-      {
-        range = {
-          start = { line = 0, character = 6 },
-          ['end'] = { line = 0, character = 11 },
-        },
-      },
-    }, 'utf-16')
-  end
-
-  local function references(bufnr)
-    local namespace = vim.api.nvim_get_namespaces()['nvim.lsp.references']
-    return vim.api.nvim_buf_get_extmarks(bufnr, namespace, 0, -1, {})
   end
 
   before_each(function()
@@ -139,38 +115,16 @@ describe('LSP buffer features', function()
     end
   end)
 
-  it('cleans up highlights when the final client has a sparse numeric ID', function()
-    local bufnr = make_buf()
-    add_client(7, vim.lsp.protocol.Methods.textDocument_documentHighlight)
-
-    emit('LspAttach', bufnr, 7)
-    assert.equals(4, #highlight_autocmds(bufnr))
-
-    emit('LspDetach', bufnr, 7)
-    assert.same({}, highlight_autocmds(bufnr))
-    assert.is_nil(vim.b[bufnr].lsp_highlight_clients)
-  end)
-
-  it('keeps highlights until final detach and avoids duplicate callbacks on reattach', function()
-    local bufnr = make_buf()
-    add_client(2, vim.lsp.protocol.Methods.textDocument_documentHighlight)
-    add_client(5, vim.lsp.protocol.Methods.textDocument_documentHighlight)
-
-    emit('LspAttach', bufnr, 2)
-    emit('LspAttach', bufnr, 5)
-    assert.equals(4, #highlight_autocmds(bufnr))
-
-    emit('LspDetach', bufnr, 2)
-    assert.equals(4, #highlight_autocmds(bufnr))
-    emit('LspDetach', bufnr, 5)
-    assert.same({}, highlight_autocmds(bufnr))
-
-    emit('LspAttach', bufnr, 2)
-    emit('LspAttach', bufnr, 2)
-    assert.equals(4, #highlight_autocmds(bufnr))
-    emit('LspDetach', bufnr, 2)
-    assert.same({}, highlight_autocmds(bufnr))
-  end)
+  it(
+    'leaves document highlighting to illuminate instead of adding a second request loop',
+    function()
+      local bufnr = make_buf()
+      add_client(7, vim.lsp.protocol.Methods.textDocument_documentHighlight)
+      emit('LspAttach', bufnr, 7)
+      local callbacks = vim.api.nvim_get_autocmds({ event = 'CursorHold', buffer = bufnr })
+      assert.same({}, callbacks)
+    end
+  )
 
   it('toggles inlay hints only in the buffer owning the keymap', function()
     local bufnr = make_buf()
@@ -193,23 +147,5 @@ describe('LSP buffer features', function()
     assert.is_false(vim.lsp.inlay_hint.is_enabled({ bufnr = other_buf }))
     toggle()
     assert.is_false(vim.lsp.inlay_hint.is_enabled({ bufnr = bufnr }))
-  end)
-
-  it('clears detached buffer references while preserving another current buffer', function()
-    local bufnr = make_buf()
-    local other_buf = make_buf()
-    add_client(1, vim.lsp.protocol.Methods.textDocument_documentHighlight)
-    emit('LspAttach', bufnr, 1)
-    vim.api.nvim_set_current_buf(other_buf)
-    add_reference(bufnr)
-    add_reference(other_buf)
-    assert.equals(1, #references(bufnr))
-    assert.equals(1, #references(other_buf))
-
-    emit('LspDetach', bufnr, 1)
-
-    assert.same({}, references(bufnr))
-    assert.equals(1, #references(other_buf))
-    assert.equals(other_buf, vim.api.nvim_get_current_buf())
   end)
 end)

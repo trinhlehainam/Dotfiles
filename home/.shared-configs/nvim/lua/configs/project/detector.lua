@@ -122,6 +122,11 @@ end
 
 ---@param bufnr integer
 function M.redetect_filetype(bufnr)
+  -- Keep Snacks' large-file protection when project associations are reapplied.
+  if vim.bo[bufnr].filetype == 'bigfile' then
+    return
+  end
+
   local name = vim.api.nvim_buf_get_name(bufnr)
   if name == '' then
     return

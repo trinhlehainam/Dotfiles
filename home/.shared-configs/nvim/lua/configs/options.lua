@@ -114,15 +114,3 @@ vim.api.nvim_create_autocmd('TextYankPost', {
     vim.hl.on_yank()
   end,
 })
-
-local utils = require('utils.common')
--- https://github.com/williamboman/mason.nvim/issues/1753
-if utils.IS_WINDOWS and vim.fn.executable('pyenv') then
-  local version = vim.fn.system('pyenv global'):gsub('\n', '')
-  local user_profile = vim.fn.getenv('USERPROFILE')
-  local python_path = user_profile .. '/.pyenv/pyenv-win/versions/' .. version
-  if vim.fn.isdirectory(python_path) and vim.fn.executable(python_path .. '/python.exe') then
-    local path = vim.fn.getenv('PATH')
-    vim.fn.setenv('PATH', python_path .. ';' .. path)
-  end
-end
