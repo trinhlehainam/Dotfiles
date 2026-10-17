@@ -137,13 +137,14 @@ keep local changes; compare with the file on disk before saving.
 Neovim's own file checks may also show a changed-on-disk warning for dirty
 buffers. Keep the buffer contents until you have compared both versions.
 
-The embedded Claude, Codex, and OpenCode Neovim plugins are disabled. Conversations
+The embedded Claude, Codex, and OpenCode Neovim plugins are removed. Conversations
 and edit approvals now happen in Herdr. Diffview reviews changes already on
 disk; it does not replace an agent's approval prompt before writing.
 
-The three disabled specs also overwrite older deployed configurations when
-applying from a fresh Chezmoi worktree. Keeping these small files prevents old
-agent mappings from surviving the migration as unmanaged files.
+The tracked `home/.chezmoiremove.tmpl` removes their old deployed configuration
+files on the next Chezmoi apply, including from a fresh checkout. It is separate
+from the generated cleanup manifest. Restart Neovim after applying; `:Lazy clean`
+can remove unused plugin downloads.
 
 Before removing or merging a worktree:
 
@@ -159,8 +160,9 @@ matching workspace in Herdr. Never remove a checkout while agents still use it.
 
 ## Versions and configuration
 
-Tested with tmux 3.8, Neovim 0.12.6, Herdr 0.9.5, Workmux 0.1.276, and Smug
-0.3.19. The Neovim plugin is pinned at `2e99ef05c52e1a8ee71b630612a0f8ac18a9638e`.
+Tested with tmux 3.8, Neovim 0.12.6, Herdr 0.9.5, Workmux 0.1.276, Smug
+0.3.19, and Chezmoi 2.65.0. The Neovim plugin is pinned at
+`2e99ef05c52e1a8ee71b630612a0f8ac18a9638e`.
 Recheck context routing and keyboard behavior before upgrading the bridge.
 
 The global Workmux config provides the editor-only layout and Herdr creation
@@ -177,8 +179,12 @@ servers. Existing user sessions were not used for the experiments.
 - `make test` in the Neovim source directory: 122 tests passed.
 - `bun test scripts/reconcile-configs.test.ts scripts/agent-prompt-editor.test.ts`:
   42 tests passed.
-- Chezmoi rendered into a temporary home, replaced old agent plugin specs,
-  and the full rendered Neovim configuration started successfully.
+- Chezmoi removed the three old agent plugin specs in temporary homes, including
+  upgrades with existing persistent state, a fresh source checkout, and repeated
+  applies. The generation hook handled duplicate removal entries and cleared
+  them after migration. Unrelated plugin files survived.
+  Linux, macOS, and Windows removal paths rendered correctly;
+  the full rendered Neovim configuration started successfully on Linux.
 - Workmux created two editor worktrees; repeated opens reused the windows.
   Closing an editor preserved its agents. Closing Herdr workspaces preceded
   checkout removal, and Workmux remained usable with Herdr stopped.
