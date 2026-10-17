@@ -2,6 +2,19 @@
 return {
   'rmagatti/auto-session',
   lazy = false,
+  init = function()
+    -- Sessions name special buffer placeholders with :file before restoring their options.
+    -- SessionLoad can survive a failed script; auto-session resets its own restore flag.
+    vim.api.nvim_create_autocmd('BufFilePre', {
+      group = vim.api.nvim_create_augroup('auto-session-placeholders', { clear = true }),
+      callback = function(event)
+        local restoring = require('auto-session').restore_in_progress
+        if restoring and vim.api.nvim_buf_get_name(event.buf) == '' then
+          vim.bo[event.buf].swapfile = false
+        end
+      end,
+    })
+  end,
   keys = {
     { '<leader>wr', '<cmd>AutoSession search<CR>', desc = 'Session: search' },
     { '<leader>ws', '<cmd>AutoSession save<CR>', desc = 'Session: save' },
