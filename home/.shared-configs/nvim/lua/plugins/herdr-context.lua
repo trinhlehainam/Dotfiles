@@ -14,6 +14,13 @@ local function reference(whole_file)
     )
     return
   end
+  local bufnr = vim.api.nvim_get_current_buf()
+  local changedtick = vim.api.nvim_buf_get_changedtick(bufnr)
+  vim.cmd.checktime({ args = { tostring(bufnr) } })
+  if vim.api.nvim_buf_get_changedtick(bufnr) ~= changedtick then
+    vim.notify('File changed on disk. Review it and select the lines again.', vim.log.levels.WARN)
+    return
+  end
   local opts = whole_file and { line1 = 1, line2 = vim.api.nvim_buf_line_count(0) } or nil
   require('herdr-context').reference(opts)
 end

@@ -110,7 +110,9 @@ there. The configured mappings do not submit.
 Only stage while the target is idle at its prompt.
 
 Reference mappings refuse unsaved, missing, and special buffers. Save first,
-or use `<leader>as` for unsaved text. References are relative to the source
+or use `<leader>as` for unsaved text. They also check for disk changes before
+referencing: if the buffer refreshes, the send stops so you can review and
+select again. References are relative to the source
 checkout: choosing a different worktree can reference its version of the file.
 
 Selected content uses whole lines, including characterwise or blockwise
@@ -172,7 +174,7 @@ Happier and automatic cross-tool workspace synchronization are not configured.
 Verified on 2026-10-18 in temporary directories with private tmux and Herdr
 servers. Existing user sessions were not used for the experiments.
 
-- `make test` in the Neovim source directory: 121 tests passed.
+- `make test` in the Neovim source directory: 122 tests passed.
 - `bun test scripts/reconcile-configs.test.ts scripts/agent-prompt-editor.test.ts`:
   42 tests passed.
 - Chezmoi rendered into a temporary home, replaced old agent plugin specs,
@@ -192,6 +194,8 @@ servers. Existing user sessions were not used for the experiments.
 - Context reached the selected pane with Herdr focused on another worktree.
   Duplicate agent types, cancellation, one/zero agents, reference guards,
   UTF-8, control bytes, and oversized payloads were checked.
+  Saved-file references refresh changed buffers and stop for reselection,
+  including Visual mode; dirty buffers retain their unsaved edits.
 - Lazy installed the shipped repository-and-commit spec. Its first visual send
   worked; concurrent editors kept distinct context files even when forced to
   generate identical filenames. Files remained readable after editor exit.
@@ -200,8 +204,9 @@ servers. Existing user sessions were not used for the experiments.
   implementation test; model execution and cache-read permissions were not tested.
 
 Claude Code `claude-opus-5-5` with `--effort max` reviewed the design and diff.
-Its reference and focus-check feedback is included. The final review found no
-blocking code defects and requested additional runtime checks, covered above.
+Its reference, file-freshness, and focus-check feedback is included. The final
+review found no blocking code defects and requested additional runtime checks,
+covered above.
 
 Sources: [Herdr CLI](https://herdr.dev/docs/cli-reference/),
 [Herdr context plugin](https://github.com/makyinmars/herdr-context.nvim),
