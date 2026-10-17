@@ -4,9 +4,12 @@ attach: true
 
 windows:
   - name: workmux
-    selected: true
     commands:
       - workmux dashboard --session --tab worktrees
   - name: main
+    selected: true
     commands:
       - nvim
+  - name: agents
+    commands:
+      - herdr

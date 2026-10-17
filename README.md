@@ -2,6 +2,9 @@
 
 Cross-platform dev configs managed with [chezmoi](https://chezmoi.io/).
 
+For one Neovim per worktree and a central agent window, see the
+[Workmux + Herdr workflow](home/.shared-configs/nvim/doc/herdr-worktrees.md).
+
 ## Quick Start
 
 ```bash
