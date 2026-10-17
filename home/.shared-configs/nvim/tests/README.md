@@ -38,6 +38,8 @@ plugins are stored elsewhere:
 | lazy.nvim | `LAZY_DIR` | `stdpath('data') . '/lazy/lazy.nvim'` |
 | Easy Dotnet | `EASY_DOTNET_DIR` | `stdpath('data') . '/lazy/easy-dotnet.nvim'` |
 | Blink completion | `BLINK_CMP_DIR` | `stdpath('data') . '/lazy/blink.cmp'` |
+| auto-session | `AUTO_SESSION_DIR` | `stdpath('data') . '/lazy/auto-session'` |
+| Markdown Reader | `MARKDOWN_TABLE_WRAP_DIR` | `stdpath('data') . '/lazy/markdown-table-wrap.nvim'` |
 | codesettings | `CODESETTINGS_DIR` | `stdpath('data') . '/lazy/codesettings.nvim'` |
 | Conform | `CONFORM_DIR` | `stdpath('data') . '/lazy/conform.nvim'` |
 | smart-splits v3 | `SMART_SPLITS_DIR` | `stdpath('data') . '/lazy/smart-splits.nvim'` |
@@ -54,6 +56,10 @@ plugins are stored elsewhere:
 Tests use real Neovim APIs, codesettings JSONC parsing, and Conform definitions.
 LSP and Tree-sitter tests simulate server startup and parser installation, so
 they do not need running language servers or parser downloads.
+
+The [session restoration tests](../doc/session-restoration.md) use real session
+scripts and stale swap files. The Reader test starts an isolated Neovim with
+lazy.nvim and markdown-table-wrap.nvim to check source recovery and swap protection.
 
 The smart-splits tests run the real core and backend plugins. They replace tmux
 process calls and terminal OSC writes with test doubles. The WezTerm navigation
