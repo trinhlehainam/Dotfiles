@@ -1,0 +1,7 @@
+nerdfont: true
+mode: window
+
+# One editor per worktree. All agents run in the central Herdr window.
+panes:
+  - command: nvim
+    focus: true
