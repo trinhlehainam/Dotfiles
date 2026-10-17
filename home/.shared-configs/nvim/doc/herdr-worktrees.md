@@ -27,38 +27,50 @@ creation command is not a reusable toggle.
 
 | Action | Keys |
 | --- | --- |
-| Toggle editor ↔ central Herdr window | `Ctrl+A H` |
-| Pick a tmux editor window | `Ctrl+A o` (SessionX) or `Ctrl+A w` |
+| Select an editor or Herdr tmux window | `Ctrl+A 1/2/3/…` (its window number) |
+| Pick a tmux window from a list | `Ctrl+A o` (SessionX) or `Ctrl+A w` |
 | Pick an agent across Herdr workspaces | `Ctrl+B g`, then `/` to search |
 | Pick a Herdr workspace | `Ctrl+B w` |
+| Move between Herdr panes | `Ctrl+B`, then `h/j/k/l` |
 | Zoom a Herdr agent pane | `Ctrl+B z` |
 | Zoom an outer tmux pane | `Ctrl+A z` |
 
-`H` returns to the last tmux window, which may be the dashboard if that was
-your previous window. Keep the central window named `agents`.
-Herdr receives `Ctrl+h/j/k/l` and `Alt+,/./u/d`; its own bindings determine
-what they do. Ordinary shells retain tmux navigation and resizing.
+Herdr uses its `Ctrl+B` prefix; tmux uses `Ctrl+A`. No Herdr-specific key
+forwarding is needed. Unprefixed `Ctrl+h/j/k/l` and `Alt+,/./u/d` retain the
+existing smart-splits behavior for Neovim and outer tmux panes. In the `agents`
+window they act on outer tmux panes; they no longer reach Herdr or agent prompts.
+
+If you loaded the earlier `Ctrl+A H` binding, run `tmux unbind-key -q H` once
+after reloading the new config. Reloading tmux does not remove deleted bindings.
 
 Use the default local Herdr session from both Neovim and the `agents` window.
 Neovim runs directly in tmux; do not nest tmux inside Herdr or invent
 `HERDR_ENV`, pane IDs, or workspace IDs. If you deliberately use a named Herdr
-session, both processes must inherit the same `HERDR_SESSION`. An inherited
-`HERDR_SOCKET_PATH` can override that choice.
+session, Neovim, Herdr, and the shell running Workmux must inherit the same
+`HERDR_SESSION`. An inherited `HERDR_SOCKET_PATH` can override that choice.
 
 ## Open a worktree
 
-From the repository, create the checkout and editor with Workmux:
+Keep Herdr running in the central `agents` window. From the repository, create
+the checkout and editor with Workmux:
 
 ```sh
 workmux add feature-a
 ```
 
-In a shell, open that existing checkout in Herdr. Use absolute paths from
-`git worktree list`; for this repository the default directory is `worktrees/`:
+The global Workmux `post_create` hook opens that checkout as a Herdr workspace
+before the Neovim window opens. It uses Workmux's resolved path and handle, so
+custom names and worktree directories work too. `--no-focus` keeps Herdr's
+current selection; choose the new workspace with `Ctrl+B w`. Change it to
+`--focus` if you want Herdr to select each newly added workspace automatically.
+
+If Herdr is stopped or the command fails, the hook prints a warning in the
+terminal that ran Workmux and continues opening Neovim. Start Herdr, then run
+this from the repository to open or recover the matching workspace:
 
 ```sh
-herdr worktree open --cwd /absolute/path/to/repo \
-  --path /absolute/path/to/repo/worktrees/feature-a --label feature-a
+herdr worktree open --cwd "$PWD" \
+  --path "$(workmux path feature-a)" --label feature-a --focus
 ```
 
 Start Claude, Codex, or another agent in that Herdr workspace. Multiple agents
@@ -71,9 +83,10 @@ open checkout. Workmux's Worktrees dashboard remains useful; its Agents tab
 does not track agents hosted inside Herdr. Do not install Workmux agent status
 hooks for those agents.
 
-There are no lifecycle hooks connecting the tools. Herdr being unavailable
-must not prevent Workmux from creating an editor. Editor switching and Herdr
-workspace switching remain independent.
+Reopening an existing editor window skips the hook, even with
+`workmux open --run-hooks`. Use the explicit Herdr command above if its
+workspace was closed. Editor switching and Herdr workspace switching remain
+independent. The hook only opens a workspace; start agents inside Herdr.
 
 ## Stage context, then continue in Herdr
 
@@ -90,9 +103,10 @@ bind this editor to its worktree. Herdr's focused workspace can sort first,
 even when it belongs to another editor. If this worktree has no agent, cancel
 and start one in Herdr.
 
-After choosing, `Ctrl+A H` opens Herdr. The plugin focuses the chosen agent
-inside Herdr but does not switch the outer tmux window. Review the draft, add
-instructions, and press Enter there. The configured mappings do not submit.
+After choosing, select the `agents` tmux window with `Ctrl+A` and its window
+number. The plugin focuses the chosen agent inside Herdr but does not switch
+the outer tmux window. Review the draft, add instructions, and press Enter
+there. The configured mappings do not submit.
 Only stage while the target is idle at its prompt.
 
 Reference mappings refuse unsaved, missing, and special buffers. Save first,
@@ -147,8 +161,10 @@ Tested with tmux 3.8, Neovim 0.12.6, Herdr 0.9.5, Workmux 0.1.276, and Smug
 0.3.19. The Neovim plugin is pinned at `2e99ef05c52e1a8ee71b630612a0f8ac18a9638e`.
 Recheck context routing and keyboard behavior before upgrading the bridge.
 
-The global Workmux config provides the editor-only default. A project's own
-`.workmux.yaml` can override it; this repository explicitly uses the same layout.
+The global Workmux config provides the editor-only layout and Herdr creation
+hook. A project's own `.workmux.yaml` can override them; this repository uses
+the same layout and inherits the hook. Projects with their own `post_create`
+list must include `- "<global>"` to keep the global hook.
 Happier and automatic cross-tool workspace synchronization are not configured.
 
 ## Validation
@@ -164,8 +180,15 @@ servers. Existing user sessions were not used for the experiments.
 - Workmux created two editor worktrees; repeated opens reused the windows.
   Closing an editor preserved its agents. Closing Herdr workspaces preceded
   checkout removal, and Workmux remained usable with Herdr stopped.
-- A real tmux client exercised the window toggle, SessionX, all eight key
-  forwarding bindings, smart-splits, and clean/dirty file refresh after focus.
+- The global creation hook opened the exact checkout with a custom handle,
+  branch slash, and spaces in the repository path. With Herdr stopped, it
+  printed a warning and still opened Neovim. Explicit Herdr opens recovered
+  closed workspaces and reused existing ones.
+- A real tmux client exercised numbered window selection, SessionX, smart-splits,
+  and clean/dirty file refresh after focus. Herdr's `Ctrl+B v/h/l` worked with
+  the ordinary TPM bindings and no Herdr-specific forwarding overrides.
+  Reloading an existing server restored TPM's eight bindings; the documented
+  one-time unbind removed the old `H` shortcut.
 - Context reached the selected pane with Herdr focused on another worktree.
   Duplicate agent types, cancellation, one/zero agents, reference guards,
   UTF-8, control bytes, and oversized payloads were checked.
