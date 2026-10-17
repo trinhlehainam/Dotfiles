@@ -46,6 +46,7 @@ vim.o.directory = %q
 vim.cmd.file(vim.fn.fnameescape(%q))
 vim.api.nvim_buf_set_lines(0, 0, -1, false, { 'unsaved text' })
 vim.cmd('silent preserve')
+-- Bypass Neovim's normal shutdown so the swap survives for the restore test.
 os.exit(0)
 ]],
       root .. '/swap//',
@@ -135,7 +136,7 @@ os.exit(0)
   it('keeps swap enabled for real files restored by a session', function()
     save_session(false)
 
-    vim.cmd.source(session)
+    assert.is_true(restore_session())
 
     assert.equals(source, vim.api.nvim_buf_get_name(0))
     assert.is_true(vim.bo.swapfile)
@@ -145,10 +146,8 @@ os.exit(0)
     save_session(false)
     local stale_swap = leave_swap(source)
 
-    local ok, err = pcall(vim.cmd, 'silent source ' .. vim.fn.fnameescape(session))
-
-    assert.is_false(ok)
-    assert.is_not_nil(err:find('E325: ATTENTION', 1, true))
+    assert.is_false(restore_session())
+    assert.is_false(require('auto-session.config').auto_save)
     assert.equals(1, vim.fn.filereadable(stale_swap))
   end)
 
@@ -156,6 +155,18 @@ os.exit(0)
     vim.cmd.enew()
     vim.cmd.file(source)
 
+    assert.is_true(vim.bo.swapfile)
+  end)
+
+  it('keeps swap enabled when a named buffer is renamed during restore', function()
+    local renamed = root .. '/renamed.md'
+    vim.fn.writefile({
+      'edit ' .. vim.fn.fnameescape(source),
+      'file ' .. vim.fn.fnameescape(renamed),
+    }, session)
+
+    assert.is_true(restore_session())
+    assert.equals(renamed, vim.api.nvim_buf_get_name(0))
     assert.is_true(vim.bo.swapfile)
   end)
 

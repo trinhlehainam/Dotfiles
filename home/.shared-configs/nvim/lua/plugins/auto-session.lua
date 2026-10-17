@@ -3,8 +3,10 @@ return {
   'rmagatti/auto-session',
   lazy = false,
   init = function()
-    -- Sessions name special buffer placeholders with :file before restoring their options.
-    -- SessionLoad can survive a failed script; auto-session resets its own restore flag.
+    -- :mksession names special-buffer placeholders with :file before restoring their options.
+    -- BufFilePre still sees an empty name, so matching a Reader URI here cannot work.
+    -- Use auto-session's flag: a failed script can leave g:SessionLoad set.
+    -- This is internal plugin state; see doc/session-restoration.md for upgrade checks.
     vim.api.nvim_create_autocmd('BufFilePre', {
       group = vim.api.nvim_create_augroup('auto-session-placeholders', { clear = true }),
       callback = function(event)
