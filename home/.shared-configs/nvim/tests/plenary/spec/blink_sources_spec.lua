@@ -53,23 +53,14 @@ describe('Blink project completion', function()
     assert.is_nil(package.loaded['easy-dotnet.completion.blink'])
   end)
 
-  it('preserves default sources with Dotnet completion in F# projects', function()
-    vim.api.nvim_buf_set_name(buf, 'Example.fsproj')
-    vim.bo.filetype = vim.filetype.match({ filename = 'Example.fsproj' })
-    local ids = sources.get_enabled_provider_ids('default')
-    for _, id in ipairs({ 'easy-dotnet', 'lazydev', 'lsp', 'path', 'snippets' }) do
-      assert.is_true(vim.tbl_contains(ids, id), 'F# project is missing ' .. id)
-    end
-    assert.is_true(sources.get_provider_by_id('easy-dotnet'):enabled())
-  end)
-
   -- Exercise the real Blink provider with only the NuGet transport replaced.
+  ---@param filename string
   ---@param line string
   ---@param nuget table
   ---@return blink.cmp.CompletionItem[]
-  local function complete_fsproj(line, nuget)
-    vim.api.nvim_buf_set_name(buf, 'Example.fsproj')
-    vim.bo.filetype = vim.filetype.match({ filename = 'Example.fsproj' })
+  local function complete_project(filename, line, nuget)
+    vim.api.nvim_buf_set_name(buf, filename)
+    vim.bo.filetype = vim.filetype.match({ filename = filename })
     assert.is_true(vim.tbl_contains(sources.get_enabled_provider_ids('default'), 'easy-dotnet'))
     package.loaded['easy-dotnet.rpc.rpc'] = {
       global_rpc_client = {
@@ -95,27 +86,41 @@ describe('Blink project completion', function()
     return items
   end
 
-  it('returns NuGet package names in an F# project detected as XML', function()
-    local items = complete_fsproj('<PackageReference Include="Newt', {
-      nuget_search = function(_, term, _, callback)
-        assert.equals('Newt', term)
-        callback({ { id = 'Newtonsoft.Json', source = 'nuget.org' } })
-        return { cancel = function() end }
-      end,
-    })
-    assert.equals('Newtonsoft.Json', items[1].insertText)
-    assert.equals('easy-dotnet', items[1].source_id)
-  end)
+  for _, filename in ipairs({ 'Example.fsproj', 'Example.vbproj' }) do
+    it('preserves default sources with Dotnet completion in ' .. filename, function()
+      vim.api.nvim_buf_set_name(buf, filename)
+      vim.bo.filetype = vim.filetype.match({ filename = filename })
+      assert.equals('xml', vim.bo.filetype)
+      local ids = sources.get_enabled_provider_ids('default')
+      for _, id in ipairs({ 'easy-dotnet', 'lazydev', 'lsp', 'path', 'snippets' }) do
+        assert.is_true(vim.tbl_contains(ids, id), filename .. ' is missing ' .. id)
+      end
+      assert.is_true(sources.get_provider_by_id('easy-dotnet'):enabled())
+    end)
 
-  it('returns NuGet versions in an F# project detected as XML', function()
-    local items = complete_fsproj('<PackageReference Include="Newtonsoft.Json" Version="13.', {
-      nuget_get_package_versions = function(_, name, _, _, callback)
-        assert.equals('Newtonsoft.Json', name)
-        callback({ '13.0.3' })
-        return { cancel = function() end }
-      end,
-    })
-    assert.equals('13.0.3', items[1].insertText)
-    assert.equals('easy-dotnet', items[1].source_id)
-  end)
+    it('returns NuGet package names in ' .. filename .. ' detected as XML', function()
+      local items = complete_project(filename, '<PackageReference Include="Newt', {
+        nuget_search = function(_, term, _, callback)
+          assert.equals('Newt', term)
+          callback({ { id = 'Newtonsoft.Json', source = 'nuget.org' } })
+          return { cancel = function() end }
+        end,
+      })
+      assert.equals('Newtonsoft.Json', items[1].insertText)
+      assert.equals('easy-dotnet', items[1].source_id)
+    end)
+
+    it('returns NuGet versions in ' .. filename .. ' detected as XML', function()
+      local items =
+        complete_project(filename, '<PackageReference Include="Newtonsoft.Json" Version="13.', {
+          nuget_get_package_versions = function(_, name, _, _, callback)
+            assert.equals('Newtonsoft.Json', name)
+            callback({ '13.0.3' })
+            return { cancel = function() end }
+          end,
+        })
+      assert.equals('13.0.3', items[1].insertText)
+      assert.equals('easy-dotnet', items[1].source_id)
+    end)
+  end
 end)

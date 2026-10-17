@@ -90,9 +90,10 @@ return { -- Autocompletion
         per_filetype = {
           php = { inherit_defaults = true, 'laravel' },
           blade = { inherit_defaults = true, 'laravel' },
-          -- ProjX skips F# projects, which Neovim detects as XML.
+          -- ProjX skips F# and VB projects, which Neovim detects as XML.
           xml = function()
-            if vim.api.nvim_buf_get_name(0):lower():match('%.fsproj$') then
+            local filename = vim.api.nvim_buf_get_name(0):lower()
+            if filename:match('%.fsproj$') or filename:match('%.vbproj$') then
               return { inherit_defaults = true, 'easy-dotnet' }
             end
             return { inherit_defaults = true }
