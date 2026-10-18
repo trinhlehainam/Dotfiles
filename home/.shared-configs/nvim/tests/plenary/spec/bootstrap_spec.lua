@@ -15,10 +15,9 @@ describe('Neovim bootstrap', function()
     vim.g.dotfiles_minimal = original_minimal
   end)
 
-  it('accepts the agent editor command with whitespace-only argument splitting', function()
-    local env = require('plugins.claudecode').opts.env
-    assert.equals(env.EDITOR, env.VISUAL)
-    local args = vim.split(env.EDITOR, '%s+')
+  it('accepts the minimal-editor command with whitespace-only argument splitting', function()
+    -- Smoke-test the invocation syntax; scripts/agent-prompt-editor.test.ts checks the wrappers.
+    local args = vim.split('nvim --cmd let[g:dotfiles_minimal]=[v:true]', '%s+')
     assert.equals(3, #args)
     assert.equals('nvim', args[1])
     assert.equals('--cmd', args[2])

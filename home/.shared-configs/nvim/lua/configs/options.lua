@@ -44,6 +44,22 @@ vim.o.breakindent = true
 -- Save undo history
 vim.o.undofile = true
 
+-- Pick up agent edits when returning to an unmodified file. Keep local edits intact.
+vim.o.autoread = true
+vim.api.nvim_create_autocmd({ 'FocusGained', 'BufEnter' }, {
+  group = vim.api.nvim_create_augroup('dotfiles-checktime', { clear = true }),
+  callback = function(args)
+    if
+      vim.fn.mode() == 'n'
+      and vim.fn.getcmdwintype() == ''
+      and vim.bo[args.buf].buftype == ''
+      and not vim.bo[args.buf].modified
+    then
+      vim.cmd.checktime({ args = { tostring(args.buf) } })
+    end
+  end,
+})
+
 -- Prefer UTF-8, but still detect Japanese legacy encodings when needed.
 -- Keep cp932/sjis before latin1 so Japanese bytes are not misdetected as latin1.
 vim.opt.fileencodings = { 'ucs-bom', 'utf-8', 'cp932', 'sjis', 'default', 'latin1' }
