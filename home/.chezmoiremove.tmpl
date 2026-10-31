@@ -1,11 +1,15 @@
-# Retired Neovim agent integrations; conversations now run in Herdr.
+# Retired Neovim agent integrations.
 # Keep separate from the generated .chezmoiremove so fresh checkouts also migrate.
 {{ if eq .chezmoi.os "windows" -}}
+AppData/Local/nvim/doc/herdr-worktrees.md
 AppData/Local/nvim/lua/plugins/claudecode.lua
 AppData/Local/nvim/lua/plugins/codex.lua
+AppData/Local/nvim/lua/plugins/herdr-context.lua
 AppData/Local/nvim/lua/plugins/opencode.lua
 {{ else -}}
+.config/nvim/doc/herdr-worktrees.md
 .config/nvim/lua/plugins/claudecode.lua
 .config/nvim/lua/plugins/codex.lua
+.config/nvim/lua/plugins/herdr-context.lua
 .config/nvim/lua/plugins/opencode.lua
 {{ end -}}

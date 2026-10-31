@@ -1,18 +1,7 @@
 nerdfont: true
 mode: window
 
-# One editor per worktree. All agents run in the central Herdr window.
+# One Neovim editor per worktree.
 panes:
   - command: nvim
     focus: true
-
-# Register the checkout in Herdr without making editor creation depend on it.
-post_create:
-  - |
-      if ! herdr worktree open \
-        --cwd "$WM_PROJECT_ROOT" \
-        --path "$WM_WORKTREE_PATH" \
-        --label "$WM_HANDLE" --no-focus >/dev/null; then
-        printf '%s\n' \
-          'Warning: Herdr workspace was not opened. Start Herdr and open this checkout there.' >&2
-      fi

@@ -8,6 +8,5 @@ files:
     - node_modules
 
 panes:
-  # Agents live in the shared Herdr window, not in each editor window.
   - command: nvim
     focus: true
