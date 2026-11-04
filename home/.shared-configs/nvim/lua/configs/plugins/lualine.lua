@@ -34,10 +34,6 @@ require('lualine').setup({
       },
     },
     lualine_x = {
-      { -- https://github.com/AndreM222/copilot-lualine?tab=readme-ov-file#setup
-        'copilot',
-        show_colors = true,
-      },
       'encoding',
       {
         'fileformat',
