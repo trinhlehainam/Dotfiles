@@ -20,6 +20,6 @@
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false
   },
-  "include": ["scripts/**/*.ts", "home/dot_config/opencode/plugins/**/*.ts"],
+  "include": ["scripts/**/*.ts"],
   "exclude": ["node_modules", "home/dot_config/nvim", "home/AppData/Local/nvim"]
 }
