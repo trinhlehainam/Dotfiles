@@ -26,7 +26,7 @@ return {
       bottom = 8,
     }
 
-    -- Visual bell: brief cursor flash on BEL from agent notifications
+    -- Visual bell: brief cursor flash on BEL
     config.visual_bell = {
       fade_in_duration_ms = 75,
       fade_out_duration_ms = 150,
