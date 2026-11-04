@@ -1,5 +1,6 @@
 nerdfont: true
 mode: window
+window_placement: rightmost
 
 # One Neovim editor per worktree.
 panes:
