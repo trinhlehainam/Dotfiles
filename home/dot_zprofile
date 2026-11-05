@@ -1,0 +1,17 @@
+# Homebrew for login shells (Ghostty's default on macOS).
+# https://docs.brew.sh/Installation
+typeset -U path fpath
+# Prefer native Brew over an Intel install left behind by Migration Assistant.
+if [[ $CPUTYPE == (arm64|aarch64) && -x /opt/homebrew/bin/brew ]]; then
+  _dotfiles_brew=/opt/homebrew/bin/brew
+elif [[ -x /usr/local/bin/brew ]]; then
+  _dotfiles_brew=/usr/local/bin/brew
+else
+  _dotfiles_brew=${commands[brew]:-}
+fi
+if [[ -n $_dotfiles_brew ]]; then
+  eval "$(command "$_dotfiles_brew" shellenv)"
+  # shellenv can be empty when bin/sbin already lead PATH.
+  export HOMEBREW_PREFIX="$(command "$_dotfiles_brew" --prefix)"
+fi
+unset _dotfiles_brew

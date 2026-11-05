@@ -1,0 +1,187 @@
+# Native macOS port of .bashrc. See docs/mac-zsh.md.
+[[ -o interactive ]] || return
+
+# Also support independent non-login shells, not only Ghostty login shells.
+typeset -U path fpath
+if [[ -z ${HOMEBREW_PREFIX:-} ]] || (( ! $+commands[brew] )); then
+  [[ -r ${ZDOTDIR:-$HOME}/.zprofile ]] && source "${ZDOTDIR:-$HOME}/.zprofile"
+fi
+if [[ -d ${HOMEBREW_PREFIX:-}/share/zsh/site-functions ]]; then
+  fpath=("$HOMEBREW_PREFIX/share/zsh/site-functions" $fpath)
+fi
+
+# Standalone tool paths are optional; Brew installs already use Brew's PATH.
+[[ -r $HOME/.cargo/env ]] && source "$HOME/.cargo/env"
+[[ -r $HOME/.local/bin/env ]] && source "$HOME/.local/bin/env"
+FNM_PATH=${FNM_PATH:-${XDG_DATA_HOME:-$HOME/Library/Application Support}/fnm}
+export PNPM_HOME=${PNPM_HOME:-${XDG_DATA_HOME:-$HOME/Library}/pnpm}
+export BUN_INSTALL=${BUN_INSTALL:-$HOME/.bun}
+for _dotfiles_bin in "$FNM_PATH" "$PNPM_HOME" "$PNPM_HOME/bin" \
+  "$HOME/.local/bin" "$HOME/.config/herd-lite/bin" "$BUN_INSTALL/bin"; do
+  [[ -d $_dotfiles_bin ]] && path=("$_dotfiles_bin" $path)
+done
+unset _dotfiles_bin
+if [[ -d $HOME/.config/herd-lite/bin && :${PHP_INI_SCAN_DIR:-}: != *":$HOME/.config/herd-lite/bin:"* ]]; then
+  # The empty component retains PHP's compiled-in scan directory.
+  export PHP_INI_SCAN_DIR="$HOME/.config/herd-lite/bin:${PHP_INI_SCAN_DIR:-}"
+fi
+
+# Homebrew must precede compinit. Insecure completion paths are skipped.
+# https://docs.brew.sh/Shell-Completion
+autoload -Uz compinit add-zsh-hook
+compinit -i
+zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
+zstyle ':completion:*' completer _complete _approximate
+zstyle ':completion:*:approximate:*' max-errors 1
+setopt AUTO_LIST
+unsetopt LIST_AMBIGUOUS BASH_AUTO_LIST LIST_BEEP
+
+# History: separate zsh file; same sizes, exclusions and immediate append.
+HISTFILE=$HOME/.zsh_history
+HISTSIZE=10000
+SAVEHIST=50000
+setopt EXTENDED_HISTORY INC_APPEND_HISTORY HIST_IGNORE_ALL_DUPS HIST_IGNORE_SPACE HIST_VERIFY
+function _dotfiles_history_filter {
+  local line=${1%$'\n'}
+  [[ $line != (ls|ll|la|cd|pwd|exit|clear|history|bg|fg|?|??) ]]
+}
+add-zsh-hook zshaddhistory _dotfiles_history_filter
+function history { fc -l -t '%F %T' "${@:-1}"; }
+
+setopt AUTO_CD NO_CASE_GLOB INTERACTIVE_COMMENTS RM_STAR_SILENT
+unsetopt NOMATCH
+# ZLE's documented visible bell; rendering depends on the terminal.
+ZBEEP=$'\e[?5h\e[?5l'
+
+# Configure vi mode before fzf/Atuin so their search bindings survive.
+bindkey -v
+bindkey -M viins '^?' backward-delete-char
+bindkey -M viins '^H' backward-delete-char
+bindkey -M viins '^W' backward-kill-word
+bindkey -M viins '^U' backward-kill-line
+bindkey -M viins '^L' clear-screen
+bindkey -M vicmd '^L' clear-screen
+bindkey -M viins 'jk' vi-cmd-mode
+bindkey -M vicmd 'gl' end-of-line
+bindkey -M vicmd 'gh' beginning-of-line
+
+export LESS_TERMCAP_mb=$'\E[01;31m'
+export LESS_TERMCAP_md=$'\E[01;31m'
+export LESS_TERMCAP_me=$'\E[0m'
+export LESS_TERMCAP_se=$'\E[0m'
+export LESS_TERMCAP_so=$'\E[01;44;33m'
+export LESS_TERMCAP_ue=$'\E[0m'
+export LESS_TERMCAP_us=$'\E[01;32m'
+export CLICOLOR=1
+export LS_COLORS='no=00:fi=00:di=00;34:ln=01;36:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arj=01;31:*.taz=01;31:*.lzh=01;31:*.zip=01;31:*.z=01;31:*.Z=01;31:*.gz=01;31:*.bz2=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.jpg=01;35:*.jpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.avi=01;35:*.fli=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.ogg=01;35:*.mp3=01;35:*.wav=01;35:*.xml=00;31:'
+
+# Native completions and runtime initialization follow compinit.
+if (( $+commands[fnm] )); then
+  eval "$(fnm env --shell zsh)"
+  eval "$(fnm completions --shell zsh)"
+fi
+(( $+commands[uv] )) && eval "$(uv generate-shell-completion zsh)"
+(( $+commands[uvx] )) && eval "$(uvx --generate-shell-completion zsh)"
+(( $+commands[rbenv] )) && eval "$(rbenv init - --no-rehash zsh)"
+(( $+commands[delta] )) && export DELTA_FEATURES=+side-by-side
+
+if (( $+commands[nvim] )); then
+  export EDITOR=nvim
+  # Minimal Neovim only for agent prompt edits; preserve arguments and status.
+  function claude { VISUAL='nvim --cmd let[g:dotfiles_minimal]=[v:true]' EDITOR='nvim --cmd let[g:dotfiles_minimal]=[v:true]' command 'claude' "$@"; }
+  function codex { VISUAL='nvim --cmd let[g:dotfiles_minimal]=[v:true]' EDITOR='nvim --cmd let[g:dotfiles_minimal]=[v:true]' command 'codex' "$@"; }
+  function opencode { VISUAL='nvim --cmd let[g:dotfiles_minimal]=[v:true]' EDITOR='nvim --cmd let[g:dotfiles_minimal]=[v:true]' command 'opencode' "$@"; }
+fi
+
+if (( $+commands[fzf] )); then
+  if (( $+commands[fd] )); then
+    export FZF_DEFAULT_COMMAND='fd . --hidden --exclude .git'
+    export FZF_CTRL_T_COMMAND=$FZF_DEFAULT_COMMAND
+  fi
+  source <(fzf --zsh)
+fi
+(( $+commands[zoxide] )) && eval "$(zoxide init zsh)"
+# Atuin takes insert-mode Ctrl-R after fzf, matching the Bash order.
+(( $+commands[atuin] )) && eval "$(atuin init zsh)"
+
+if (( $+commands[yazi] )); then
+  # https://yazi-rs.github.io/docs/quick-start/#shell-wrapper
+  function y {
+    local tmp cwd yazi_exit_code
+    tmp=$(command 'mktemp' "${TMPDIR:-/tmp}/yazi-cwd.XXXXXX") || return
+    command 'yazi' "$@" --cwd-file="$tmp"
+    yazi_exit_code=$?
+    IFS= read -r -d '' cwd < "$tmp" || :
+    [[ -n $cwd && $cwd != "$PWD" && -d $cwd ]] && builtin cd -- "$cwd"
+    command 'rm' -f -- "$tmp"
+    return $yazi_exit_code
+  }
+fi
+
+[[ -r ${ZDOTDIR:-$HOME}/.zsh_aliases ]] && source "${ZDOTDIR:-$HOME}/.zsh_aliases"
+
+# macOS Notification Center equivalent of Bash's notify-send alias.
+if (( $+commands[osascript] )); then
+  function alert {
+    local exit_code=$? message=${history[$HISTCMD]}
+    message=${message%[;&|]*alert}
+    command 'osascript' - "$message" "$exit_code" <<'APPLESCRIPT'
+on run argv
+  set notificationTitle to "Command finished"
+  if item 2 of argv is not "0" then set notificationTitle to "Command failed"
+  display notification (item 1 of argv) with title notificationTitle
+end run
+APPLESCRIPT
+  }
+fi
+
+# Preserve WezTerm's tmux marker, including remote/nested shells.
+# https://wezterm.org/recipes/passing-data.html
+function __wezterm_set_user_var {
+  (( $+commands[base64] )) || return 0
+  local encoded
+  encoded=$(printf '%s' "$2" | command 'base64')
+  encoded=${encoded//$'\n'/}
+  if [[ -z ${TMUX:-} ]]; then
+    printf '\033]1337;SetUserVar=%s=%s\007' "$1" "$encoded"
+  else
+    printf '\033Ptmux;\033\033]1337;SetUserVar=%s=%s\007\033\\' "$1" "$encoded"
+  fi
+  return 0
+}
+function __wezterm_update_tmux {
+  __wezterm_set_user_var IS_TMUX "${TMUX:+true}"
+}
+__wezterm_update_tmux
+add-zsh-hook precmd __wezterm_update_tmux
+
+if [[ $TERM_PROGRAM != vscode ]] && (( $+commands[starship] )); then
+  eval "$(starship init zsh)"
+else
+  # Like Bash, set the title only with the built-in prompt.
+  # Ghostty manages its title through its own shell integration.
+  if [[ $TERM == (xterm*|rxvt*) && $TERM_PROGRAM != ghostty ]]; then
+    function _dotfiles_title {
+      print -Pn '\e]0;%n@%m: %~\a'
+      return 0
+    }
+    add-zsh-hook precmd _dotfiles_title
+  fi
+  # %1v reads psvar[1]; no PROMPT_SUBST or replacement of ZLE hooks needed.
+  psvar[1]='(ins)'
+  if [[ $TERM == (xterm-color|*-256color) ]]; then
+    PROMPT='%1v%F{green}%n@%m%f:%F{blue}%~%f%(!.#.$) '
+  else
+    PROMPT='%1v%n@%m:%~%(!.#.$) '
+  fi
+  function _dotfiles_vi_mode {
+    case $KEYMAP in
+      vicmd) psvar[1]='(cmd)' ;;
+      *) psvar[1]='(ins)' ;;
+    esac
+    zle reset-prompt
+  }
+  autoload -Uz add-zle-hook-widget
+  add-zle-hook-widget line-init _dotfiles_vi_mode
+  add-zle-hook-widget keymap-select _dotfiles_vi_mode
+fi
