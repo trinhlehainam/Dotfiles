@@ -1,0 +1,41 @@
+# Native zsh/macOS equivalents of .bash_aliases.
+if (( $+commands[nvim] )); then
+  alias v='nvim'
+  alias vim='nvim'
+  alias vi='nvim'
+fi
+
+if (( $+commands[eza] )); then
+  alias ls='eza --icons --group-directories-first'
+  alias ll='eza -alF --icons --group-directories-first --git'
+  alias la='eza -aF --icons --group-directories-first'
+  alias l='eza -F --icons'
+  alias lt='eza -alF --tree --level=2 --git --icons'
+  alias llt='eza -l --sort=time --icons --group-directories-first'
+  alias lls='eza -l --sort=size --icons --group-directories-first'
+else
+  # Apple's ls uses -G and has no directory-first sort option.
+  alias ls='ls -G'
+  alias ll='ls -alFhG'
+  alias la='ls -aFG'
+  alias l='ls -FG'
+fi
+
+alias cp='cp -iv'
+alias mv='mv -iv'
+alias rm='rm -Iv'  # One confirmation for recursive removal or more than 3 files.
+alias mkdir='mkdir -pv'
+
+if (( $+commands[bat] )); then
+  alias cat='bat --paging=never'
+  alias catp='bat'
+fi
+alias df='df -h'
+alias du='du -h'
+(( $+commands[free] )) && alias free='free -h'
+
+if (( $+commands[rg] )); then
+  alias grep='rg'
+else
+  alias grep='/usr/bin/grep --color=auto'
+fi

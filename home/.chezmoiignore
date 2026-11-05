@@ -2,6 +2,12 @@
 
 .shared-configs
 
+{{ if ne .chezmoi.os "darwin" }}
+.zprofile
+.zshrc
+.zsh_aliases
+{{ end }}
+
 {{ if ne .chezmoi.os "darwin"}}
 Library/Application Support/nushell
 {{ end }}
@@ -20,7 +26,6 @@ Documents/PowerShell
 .config/nvim
 .config/yazi
 .config/smug
-.zshrc
 .bashrc
 .bash_aliases
 {{ end }}
