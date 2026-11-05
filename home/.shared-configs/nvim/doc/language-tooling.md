@@ -45,7 +45,7 @@ PHP reindexing and asynchronous CodeLens diagnostics live in
 [filetypes.lua](../lua/configs/filetypes.lua) detects `dot_` path components as their
 deployed `.` names, then delegates to Neovim's built-in filetype detection. For example,
 `dot_tmux.conf` uses `tmux`, and `dot_bashrc` uses `sh` with Bash buffer settings.
-Extensions stay intact, so `.tmpl` files keep the existing `gotmpl` highlighting.
+Names ending in `.tmpl` skip decoding, so templates keep the existing `gotmpl` highlighting.
 The rule covers `dot_` names; other chezmoi attributes are not decoded.
 
 ## Updates

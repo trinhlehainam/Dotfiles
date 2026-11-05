@@ -61,6 +61,13 @@ describe('Chezmoi filetype detection', function()
     assert.equals('json', detect('home/dot_config/Vimium/vimium-options.json'))
   end)
 
+  it('keeps template detection before decoding dotfile names', function()
+    for _, name in ipairs({ 'dot_env.tmpl', 'dot_env.local.tmpl' }) do
+      assert.equals('gotmpl', detect(name))
+      assert.equals('gotmpl', vim.filetype.match({ filename = name }))
+    end
+  end)
+
   it('falls back to content for unknown dotfiles', function()
     assert.is_nil(detect('dot_unknown_filetype'))
     vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { '#!/usr/bin/env python3' })
