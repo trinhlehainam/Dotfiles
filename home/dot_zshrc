@@ -1,4 +1,4 @@
-# Native macOS port of .bashrc. See docs/mac-zsh.md for the mapping.
+# Native macOS port of .bashrc. See docs/mac-zsh.md.
 [[ -o interactive ]] || return
 
 # Also support independent non-login shells, not only Ghostty login shells.

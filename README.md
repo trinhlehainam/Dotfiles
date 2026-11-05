@@ -24,8 +24,8 @@ chezmoi apply
 Native zsh config mirrors the Bash settings and aliases, with Mac-compatible
 commands and guarded optional integrations. It uses macOS's bundled zsh.
 
-See [macOS zsh setup and Bash mapping](docs/mac-zsh.md) for targeted Chezmoi apply
-commands, behavior differences, and official sources.
+See [macOS zsh setup](docs/mac-zsh.md) for setup steps, shortcuts, and differences
+from Bash.
 
 ## How Config Wrappers Are Managed
 
