@@ -107,12 +107,14 @@ fi
 if (( $+commands[yazi] )); then
   # https://yazi-rs.github.io/docs/quick-start/#shell-wrapper
   function y {
-    local tmp cwd
+    local tmp cwd yazi_exit_code
     tmp=$(command 'mktemp' "${TMPDIR:-/tmp}/yazi-cwd.XXXXXX") || return
     command 'yazi' "$@" --cwd-file="$tmp"
+    yazi_exit_code=$?
     IFS= read -r -d '' cwd < "$tmp" || :
     [[ -n $cwd && $cwd != "$PWD" && -d $cwd ]] && builtin cd -- "$cwd"
     command 'rm' -f -- "$tmp"
+    return $yazi_exit_code
   }
 fi
 

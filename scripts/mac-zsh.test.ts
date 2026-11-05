@@ -6,6 +6,7 @@ import { join, resolve } from "node:path";
 const zsh = process.env.ZSH_TEST_BIN || Bun.which("zsh");
 const source = resolve(import.meta.dir, "../home");
 
+/** Builds an isolated HOME with Zsh dotfiles, a stub-tool PATH, and shell helpers. */
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), "mac zsh-"));
   const home = join(root, "home");
@@ -143,19 +144,25 @@ test.skipIf(!zsh)("agent wrappers preserve status, arguments, stdin, and parent 
   } finally { f.close(); }
 });
 
-test.skipIf(!zsh)("Yazi wrapper preserves directory names and bypasses interactive rm alias", () => {
+test.skipIf(!zsh)("Yazi wrapper preserves directories and exit status and bypasses rm alias", () => {
   const f = fixture();
   try {
-    f.command("yazi", 'for arg; do case "$arg" in --cwd-file=*) printf "%s" "$ZSH_TEST_CWD" > "${arg#--cwd-file=}" ;; esac; done');
+    f.command("yazi", 'for arg; do case "$arg" in --cwd-file=*) printf "%s" "$ZSH_TEST_CWD" > "${arg#--cwd-file=}" ;; esac; done; exit "${ZSH_TEST_YAZI_STATUS:-0}"');
     for (const name of ["space dir", "quote' and \\", "embedded\nnewline", "trailing\n"]) {
       const dir = join(f.home, name);
       mkdirSync(dir);
-      const result = f.run('y; [[ $PWD == $ZSH_TEST_CWD ]]', false, { ZSH_TEST_CWD: dir });
+      const result = f.run('y && [[ $PWD == $ZSH_TEST_CWD ]]', false, { ZSH_TEST_CWD: dir });
       expect(result.code).toBe(0);
       expect(readdirSync(f.env.TMPDIR!)).toEqual([]);
     }
-    const result = f.run('y; [[ $PWD == $HOME ]]', false, { ZSH_TEST_CWD: "" });
+    const result = f.run('y && [[ $PWD == $HOME ]]', false, { ZSH_TEST_CWD: "" });
     expect(result.code).toBe(0);
+    const dir = join(f.home, "failed exit");
+    mkdirSync(dir);
+    const failed = f.run('y && exit 99; rc=$?; [[ $PWD == $ZSH_TEST_CWD ]] || exit 98; exit $rc',
+      false, { ZSH_TEST_CWD: dir, ZSH_TEST_YAZI_STATUS: "3" });
+    expect(failed.code).toBe(3);
+    expect(readdirSync(f.env.TMPDIR!)).toEqual([]);
   } finally { f.close(); }
 });
 
