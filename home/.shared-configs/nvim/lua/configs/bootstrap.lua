@@ -5,6 +5,7 @@ function M.setup(opts)
   opts = opts or {}
 
   require('configs.options')
+  require('configs.filetypes')
   require('configs.keymaps')
 
   -- Opt in per editor invocation: nvim --cmd 'let[g:dotfiles_minimal]=[v:true]'.
