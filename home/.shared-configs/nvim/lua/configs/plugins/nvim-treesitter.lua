@@ -147,7 +147,12 @@ activate = function(buf)
       -- Context/indent plugins may have parsed this tree before its companions existed.
       assert(vim.treesitter.get_parser(buf, parser)):invalidate(true)
     end
-    vim.treesitter.start(buf, parser)
+    -- catch_up() revisits highlighted buffers. Before Neovim 0.12.5, start() on the
+    -- same tree stacked another highlighter's callbacks; a parser change must restart.
+    local active = vim.treesitter.highlighter.active[buf]
+    if not active or active.tree ~= vim.treesitter.get_parser(buf, parser) then
+      vim.treesitter.start(buf, parser)
+    end
   end
 end
 

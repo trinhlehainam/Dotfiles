@@ -1,7 +1,7 @@
 describe('first-install Tree-sitter injections', function()
   local modules =
     { 'configs.plugins.nvim-treesitter', 'configs.plugins.noice', 'configs.lsp', 'nvim-treesitter' }
-  local saved, original, buf, available, complete
+  local saved, original, buf, buffers, available, complete
   local function drain()
     vim.wait(20, function()
       return false
@@ -16,6 +16,7 @@ describe('first-install Tree-sitter injections', function()
     original = {
       runtime_file = vim.api.nvim_get_runtime_file,
       has_language = vim._ts_has_language,
+      start = vim.treesitter.start,
       buf = vim.api.nvim_get_current_buf(),
     }
     available, complete = false, nil
@@ -48,15 +49,19 @@ describe('first-install Tree-sitter injections', function()
       end,
     }
     buf = vim.api.nvim_create_buf(false, false)
+    buffers = { buf }
     vim.api.nvim_set_current_buf(buf)
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, { 'A **bold** word.' })
     require('configs.plugins.nvim-treesitter')
   end)
   after_each(function()
     collectgarbage('restart')
+    vim.treesitter.start = original.start
     pcall(vim.api.nvim_del_augroup_by_name, 'dotfiles-treesitter')
     vim.api.nvim_set_current_buf(original.buf)
-    vim.api.nvim_buf_delete(buf, { force = true })
+    for _, buffer in ipairs(buffers) do
+      vim.api.nvim_buf_delete(buffer, { force = true })
+    end
     vim.api.nvim_get_runtime_file, vim._ts_has_language =
       original.runtime_file, original.has_language
     for _, name in ipairs(modules) do
@@ -81,5 +86,45 @@ describe('first-install Tree-sitter injections', function()
     assert.is_not_nil(tree:children().markdown_inline)
     assert.is_not_nil(vim.treesitter.highlighter.active[buf])
     assert.equals(tick, vim.api.nvim_buf_get_changedtick(buf))
+  end)
+
+  it('reuses active highlighters after an install and still shows new injections', function()
+    collectgarbage('collect')
+    collectgarbage('stop')
+    local lua_buf = vim.api.nvim_create_buf(false, false)
+    buffers[#buffers + 1] = lua_buf
+    vim.bo[lua_buf].filetype = 'lua'
+    vim.bo[buf].filetype = 'markdown'
+    drain()
+    -- A built-in ftplugin may start the host highlighter before its companion installs.
+    vim.treesitter.start(buf, 'markdown')
+    local markdown = assert(vim.treesitter.highlighter.active[buf])
+    local lua = assert(vim.treesitter.highlighter.active[lua_buf])
+    markdown.tree:parse(true)
+    assert.is_nil(markdown.tree:children().markdown_inline)
+    local starts = {}
+    vim.treesitter.start = function(buffer, lang)
+      starts[#starts + 1] = buffer
+      return original.start(buffer, lang)
+    end
+    available = true
+    complete()
+    drain()
+    assert.same({}, starts)
+    assert.equals(markdown, vim.treesitter.highlighter.active[buf])
+    assert.equals(lua, vim.treesitter.highlighter.active[lua_buf])
+    markdown.tree:parse(true)
+    local inline = vim.iter(vim.treesitter.get_captures_at_pos(buf, 0, 4)):any(function(capture)
+      return capture.lang == 'markdown_inline'
+    end)
+    assert.is_true(inline)
+  end)
+
+  it('restarts highlighting when a filetype change selects another parser', function()
+    -- C/Vim ftplugins neither start nor stop Tree-sitter, unlike Lua's.
+    vim.bo[buf].filetype = 'c'
+    assert.equals('c', vim.treesitter.highlighter.active[buf].tree:lang())
+    vim.bo[buf].filetype = 'vim'
+    assert.equals('vim', vim.treesitter.highlighter.active[buf].tree:lang())
   end)
 end)

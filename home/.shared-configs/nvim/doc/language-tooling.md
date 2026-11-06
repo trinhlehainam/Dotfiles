@@ -128,8 +128,9 @@ and duplicate server/formatter owners.
   existing buffers and reuses clients.
 - [Tree-sitter installation](../lua/configs/plugins/nvim-treesitter.lua) uses
   nonblocking batches, refreshes runtime lookup, and reparses waiting buffers so
-  newly installed injections work. Catch-up skips closed buffers and uses each
-  buffer's current filetype; failed companions do not block the host grammar. The plugin stays
+  newly installed injections work. Catch-up skips closed buffers, uses each buffer's
+  current filetype, and reuses highlighters for the same parser. Failed companions
+  do not block the host grammar. The plugin stays
   `lazy = false`, as [upstream requires](https://github.com/nvim-treesitter/nvim-treesitter#installation).
 - [DAP installation](../lua/features/dap_install.lua) waits for executables before
   resolving adapters or starting a session. Callback adapters let neotest keep

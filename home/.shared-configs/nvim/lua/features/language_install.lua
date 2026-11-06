@@ -1,6 +1,7 @@
 local M = {}
 local configured = false
 
+---Register filetype-driven installs and catch up buffers already open.
 function M.setup()
   if configured then
     return
