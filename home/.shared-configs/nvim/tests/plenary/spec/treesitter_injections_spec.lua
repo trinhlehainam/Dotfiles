@@ -17,6 +17,7 @@ describe('first-install Tree-sitter injections', function()
       runtime_file = vim.api.nvim_get_runtime_file,
       has_language = vim._ts_has_language,
       start = vim.treesitter.start,
+      query_get = vim.treesitter.query.get,
       buf = vim.api.nvim_get_current_buf(),
     }
     available, complete = false, nil
@@ -57,6 +58,7 @@ describe('first-install Tree-sitter injections', function()
   after_each(function()
     collectgarbage('restart')
     vim.treesitter.start = original.start
+    vim.treesitter.query.get = original.query_get
     pcall(vim.api.nvim_del_augroup_by_name, 'dotfiles-treesitter')
     vim.api.nvim_set_current_buf(original.buf)
     for _, buffer in ipairs(buffers) do
@@ -127,4 +129,47 @@ describe('first-install Tree-sitter injections', function()
     vim.bo[buf].filetype = 'vim'
     assert.equals('vim', vim.treesitter.highlighter.active[buf].tree:lang())
   end)
+
+  it(
+    'skips invalid injection queries without blocking other buffers and recovers after repair',
+    function()
+      vim.treesitter.query.get = function(lang, name)
+        if name == 'injections' and (lang == 'c' or lang == 'markdown') then
+          -- An installed grammar can be incompatible with its query files.
+          return vim.treesitter.query.parse(lang, '(dotfiles_invalid_node) @injection.content')
+        end
+        return original.query_get(lang, name)
+      end
+      -- Catch-up visits an installed host, a waiting host, then a healthy buffer.
+      vim.cmd('noautocmd setlocal filetype=c')
+      local waiting = vim.api.nvim_create_buf(false, false)
+      local healthy = vim.api.nvim_create_buf(false, false)
+      buffers[#buffers + 1] = waiting
+      buffers[#buffers + 1] = healthy
+      vim.api.nvim_buf_call(waiting, function()
+        vim.cmd('noautocmd setlocal filetype=markdown')
+      end)
+      vim.api.nvim_buf_call(healthy, function()
+        vim.cmd('noautocmd setlocal filetype=vim')
+      end)
+      assert.is_true(vim.treesitter.language.add('c'))
+      assert.is_true(vim.treesitter.language.add('markdown'))
+      assert.is_nil(vim.treesitter.get_parser(buf, 'c'))
+      assert.is_nil(vim.treesitter.get_parser(waiting, 'markdown'))
+      vim.api.nvim_exec_autocmds('FileType', { buffer = waiting, group = 'dotfiles-treesitter' })
+      drain()
+      available = true
+      complete()
+      drain()
+      assert.is_nil(vim.treesitter.highlighter.active[buf])
+      assert.is_nil(vim.treesitter.highlighter.active[waiting])
+      assert.is_not_nil(vim.treesitter.highlighter.active[healthy])
+
+      vim.treesitter.query.get = original.query_get
+      for _, buffer in ipairs({ buf, waiting }) do
+        vim.api.nvim_exec_autocmds('FileType', { buffer = buffer, group = 'dotfiles-treesitter' })
+        assert.is_not_nil(vim.treesitter.highlighter.active[buffer])
+      end
+    end
+  )
 end)

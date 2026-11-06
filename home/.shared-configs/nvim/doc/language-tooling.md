@@ -130,7 +130,8 @@ and duplicate server/formatter owners.
   nonblocking batches, refreshes runtime lookup, and reparses waiting buffers so
   newly installed injections work. Catch-up skips closed buffers, uses each buffer's
   current filetype, and reuses highlighters for the same parser. Failed companions
-  do not block the host grammar. The plugin stays
+  do not block the host grammar. If a buffer's parser cannot be created (for example,
+  because of invalid injection queries), other buffers still activate. The plugin stays
   `lazy = false`, as [upstream requires](https://github.com/nvim-treesitter/nvim-treesitter#installation).
 - [DAP installation](../lua/features/dap_install.lua) waits for executables before
   resolving adapters or starting a session. Callback adapters let neotest keep
