@@ -29,7 +29,13 @@ return {
     'DapEval',
   },
   keys = {
-    { '<F5>', '<Cmd>DapContinue<CR>', desc = 'Debug: Start/Continue' },
+    {
+      '<F5>',
+      function()
+        require('features.dap_install').continue()
+      end,
+      desc = 'Debug: Start/Continue',
+    },
     { '<F10>', '<Cmd>DapStepOver<CR>', desc = 'Debug: Step Over' },
     { '<F11>', '<Cmd>DapStepInto<CR>', desc = 'Debug: Step Into' },
     { '<F12>', '<Cmd>DapStepOut<CR>', desc = 'Debug: Step Out' },

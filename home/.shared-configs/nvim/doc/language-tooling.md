@@ -19,9 +19,11 @@ runs in the background; the LSP attaches to the open buffer when ready.
 
 For configured languages, Tree-sitter installs the file's missing parser and common embedded grammars
 (for example, PHP with HTML, or Vue with JavaScript/TypeScript and CSS).
+Markdown also gets YAML/TOML front matter and HTML grammars.
 Embedded grammars add syntax highlighting only.
 Highlighting starts in the existing buffer after installation, without an edit.
 Arbitrary Markdown code fences do not trigger downloads.
+Reopen the file if a code fence or template needs a grammar installed later.
 
 **Startup exception:** Noice needs `vim`, `regex`, `lua`, `bash`, `markdown`,
 and `markdown_inline` for its UI. Only missing grammars install at startup; bundled
@@ -30,6 +32,8 @@ without triggering downloads.
 
 Go, Python, PHP, and Rust debug adapters install when a debug session needs them.
 Loading DAP or opening a file does not install these adapters.
+F5 reports first-use installation and ignores repeated presses until setup finishes.
+Direct DAP commands and API calls still request separate launches.
 
 ## Project checks
 
@@ -43,6 +47,8 @@ Biome and Tailwind install only in projects that use them:
 Checks search upward from the file's folder, stopping at the repository root
 (Git worktrees included) or your home folder. They read `package.json` dependencies,
 including dev, peer, and optional dependencies, without running project commands.
+Checks run when a file opens. After adding Biome or Tailwind, reopen already-open files.
+Razor files also request Tailwind when the project check passes.
 
 Tailwind also attaches only where this check passes. A Git repository, PostCSS
 config, Rails/Phoenix lockfile, or Django theme folder alone does not count.
@@ -55,7 +61,7 @@ Each native LSP starts once its own required packages are ready. A failed option
 formatter or linter does not block it. Automatic linting skips missing executables;
 formatting may temporarily fall back to the LSP.
 New installations can reactivate manually stopped LSPs or Tree-sitter highlighting
-in open buffers.
+in open buffers. Neovim also reapplies modelines when a new server is enabled.
 
 A failed tool or parser is not retried automatically in that session. Parser retry
 warnings are grouped per batch. Servers managed by Mason wait for its packages,
@@ -64,12 +70,17 @@ even if another copy of the server is on `PATH`.
 | Task | Command and behavior |
 | --- | --- |
 | Diagnose a tool | `:MasonLog`, `:checkhealth mason` |
-| Retry a tool | `:MasonInstall <package>`; LSP attachment resumes after success |
-| Retry a parser | Check `:TSLog`, run `:TSInstall <parser>`, then reopen the file |
+| Retry a tool | `:MasonInstall <package>`; a server that had not started attaches after success; otherwise reopen the file |
+| Retry a parser | Check `:TSLog`, run `:TSInstall <parser>` (`:TSInstall! <parser>` if query files are missing), then reopen the file |
 | Retry debugging | Run `:MasonInstall <package>` from the warning, then launch again |
 | Run linters manually | `:Lint`; reports all errors, including missing linters |
 | Install/update every configured tool | `:MasonToolsInstall` / `:MasonToolsUpdate`, including debug tools |
 | Update installed parsers | `:TSUpdate`; also runs when lazy.nvim updates nvim-treesitter |
+
+If another Neovim instance is installing the same tool, this one may report a
+failure; reopen the file after that installation finishes. A failed adapter install
+can leave a neotest debug run pending; neotest's stop action may not clear it.
+Install the adapter before retrying, and restart Neovim to clear the pending run.
 
 Bulk tool installation at startup is disabled, and Mason tools never update automatically.
 Install required runtimes yourself (for example Go, Node, PHP, Python, .NET,
@@ -79,6 +90,9 @@ and PowerShell); parser builds also need the
 There is no shared plugin lockfile. Keep your
 [lazy-lock.json](https://lazy.folke.io/usage/lockfile) for `:Lazy restore`.
 After Neovim or plugin updates, [run the tests](../tests/README.md) and check affected languages.
+Receipt paths, highlighter state, and missing-injection cache handling depend on
+upstream internals. The tests cover these workarounds; native Windows/macOS installs
+and competing Neovim processes have not been smoke-tested.
 
 ## Chezmoi filetypes
 
@@ -130,8 +144,8 @@ and duplicate server/formatter owners.
   nonblocking batches, refreshes runtime lookup, and reparses waiting buffers so
   newly installed injections work. Catch-up skips closed buffers, uses each buffer's
   current filetype, and reuses highlighters for the same parser. Failed companions
-  do not block the host grammar. If a buffer's parser cannot be created (for example,
-  because of invalid injection queries), other buffers still activate. The plugin stays
+  do not block the host grammar. Invalid injection or highlight queries in one buffer
+  do not prevent other buffers from activating. Highlight errors are reported. The plugin stays
   `lazy = false`, as [upstream requires](https://github.com/nvim-treesitter/nvim-treesitter#installation).
 - [DAP installation](../lua/features/dap_install.lua) waits for executables before
   resolving adapters or starting a session. Callback adapters let neotest keep

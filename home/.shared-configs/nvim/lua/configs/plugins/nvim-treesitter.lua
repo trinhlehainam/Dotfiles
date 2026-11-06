@@ -23,7 +23,7 @@ local companions = {
   tsx = { 'jsdoc', 'regex' },
   php = { 'html', 'javascript', 'css', 'phpdoc', 'jsdoc', 'regex' },
   vue = { 'javascript', 'typescript', 'tsx', 'css', 'scss', 'jsdoc', 'regex' },
-  markdown = { 'markdown_inline' },
+  markdown = { 'markdown_inline', 'yaml', 'toml', 'html' },
 }
 local enabled, available = {}, {}
 for _, parser in ipairs(parsers) do
@@ -49,7 +49,11 @@ local function catch_up()
     end
   end
   for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-    activate(buf)
+    -- A broken query in one buffer must not stop other buffers from activating.
+    local ok, err = pcall(activate, buf)
+    if not ok then
+      vim.notify(err, vim.log.levels.ERROR)
+    end
   end
 end
 

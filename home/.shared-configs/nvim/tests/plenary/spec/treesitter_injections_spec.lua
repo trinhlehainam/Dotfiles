@@ -1,7 +1,7 @@
 describe('first-install Tree-sitter injections', function()
   local modules =
     { 'configs.plugins.nvim-treesitter', 'configs.plugins.noice', 'configs.lsp', 'nvim-treesitter' }
-  local saved, original, buf, buffers, available, complete
+  local saved, original, buf, buffers, available, complete, query_dir, notifications
   local function drain()
     vim.wait(20, function()
       return false
@@ -17,10 +17,15 @@ describe('first-install Tree-sitter injections', function()
       runtime_file = vim.api.nvim_get_runtime_file,
       has_language = vim._ts_has_language,
       start = vim.treesitter.start,
-      query_get = vim.treesitter.query.get,
+      runtimepath = vim.o.runtimepath,
+      notify = vim.notify,
       buf = vim.api.nvim_get_current_buf(),
     }
     available, complete = false, nil
+    query_dir, notifications = vim.fn.tempname(), {}
+    vim.notify = function(message)
+      notifications[#notifications + 1] = message
+    end
     -- Use Neovim's bundled Markdown grammars; hide inline until the install callback.
     vim._ts_has_language = function(lang)
       if lang == 'markdown_inline' and not available then
@@ -58,7 +63,7 @@ describe('first-install Tree-sitter injections', function()
   after_each(function()
     collectgarbage('restart')
     vim.treesitter.start = original.start
-    vim.treesitter.query.get = original.query_get
+    vim.notify = original.notify
     pcall(vim.api.nvim_del_augroup_by_name, 'dotfiles-treesitter')
     vim.api.nvim_set_current_buf(original.buf)
     for _, buffer in ipairs(buffers) do
@@ -66,6 +71,9 @@ describe('first-install Tree-sitter injections', function()
     end
     vim.api.nvim_get_runtime_file, vim._ts_has_language =
       original.runtime_file, original.has_language
+    vim.fn.delete(query_dir, 'rf')
+    vim.o.runtimepath = original.runtimepath
+    vim.api.nvim_exec_autocmds('OptionSet', { pattern = 'runtimepath' })
     for _, name in ipairs(modules) do
       package.loaded[name] = saved[name]
     end
@@ -130,16 +138,17 @@ describe('first-install Tree-sitter injections', function()
     assert.equals('vim', vim.treesitter.highlighter.active[buf].tree:lang())
   end)
 
-  it(
-    'skips invalid injection queries without blocking other buffers and recovers after repair',
-    function()
-      vim.treesitter.query.get = function(lang, name)
-        if name == 'injections' and (lang == 'c' or lang == 'markdown') then
-          -- An installed grammar can be incompatible with its query files.
-          return vim.treesitter.query.parse(lang, '(dotfiles_invalid_node) @injection.content')
-        end
-        return original.query_get(lang, name)
+  for _, kind in ipairs({ 'injections', 'highlights' }) do
+    it('isolates invalid ' .. kind .. ' queries and recovers after repair', function()
+      -- Real query files also exercise runtimepath cache invalidation after installation.
+      for _, lang in ipairs({ 'c', 'markdown' }) do
+        local dir = query_dir .. '/queries/' .. lang
+        vim.fn.mkdir(dir, 'p')
+        vim.fn.writefile({ '(dotfiles_invalid_node) @variable' }, dir .. '/' .. kind .. '.scm')
       end
+      vim.opt.runtimepath:prepend(query_dir)
+      -- Plenary runs before VimEnter, when setting an option does not emit OptionSet.
+      vim.api.nvim_exec_autocmds('OptionSet', { pattern = 'runtimepath' })
       -- Catch-up visits an installed host, a waiting host, then a healthy buffer.
       vim.cmd('noautocmd setlocal filetype=c')
       local waiting = vim.api.nvim_create_buf(false, false)
@@ -154,8 +163,13 @@ describe('first-install Tree-sitter injections', function()
       end)
       assert.is_true(vim.treesitter.language.add('c'))
       assert.is_true(vim.treesitter.language.add('markdown'))
-      assert.is_nil(vim.treesitter.get_parser(buf, 'c'))
-      assert.is_nil(vim.treesitter.get_parser(waiting, 'markdown'))
+      if kind == 'injections' then
+        assert.is_nil(vim.treesitter.get_parser(buf, 'c'))
+        assert.is_nil(vim.treesitter.get_parser(waiting, 'markdown'))
+      else
+        assert.is_not_nil(vim.treesitter.get_parser(buf, 'c'))
+        assert.is_not_nil(vim.treesitter.get_parser(waiting, 'markdown'))
+      end
       vim.api.nvim_exec_autocmds('FileType', { buffer = waiting, group = 'dotfiles-treesitter' })
       drain()
       available = true
@@ -164,12 +178,20 @@ describe('first-install Tree-sitter injections', function()
       assert.is_nil(vim.treesitter.highlighter.active[buf])
       assert.is_nil(vim.treesitter.highlighter.active[waiting])
       assert.is_not_nil(vim.treesitter.highlighter.active[healthy])
+      if kind == 'highlights' then
+        assert.equals(2, #notifications)
+        for _, message in ipairs(notifications) do
+          assert.matches('Invalid node type', message, 1, true)
+        end
+      end
 
-      vim.treesitter.query.get = original.query_get
+      vim.fn.delete(query_dir, 'rf')
+      vim.o.runtimepath = original.runtimepath
+      vim.api.nvim_exec_autocmds('OptionSet', { pattern = 'runtimepath' })
       for _, buffer in ipairs({ buf, waiting }) do
         vim.api.nvim_exec_autocmds('FileType', { buffer = buffer, group = 'dotfiles-treesitter' })
         assert.is_not_nil(vim.treesitter.highlighter.active[buffer])
       end
-    end
-  )
+    end)
+  end
 end)

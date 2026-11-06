@@ -1,5 +1,5 @@
 describe('language installation', function()
-  local saved, registry, state, enabled, buffers, languages, current_buf
+  local saved, registry, state, enabled, buffers, languages, current_buf, roots
   local modules = {
     'mason-registry',
     'mason-core.installer.InstallLocation',
@@ -46,7 +46,7 @@ describe('language installation', function()
     registry, state = require('fake_mason').new()
     package.loaded['mason-registry'] = registry
     package.loaded['mason-core.installer.InstallLocation'] = state.location
-    enabled, buffers = {}, {}
+    enabled, buffers, roots = {}, {}, {}
     current_buf = vim.api.nvim_get_current_buf()
     original_enable, original_notify = vim.lsp.enable, vim.notify
     vim.lsp.enable = function(names)
@@ -81,6 +81,9 @@ describe('language installation', function()
       end
     end
     vim.api.nvim_set_current_buf(current_buf)
+    for _, root in ipairs(roots) do
+      vim.fn.delete(root, 'rf')
+    end
     vim.lsp.enable, vim.notify = original_enable, original_notify
     for _, name in ipairs(modules) do
       package.loaded[name] = saved[name]
@@ -302,6 +305,34 @@ describe('language installation', function()
       state.finish('roslyn', true)
       drain()
       assert.equals(1, enabled.roslyn)
+    end)
+  end
+
+  for _, uses_tailwind in ipairs({ true, false }) do
+    it('checks Tailwind project evidence for Razor files: ' .. tostring(uses_tailwind), function()
+      local root = vim.fn.tempname()
+      roots[#roots + 1] = root
+      vim.fn.mkdir(root .. '/.git', 'p')
+      if uses_tailwind then
+        vim.fn.writefile({ '{"devDependencies":{"tailwindcss":"^4"}}' }, root .. '/package.json')
+      end
+      languages =
+        { dofile(vim.g.project_settings_test_repo_root .. '/lua/configs/lsp/tailwindcss.lua') }
+      setup()
+      local buf = buffer('')
+      local name = root .. '/Example.razor'
+      vim.api.nvim_buf_set_name(buf, name)
+      vim.bo[buf].filetype = vim.filetype.match({ filename = name })
+      drain()
+      if uses_tailwind then
+        state.refresh()
+        drain()
+        table.sort(state.installs)
+        assert.same({ 'rustywind', 'tailwindcss-language-server' }, state.installs)
+      else
+        assert.same({}, state.refreshes)
+        assert.same({}, state.installs)
+      end
     end)
   end
 

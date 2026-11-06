@@ -77,6 +77,40 @@ describe('debug adapter installation', function()
     assert.equals('debugpy-adapter', result.command)
     assert.same({}, state.refreshes)
   end)
+  it('preserves every API callback when callers share an adapter installation', function()
+    local calls = 0
+    for _ = 1, 2 do
+      resolve(function()
+        calls = calls + 1
+      end, configs[1])
+    end
+    drain()
+    state.refresh()
+    drain()
+    assert.same({ 'debugpy' }, state.installs)
+    state.finish('debugpy', true)
+    drain()
+    assert.equals(2, calls)
+  end)
+
+  it('releases the F5 guard after an installation failure', function()
+    local calls = 0
+    dap.continue = function()
+      calls = calls + 1
+      resolve(function() end, configs[1])
+    end
+    local installer = require('features.dap_install')
+    installer.continue()
+    installer.continue()
+    assert.equals(1, calls)
+    drain()
+    state.refresh()
+    drain()
+    state.finish('debugpy', false)
+    drain()
+    installer.continue()
+    assert.equals(2, calls)
+  end)
   it('does not launch after failed installation and supports a manual retry', function()
     local original_notify = vim.notify
     vim.notify = function() end

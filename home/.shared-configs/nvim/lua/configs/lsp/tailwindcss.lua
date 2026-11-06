@@ -21,6 +21,7 @@ return {
     'postcss',
     'php',
     'blade',
+    'razor',
     'javascript',
     'javascriptreact',
     'typescript',

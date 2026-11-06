@@ -9,6 +9,7 @@ describe('on-demand Tree-sitter', function()
     'tsx',
     'c_sharp',
     'yaml',
+    'toml',
     'vue',
     'php',
     'html',
@@ -208,6 +209,17 @@ describe('on-demand Tree-sitter', function()
     )
     finish(1)
     assert.is_true(has_started(buf, 'vue'))
+  end)
+  it('installs Markdown front matter and HTML grammars without arbitrary code fences', function()
+    installed.markdown, installed.markdown_inline = true, true
+    setup()
+    local buf = open('markdown')
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { '```python', 'print(1)', '```' })
+    drain()
+    assert.same({ 'html', 'toml', 'yaml' }, batches[1].parsers)
+    finish(1)
+    assert.is_true(has_started(buf, 'markdown'))
+    assert.equals(1, #batches)
   end)
   it('queues new languages while a batch runs, avoiding overlapping dependency installs', function()
     setup()

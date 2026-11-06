@@ -1,4 +1,15 @@
 local M = {}
+local pending_launches = 0
+
+---Ignore repeated F5 presses while the first launch is preparing its adapter.
+---Keep adapter callbacks intact: neotest and other API callers may be waiting on them.
+function M.continue()
+  if pending_launches > 0 then
+    vim.notify('Debugger setup is pending; the requested launch will resume when ready.')
+    return
+  end
+  require('dap').continue()
+end
 
 ---Keep Mason's adapter definitions, but resolve them only after installation.
 ---@param adapters string[]
@@ -10,8 +21,17 @@ function M.setup(adapters)
   local configurations = require('mason-nvim-dap.mappings.configurations')
 
   local function register(name, package, get_adapter)
+    local requested = false
     dap.adapters[name] = function(callback, config)
+      if not requested and not installer.is_ready(package) then
+        vim.notify(
+          ('Installing %s for debugging; the launch will resume when ready.'):format(package)
+        )
+      end
+      requested = true
+      pending_launches = pending_launches + 1
       installer.ensure({ package }, function(success)
+        pending_launches = pending_launches - 1
         if not success then
           vim.notify(
             ('Debug adapter %s is unavailable. Retry :MasonInstall %s, then launch again.'):format(
