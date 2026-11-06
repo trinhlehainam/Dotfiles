@@ -13,6 +13,8 @@ vim.filetype.add({
 
 ---@type dotfiles.lsp.Language
 return {
+  filetypes = { 'sh', 'bash' },
+  server_tools = { bashls = { 'bash-language-server' } },
   parsers = { 'bash' },
   tools = { 'bash-language-server', 'shellharden', 'shellcheck' },
   servers = { bashls = {} },

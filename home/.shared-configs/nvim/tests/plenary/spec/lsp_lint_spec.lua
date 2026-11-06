@@ -6,11 +6,13 @@ describe('LSP registry lint policy', function()
   local bufnr
   local lint_runs
   local project_lint_on_save
+  local lint_options
 
   before_each(function()
     original_modules = {}
     lint_runs = {}
     project_lint_on_save = nil
+    lint_options = nil
     for _, name in ipairs(module_names) do
       original_modules[name] = package.loaded[name]
       package.loaded[name] = nil
@@ -32,7 +34,8 @@ describe('LSP registry lint policy', function()
       end,
     }
     package.loaded['lint'] = {
-      try_lint = function(linters)
+      try_lint = function(linters, options)
+        lint_options = options
         lint_runs[#lint_runs + 1] = {
           bufnr = vim.api.nvim_get_current_buf(),
           linters = vim.deepcopy(linters),
@@ -65,6 +68,7 @@ describe('LSP registry lint policy', function()
     vim.cmd.Lint()
 
     assert.same({ { bufnr = bufnr, linters = { 'phpstan' } } }, lint_runs)
+    assert.is_nil(lint_options)
   end)
 
   it('lets project policy enable save linting for the written buffer', function()
@@ -74,4 +78,20 @@ describe('LSP registry lint policy', function()
     assert.same({ { bufnr = bufnr, linters = { 'phpstan' } } }, lint_runs)
     assert.equals(original_buf, vim.api.nvim_get_current_buf())
   end)
+
+  it(
+    'skips missing executables on save without suppressing errors from available linters',
+    function()
+      project_lint_on_save = true
+      vim.api.nvim_exec_autocmds('BufWritePost', { group = 'nvim-lint', buffer = bufnr })
+      assert.is_nil(lint_options.ignore_errors)
+      assert.is_false(lint_options.filter({ cmd = 'dotfiles-test-missing-linter' }))
+      assert.is_true(lint_options.filter({ cmd = vim.v.progpath }))
+      assert.is_true(lint_options.filter({
+        cmd = function()
+          return vim.v.progpath
+        end,
+      }))
+    end
+  )
 end)

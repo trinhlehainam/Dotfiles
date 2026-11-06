@@ -14,6 +14,11 @@ end, {})
 
 ---@type dotfiles.lsp.Language
 return {
+  filetypes = { 'go', 'gomod', 'gowork' },
+  server_tools = {
+    gopls = { 'gopls' },
+    golangci_lint_ls = { 'golangci-lint-langserver', 'golangci-lint' },
+  },
   parsers = { 'go', 'gomod', 'gowork', 'gotmpl' },
   tools = {
     'gopls',
@@ -35,6 +40,7 @@ return {
   },
   formatters = { go = { 'gofumpt', 'goimports-reviser', 'golines' } },
   dap = { 'delve' },
+  debug_tools = { 'delve' },
   neotest = function()
     return require('neotest-golang')
   end,

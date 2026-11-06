@@ -5,10 +5,16 @@ describe('LSP server setup', function()
   local original_modules
   local base
   local enabled_configs
-  local module_names = { 'configs.plugins.nvim-lspconfig', 'configs.lsp' }
+  local module_names = {
+    'configs.plugins.nvim-lspconfig',
+    'configs.lsp',
+    'features.language_install',
+    'utils.mason_install',
+    'mason-registry',
+  }
 
   local function use_servers(servers)
-    package.loaded['configs.lsp'] = { servers = servers }
+    package.loaded['configs.lsp'] = { servers = servers, server_tools = {}, by_filetype = {} }
   end
 
   before_each(function()
@@ -38,10 +44,15 @@ describe('LSP server setup', function()
     vim.lsp.codelens.enable = function() end
     vim.diagnostic.config = function() end
     vim.keymap.set = function() end
+    package.loaded['mason-registry'] = require('fake_mason').new()
   end)
 
   after_each(function()
-    for _, name in ipairs({ 'kickstart-lsp-attach', 'kickstart-lsp-detach' }) do
+    for _, name in ipairs({
+      'kickstart-lsp-attach',
+      'kickstart-lsp-detach',
+      'dotfiles-language-install',
+    }) do
       pcall(vim.api.nvim_del_augroup_by_name, name)
     end
     vim.lsp.config._configs = original.configs

@@ -1,5 +1,7 @@
 ---@type dotfiles.lsp.Language
 return {
+  filetypes = { 'php', 'blade' },
+  server_tools = { intelephense = { 'intelephense' } },
   parsers = { 'php' },
   tools = { 'intelephense', 'blade-formatter', 'php-cs-fixer', 'phpstan', 'phpcs' },
   servers = {
@@ -21,6 +23,7 @@ return {
   linters = { php = { 'phpstan', 'phpcs' } },
   lint_on_save = false,
   dap = { 'php' },
+  debug_tools = { 'php-debug-adapter' },
   neotest = function()
     return require('neotest-phpunit')
   end,
