@@ -42,6 +42,9 @@ plugins are stored elsewhere:
 | Markdown Reader | `MARKDOWN_TABLE_WRAP_DIR` | `stdpath('data') . '/lazy/markdown-table-wrap.nvim'` |
 | codesettings | `CODESETTINGS_DIR` | `stdpath('data') . '/lazy/codesettings.nvim'` |
 | Conform | `CONFORM_DIR` | `stdpath('data') . '/lazy/conform.nvim'` |
+| nvim-lspconfig | `LSPCONFIG_DIR` | `stdpath('data') . '/lazy/nvim-lspconfig'` |
+| nvim-dap | `DAP_DIR` | `stdpath('data') . '/lazy/nvim-dap'` |
+| nvim-nio | `NIO_DIR` | `stdpath('data') . '/lazy/nvim-nio'` |
 | smart-splits v3 | `SMART_SPLITS_DIR` | `stdpath('data') . '/lazy/smart-splits.nvim'` |
 | tmux backend | `SMART_SPLITS_TMUX_DIR` | `stdpath('data') . '/lazy/backend-tmux'` |
 | WezTerm backend | `SMART_SPLITS_WEZTERM_DIR` | `stdpath('data') . '/lazy/backend-wezterm'` |
@@ -54,8 +57,27 @@ plugins are stored elsewhere:
 - [helpers/](plenary/helpers/) contains shared test helpers.
 
 Tests use real Neovim APIs, codesettings JSONC parsing, and Conform definitions.
-LSP and Tree-sitter tests simulate server startup and parser installation, so
-they do not need running language servers or parser downloads.
+LSP, Mason, and Tree-sitter tests simulate server startup and installs, so they
+need no network, running servers, or parser builds.
+
+Installation tests cover duplicate requests, partially linked packages, failures
+and retries, closed buffers, filetype aliases, plugin-owned servers, and debug
+launches. Project tests cover Biome monorepos and Windows home paths. A real
+Markdown tree checks that newly available injections work without editing text.
+The Rust debug regression uses real nvim-dap and nvim-nio scheduling; it simulates
+installation and adapter process launch. C# tests check `.cs`, `.razor`, and `.cshtml` detection.
+
+For a real download/build check, run `make test-tool-install`. It installs Pyright,
+Ruff, and the Python parser in temporary XDG directories, then removes them.
+It checks that startup and an unopened Node project install nothing (Noice's UI
+parsers are excluded), that the first Python buffer gets both servers and
+highlighting, and that repeated FileType events reuse the clients.
+Normal Mason/parser installations stay untouched.
+
+Requires Python 3, Node/npm, network access, a C compiler, the Tree-sitter CLI
+version nvim-treesitter requires, and local Mason, nvim-lspconfig, and
+nvim-treesitter checkouts. Set `NVIM_TEST_PLUGIN_DIR` if those checkouts are outside
+`$XDG_DATA_HOME/nvim/lazy` (default: `~/.local/share/nvim/lazy`).
 
 The [session restoration tests](../doc/session-restoration.md) use real session
 scripts and stale swap files. The Reader test starts an isolated Neovim with

@@ -1,5 +1,7 @@
 ---@type dotfiles.lsp.Language
 return {
+  filetypes = { 'python' },
+  server_tools = { pyright = { 'pyright' }, ruff = { 'ruff' } },
   parsers = { 'python' },
   tools = { 'pyright', 'ruff' },
   servers = {
@@ -26,6 +28,7 @@ return {
   },
   formatters = { python = { 'ruff_format', 'ruff_organize_imports' } },
   dap = { 'python' },
+  debug_tools = { 'debugpy' },
   neotest = function()
     return require('neotest-python')
   end,

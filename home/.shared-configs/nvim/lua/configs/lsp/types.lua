@@ -1,6 +1,11 @@
 ---@class dotfiles.lsp.Language
+---@field filetypes? string[] Exact filetypes that request this language's tools.
+---@field condition? fun(bufnr: integer): boolean Project gate, checked for each buffer.
+---@field server_tools? table<string, string[]> Required Mason tools per native server; omit system-owned servers.
+---@field on_ready? fun(bufnr: integer) Start a plugin-owned server after its tools are ready.
 ---@field parsers? string[] Tree-sitter parser names, not buffer filetypes.
 ---@field tools? string[] Mason packages; installing a tool does not enable a server.
+---@field debug_tools? string[] Included in explicit bulk installs, requested automatically only when debugging.
 ---@field servers? table<string, vim.lsp.Config>
 ---@field formatters? table<string, conform.FiletypeFormatter>
 ---@field linters? table<string, string[]>
@@ -9,6 +14,8 @@
 ---@field neotest? fun(): neotest.Adapter
 
 ---@class dotfiles.lsp.Registry
+---@field by_filetype table<string, dotfiles.lsp.Language[]>
+---@field server_tools table<string, string[]>
 ---@field parsers string[]
 ---@field tools string[]
 ---@field servers table<string, vim.lsp.Config>

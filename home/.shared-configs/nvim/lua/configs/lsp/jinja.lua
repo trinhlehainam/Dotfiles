@@ -8,6 +8,8 @@ vim.filetype.add({
 
 ---@type dotfiles.lsp.Language
 return {
+  filetypes = { 'jinja' },
+  server_tools = { jinja_lsp = { 'jinja-lsp' } },
   tools = { 'jinja-lsp' },
   servers = { jinja_lsp = {} },
 }

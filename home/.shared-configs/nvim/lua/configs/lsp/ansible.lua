@@ -14,6 +14,8 @@ vim.filetype.add({
 
 ---@type dotfiles.lsp.Language
 local M = {
+  filetypes = { 'yaml.ansible' },
+  server_tools = { ansiblels = { 'ansible-language-server' } },
   parsers = { 'yaml' },
   tools = { 'ansible-language-server' },
   servers = { ansiblels = {} },

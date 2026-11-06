@@ -99,7 +99,13 @@ local function auto_lint(bufnr)
   end
 
   vim.api.nvim_buf_call(bufnr, function()
-    lint.try_lint(ft_linters)
+    -- Skip missing executables during first-use installation; preserve other errors.
+    lint.try_lint(ft_linters, {
+      filter = function(linter)
+        local cmd = type(linter.cmd) == 'function' and linter.cmd() or linter.cmd
+        return vim.fn.executable(cmd) == 1
+      end,
+    })
   end)
 end
 

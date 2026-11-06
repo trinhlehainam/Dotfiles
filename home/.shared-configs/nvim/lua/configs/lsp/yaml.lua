@@ -1,5 +1,7 @@
 ---@type dotfiles.lsp.Language
 return {
+  filetypes = { 'yaml', 'yaml.gitlab' },
+  server_tools = { yamlls = { 'yaml-language-server' } },
   parsers = { 'yaml' },
   tools = { 'yaml-language-server' },
   servers = {

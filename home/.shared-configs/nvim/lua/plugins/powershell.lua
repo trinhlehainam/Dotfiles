@@ -1,6 +1,7 @@
 return {
   'TheLeoP/powershell.nvim',
-  ft = 'ps1',
+  -- Load through the language installer once the Editor Services bundle exists.
+  lazy = true,
   dependencies = { 'williamboman/mason.nvim' },
   config = function()
     require('powershell').setup({

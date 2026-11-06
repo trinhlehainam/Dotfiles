@@ -37,16 +37,7 @@ vim.fn.sign_define(
 )
 
 local adapters = require('configs.lsp').dap
-local mason_dap = require('mason-nvim-dap')
-mason_dap.setup({
-  ensure_installed = adapters,
+require('mason-nvim-dap').setup({
   automatic_installation = false,
-  handlers = {
-    function(config)
-      -- Mason calls this for every installed adapter. Rust and C# plugins own theirs.
-      if vim.tbl_contains(adapters, config.name) then
-        mason_dap.default_setup(config)
-      end
-    end,
-  },
 })
+require('features.dap_install').setup(adapters)
