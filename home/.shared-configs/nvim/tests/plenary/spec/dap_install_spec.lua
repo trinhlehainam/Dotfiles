@@ -111,6 +111,32 @@ describe('debug adapter installation', function()
     installer.continue()
     assert.equals(2, calls)
   end)
+  it('keeps F5 usable after a synchronous install request error', function()
+    resolve(function() end, configs[1])
+    drain()
+    local mason = require('utils.mason_install')
+    local ensure = mason.ensure
+    mason.ensure = function()
+      error('request failed synchronously')
+    end
+    local ok, err = pcall(resolve, function() end, configs[1])
+    mason.ensure = ensure
+    assert.is_false(ok)
+    assert.matches('request failed synchronously', err, 1, true)
+    local calls = 0
+    dap.continue = function()
+      calls = calls + 1
+    end
+    local installer = require('features.dap_install')
+    installer.continue()
+    assert.equals(0, calls) -- The original request is still waiting.
+    state.refresh()
+    drain()
+    state.finish('debugpy', true)
+    drain()
+    installer.continue()
+    assert.equals(1, calls)
+  end)
   it('does not launch after failed installation and supports a manual retry', function()
     local original_notify = vim.notify
     vim.notify = function() end

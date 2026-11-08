@@ -29,7 +29,6 @@ function M.setup(adapters)
         )
       end
       requested = true
-      pending_launches = pending_launches + 1
       installer.ensure({ package }, function(success)
         pending_launches = pending_launches - 1
         if not success then
@@ -49,6 +48,8 @@ function M.setup(adapters)
           callback(adapter)
         end
       end)
+      -- ensure() schedules its callback; count only requests that return successfully.
+      pending_launches = pending_launches + 1
     end
   end
 
