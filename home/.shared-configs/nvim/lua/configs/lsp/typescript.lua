@@ -13,8 +13,13 @@ local configuration = {
 
 ---@type dotfiles.lsp.Language
 return {
+  filetypes = { 'javascript', 'javascriptreact', 'typescript', 'typescriptreact', 'vue' },
+  server_tools = {
+    vtsls = { 'vtsls', 'vue-language-server' },
+    vue_ls = { 'vtsls', 'vue-language-server' },
+  },
   parsers = { 'javascript', 'tsx', 'typescript', 'html', 'css', 'vue' },
-  tools = { 'vue-language-server', 'vtsls', 'biome', 'prettierd', 'eslint_d', 'markuplint' },
+  tools = { 'vue-language-server', 'vtsls', 'prettierd', 'eslint_d', 'markuplint' },
   servers = {
     vue_ls = {},
     vtsls = {
@@ -39,17 +44,6 @@ return {
         -- INFO: https://github.com/yioneko/nvim-vtsls?tab=readme-ov-file#other-useful-snippets
         typescript = configuration,
         javascript = configuration,
-      },
-    },
-    biome = {
-      -- JSON uses jq; keep Biome diagnostics for JavaScript and TypeScript.
-      filetypes = {
-        'javascript',
-        'javascriptreact',
-        'jsonc',
-        'typescript',
-        'typescript.tsx',
-        'typescriptreact',
       },
     },
   },

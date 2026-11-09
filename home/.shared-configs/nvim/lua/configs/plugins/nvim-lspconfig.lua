@@ -108,7 +108,6 @@ end
 
 vim.lsp.config('*', { before_init = load_project_settings })
 
-local servers = {}
 for name, config in vim.spairs(require('configs.lsp').servers) do
   vim.lsp.config(name, config)
 
@@ -122,8 +121,7 @@ for name, config in vim.spairs(require('configs.lsp').servers) do
       end,
     })
   end
-  table.insert(servers, name)
 end
 
 -- Configure the entire registry before enabling clients for already-open buffers.
-vim.lsp.enable(servers)
+require('features.language_install').setup()

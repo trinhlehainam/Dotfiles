@@ -1,5 +1,7 @@
 ---@type dotfiles.lsp.Language
 return {
+  filetypes = { 'json', 'jsonc' },
+  server_tools = { jsonls = { 'json-lsp' } },
   parsers = { 'json' },
   tools = { 'json-lsp', 'jq' },
   servers = {

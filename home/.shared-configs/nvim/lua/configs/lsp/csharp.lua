@@ -1,8 +1,10 @@
 ---@type dotfiles.lsp.Language
 return {
+  filetypes = { 'cs', 'razor' },
+  server_tools = { roslyn = { 'roslyn' } },
   parsers = { 'c_sharp', 'sql', 'json', 'xml' },
-  -- easy-dotnet owns debugger setup; Mason only installs netcoredbg.
-  tools = { 'roslyn', 'csharpier', 'netcoredbg' },
+  -- easy-dotnet owns debugger provisioning and setup.
+  tools = { 'roslyn', 'csharpier' },
   servers = {
     roslyn = {
       settings = {

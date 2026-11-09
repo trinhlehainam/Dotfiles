@@ -14,6 +14,8 @@ local obsidian_lsp_capabilities = {
 
 ---@type dotfiles.lsp.Language
 return {
+  filetypes = { 'markdown' },
+  server_tools = { markdown_oxide = { 'markdown-oxide' } },
   parsers = { 'markdown', 'markdown_inline' },
   tools = { 'markdown-oxide' },
   servers = {

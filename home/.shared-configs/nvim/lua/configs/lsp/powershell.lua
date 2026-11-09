@@ -10,4 +10,8 @@ end
 
 -- powershell.nvim owns server startup.
 M.tools = { 'powershell-editor-services' }
+M.filetypes = { 'ps1' }
+M.on_ready = function(bufnr)
+  require('powershell').initialize_or_attach(bufnr)
+end
 return M

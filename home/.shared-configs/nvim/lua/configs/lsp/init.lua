@@ -4,6 +4,7 @@ local languages = {
   'ansible',
   'awk',
   'bash',
+  'biome',
   'csharp',
   'css',
   'docker-compose',
@@ -26,6 +27,8 @@ local languages = {
 
 ---@type dotfiles.lsp.Registry
 local M = {
+  by_filetype = {},
+  server_tools = {},
   parsers = {},
   tools = {},
   servers = {},
@@ -39,8 +42,24 @@ local neotest_factories = {}
 for _, name in ipairs(languages) do
   ---@type dotfiles.lsp.Language
   local language = require('configs.lsp.' .. name)
+  assert(
+    not next(language.tools or {}) or next(language.filetypes or {}),
+    'Missing install filetypes: ' .. name
+  )
+  for _, filetype in ipairs(language.filetypes or {}) do
+    M.by_filetype[filetype] = M.by_filetype[filetype] or {}
+    table.insert(M.by_filetype[filetype], language)
+  end
+  for server, tools in pairs(language.server_tools or {}) do
+    assert(language.servers and language.servers[server], 'Unknown server owner: ' .. server)
+    M.server_tools[server] = tools
+    for _, tool in ipairs(tools) do
+      assert(vim.tbl_contains(language.tools or {}, tool), 'Missing server tool: ' .. tool)
+    end
+  end
   M.parsers = merge_unique(M.parsers, language.parsers)
   M.tools = merge_unique(M.tools, language.tools)
+  M.tools = merge_unique(M.tools, language.debug_tools)
   M.dap = merge_unique(M.dap, language.dap)
 
   -- Each server and formatter chain must have one owner.

@@ -1,5 +1,6 @@
 describe('LSP buffer features', function()
-  local module_names = { 'configs.plugins.nvim-lspconfig', 'configs.lsp', 'codesettings' }
+  local module_names =
+    { 'configs.plugins.nvim-lspconfig', 'configs.lsp', 'codesettings', 'features.language_install' }
   local group_names = { 'kickstart-lsp-attach' }
   local original_modules
   local original
@@ -71,6 +72,7 @@ describe('LSP buffer features', function()
     end
 
     package.loaded['configs.lsp'] = { servers = {} }
+    package.loaded['features.language_install'] = { setup = function() end }
     package.loaded['codesettings'] = {
       loader = function()
         return {

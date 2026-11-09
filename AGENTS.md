@@ -22,9 +22,10 @@ stylua <path>
 
 - Add module: `home/.shared-configs/nvim/lua/configs/lsp/<lang>.lua`
 - Return a plain table annotated `---@type dotfiles.lsp.Language`:
-  - `parsers`: Tree-sitter parser names; `tools`: Mason package names
+  - `filetypes`: exact install triggers; `tools`: Mason packages needed for editing
+  - `server_tools`: required Mason packages per native server; `parsers`: Tree-sitter allowlist
   - `servers`: server name → native `vim.lsp.Config`
-  - Optional: `formatters`, `linters`, `lint_on_save`, `dap`, `neotest`
+  - Optional: `condition`, `on_ready`, `debug_tools`, `formatters`, `linters`, `lint_on_save`, `dap`, `neotest`
 - Register the module in the ordered list in `lua/configs/lsp/init.lua`.
 - Use `dap` only for mason-nvim-dap-managed adapters; see [language tooling](home/.shared-configs/nvim/doc/language-tooling.md) for plugin ownership.
 

@@ -1,5 +1,7 @@
 require('mason-tool-installer').setup({
   ensure_installed = require('configs.lsp').tools,
+  -- Keep explicit bulk install/update commands; normal editing installs on demand.
+  run_on_start = false,
   -- The registry already uses Mason package names; no adapter translation is needed.
   integrations = {
     ['mason-lspconfig'] = false,
